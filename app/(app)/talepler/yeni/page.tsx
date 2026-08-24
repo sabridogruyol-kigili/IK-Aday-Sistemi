@@ -16,6 +16,14 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const { data: personelListesi } = await supabase
     .from("personel").select("id, ad_soyad, guncel_unvan").eq("durum", "aktif").order("ad_soyad");
 
+  // Rotasyon: bölge sınırlaması olmadan TÜM mağaza ve personeli görmesi gerekiyor
+  const { data: tumMagazalar } = tur === "rotasyon"
+    ? await supabase.rpc("tum_magazalar_listesi")
+    : { data: [] };
+  const { data: tumPersonel } = tur === "rotasyon"
+    ? await supabase.rpc("tum_aktif_personel_listesi")
+    : { data: [] };
+
   const sekmeler = [
     { key: "ise_alim", label: "İşe Alım" },
     { key: "cikarma", label: "İşten Çıkarma" },
@@ -38,7 +46,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
       </div>
       {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} />}
       {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi ?? []} />}
-      {tur === "rotasyon" && <RotasyonForm personelListesi={personelListesi ?? []} magazalar={magazalar ?? []} />}
+      {tur === "rotasyon" && <RotasyonForm personelListesi={tumPersonel ?? []} magazalar={tumMagazalar ?? []} />}
     </div>
   );
 }
