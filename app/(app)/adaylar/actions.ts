@@ -71,21 +71,31 @@ export async function ilerletDurum(formData: FormData) {
 
 export async function getAdaylarByTalep(talepId: string) {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const { data: adaylar, error } = await supabase
     .from("adaylar")
-    .select(`
-      id, ad_soyad, dogum_tarihi, cinsiyet, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id, onay_bm, onay_ik,
-      aday_surec_gecmisi ( durum, created_at )
-    `)
+    .select("id, ad_soyad, dogum_tarihi, cinsiyet, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id, onay_bm, onay_ik")
     .eq("talep_id", talepId)
     .order("created_at", { ascending: false });
 
-  const zenginlestirilmis = (data ?? []).map((a: any) => {
-    const onayKaydi = (a.aday_surec_gecmisi ?? []).find((g: any) => g.durum === "ONAYLANDI");
-    return { ...a, onay_tarihi: onayKaydi?.created_at ?? null };
+  if (error || !adaylar) {
+    return { data: [], error: error?.message };
+  }
+
+  const adayIdleri = adaylar.map((a) => a.id);
+  const { data: gecmis } = await supabase
+    .from("aday_surec_gecmisi")
+    .select("aday_id, durum, created_at")
+    .in("aday_id", adayIdleri)
+    .eq("durum", "ONAYLANDI");
+
+  const onayTarihiMap: Record<string, string> = {};
+  (gecmis ?? []).forEach((g) => {
+    if (!onayTarihiMap[g.aday_id]) onayTarihiMap[g.aday_id] = g.created_at;
   });
 
-  return { data: zenginlestirilmis, error: error?.message };
+  const zenginlestirilmis = adaylar.map((a) => ({ ...a, onay_tarihi: onayTarihiMap[a.id] ?? null }));
+
+  return { data: zenginlestirilmis, error: undefined };
 }
 
 export async function deleteAday(formData: FormData) {
