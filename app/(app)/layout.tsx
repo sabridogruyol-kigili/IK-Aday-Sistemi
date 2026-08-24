@@ -11,6 +11,7 @@ const navItems = [
   { href: "/personel", label: "Personel Listesi", icon: "◒" },
   { href: "/raporlar", label: "Raporlar", icon: "▤" },
   { href: "/bildirimler", label: "Bildirimler", icon: "🔔" },
+  { href: "/kullanicilar", label: "Kullanıcı Yönetimi", icon: "👤" },
 ];
 
 export default async function AppLayout({
@@ -22,11 +23,9 @@ export default async function AppLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) {
     redirect("/login");
   }
-
   const { data: profile } = await supabase
     .from("kullanicilar")
     .select("ad_soyad, rol")
@@ -35,6 +34,11 @@ export default async function AppLayout({
 
   const displayName = profile?.ad_soyad ?? user.email ?? "Kullanıcı";
   const initials = displayName.slice(0, 2).toUpperCase();
+
+  // Kullanıcı Yönetimi sadece Yönetim rolüne görünür
+  const visibleNavItems = navItems.filter(
+    (item) => item.href !== "/kullanicilar" || profile?.rol === "YONETIM"
+  );
 
   return (
     <div className="flex h-screen">
@@ -46,9 +50,8 @@ export default async function AppLayout({
           <div className="text-white text-sm font-semibold">Qualis Portal</div>
           <div className="text-white/40 text-[11px] mt-0.5">Norm Kadro</div>
         </div>
-
         <nav className="py-2 flex-1 overflow-y-auto">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -59,7 +62,6 @@ export default async function AppLayout({
             </Link>
           ))}
         </nav>
-
         <div className="px-4 py-3 border-t border-white/10 flex items-center gap-2.5">
           <div className="w-[30px] h-[30px] rounded-full bg-accent flex items-center justify-center text-[11px] font-bold text-navy-3 shrink-0">
             {initials}
@@ -70,7 +72,6 @@ export default async function AppLayout({
           </div>
         </div>
       </aside>
-
       <main className="flex-1 overflow-y-auto bg-[#f5f5f3]">
         <div className="p-5">{children}</div>
       </main>
