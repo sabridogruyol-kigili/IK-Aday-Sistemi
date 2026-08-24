@@ -74,6 +74,7 @@ export default async function TaleplerPage() {
               <th className="text-left px-3 py-2">Gönderim</th>
               <th className="text-left px-3 py-2">Durum</th>
               <th className="text-left px-3 py-2">Tarih</th>
+              <th className="text-left px-3 py-2">Detay</th>
             </tr>
           </thead>
           <tbody>
@@ -91,7 +92,7 @@ export default async function TaleplerPage() {
               />
             ))}
             {(talepler ?? []).length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-6 text-center text-gray-400 text-xs">Görüntülenebilir talep yok.</td></tr>
+              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-400 text-xs">Görüntülenebilir talep yok.</td></tr>
             )}
           </tbody>
         </table>
