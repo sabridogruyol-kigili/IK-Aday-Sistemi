@@ -51,10 +51,10 @@ type Aday = {
 };
 
 export default function TalepRow({
-  talep, redGerekce, benimKullaniciId, benimRolum, baslangicAdaySayisi, acanAdi, acanRol, benimAcimMi,
+  talep, redGerekce, benimKullaniciId, benimRolum, baslangicAdaySayisi, acanAdi, acanRol, benimAcimMi, gorunumEtiket,
 }: {
   talep: Talep; redGerekce?: string; benimKullaniciId: string; benimRolum: string; baslangicAdaySayisi: number;
-  acanAdi?: string; acanRol?: string; benimAcimMi: boolean;
+  acanAdi?: string; acanRol?: string; benimAcimMi: boolean; gorunumEtiket?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [adayAcik, setAdayAcik] = useState(false);
@@ -63,6 +63,7 @@ export default function TalepRow({
   const [cvModalAday, setCvModalAday] = useState<{ id: string; cv: string | null } | null>(null);
   const [ekleModalAcik, setEkleModalAcik] = useState(false);
   const [iseAlAdayId, setIseAlAdayId] = useState<string | null>(null);
+  const [iseAlHata, setIseAlHata] = useState<string | null>(null);
 
   function adaylariYukle() {
     startTransition(async () => {
@@ -79,17 +80,48 @@ export default function TalepRow({
 
   function sil(adayId: string) {
     const fd = new FormData(); fd.set("aday_id", adayId);
-    startTransition(async () => { await deleteAday(fd); adaylariYukle(); });
+    startTransition(async () => {
+      const res = await deleteAday(fd);
+      if (res?.error) { alert(res.error); return; }
+      adaylariYukle();
+    });
   }
+
   function karar(adayId: string, k: "ONAY" | "RED", aciklama?: string) {
     const fd = new FormData(); fd.set("aday_id", adayId); fd.set("karar", k); fd.set("aciklama", aciklama ?? "");
-    startTransition(async () => { await kararVerAday(fd); adaylariYukle(); });
+    startTransition(async () => {
+      const res = await kararVerAday(fd);
+      if (res?.error) { alert(res.error); return; }
+      adaylariYukle();
+    });
   }
-  function ilerlet(adayId: string, yeniDurum: string, tcKimlik?: string, baslangicTarihi?: string) {
+
+  function ilerlet(adayId: string, yeniDurum: string) {
     const fd = new FormData(); fd.set("aday_id", adayId); fd.set("yeni_durum", yeniDurum);
-    if (tcKimlik) fd.set("tc_kimlik_no", tcKimlik);
-    if (baslangicTarihi) fd.set("baslangic_tarihi", baslangicTarihi);
-    startTransition(async () => { await ilerletDurum(fd); adaylariYukle(); });
+    startTransition(async () => {
+      const res = await ilerletDurum(fd);
+      if (res?.error) { alert(res.error); return; }
+      adaylariYukle();
+    });
+  }
+
+  function iseAlOnayla(tc: string, baslangic: string) {
+    if (!iseAlAdayId) return;
+    setIseAlHata(null);
+    const fd = new FormData();
+    fd.set("aday_id", iseAlAdayId);
+    fd.set("yeni_durum", "ISE_ALINDI");
+    fd.set("tc_kimlik_no", tc);
+    fd.set("baslangic_tarihi", baslangic);
+    startTransition(async () => {
+      const res = await ilerletDurum(fd);
+      if (res?.error) {
+        setIseAlHata(res.error);
+        return;
+      }
+      setIseAlAdayId(null);
+      adaylariYukle();
+    });
   }
 
   const gosterAdayButonu = talep.talep_turu === "ISE_ALIM" && talep.durum === "KABUL_EDILDI";
@@ -105,7 +137,7 @@ export default function TalepRow({
         <td className="px-3 py-2.5 text-gray-600">{talep.kisi_sayisi ?? "—"}</td>
         <td className="px-3 py-2.5 text-gray-600">{talep.aktif_gonderim_no}/3</td>
         <td className="px-3 py-2.5">
-          <div className={`font-medium ${DURUM_RENK[talep.durum] ?? ""}`}>{talep.durum}</div>
+          <div className={`font-medium ${DURUM_RENK[talep.durum] ?? ""}`}>{gorunumEtiket ?? talep.durum}</div>
           {talep.durum === "DURAKLADI" && redGerekce && (
             <div className="text-[11px] text-gray-500 mt-0.5 max-w-[220px]">{redGerekce}</div>
           )}
@@ -261,7 +293,7 @@ export default function TalepRow({
                                 </>
                               )}
                               {a.durum === "GORUSULDU_OLUMLU" && (
-                                <button onClick={() => setIseAlAdayId(a.id)} disabled={pending}
+                                <button onClick={() => { setIseAlHata(null); setIseAlAdayId(a.id); }} disabled={pending}
                                   className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">İşe Al</button>
                               )}
                               {benSilebilirim && (
@@ -303,11 +335,9 @@ export default function TalepRow({
       {iseAlAdayId && (
         <IseAlModal
           pending={pending}
-          onClose={() => setIseAlAdayId(null)}
-          onConfirm={(tc, baslangic) => {
-            ilerlet(iseAlAdayId, "ISE_ALINDI", tc, baslangic);
-            setIseAlAdayId(null);
-          }}
+          hata={iseAlHata}
+          onClose={() => { setIseAlAdayId(null); setIseAlHata(null); }}
+          onConfirm={iseAlOnayla}
         />
       )}
     </>
