@@ -132,18 +132,20 @@ export default function TalepRow({
           {talep.durum === "DURAKLADI" && talep.aktif_gonderim_no >= 3 && benimAcimMi && (
             <div className="text-[11px] text-gray-400 mt-0.5">3 deneme doldu, yeni talep açın</div>
           )}
+        </td>
+        <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{new Date(talep.created_at).toLocaleDateString("tr-TR")}</td>
+        <td className="px-3 py-2.5">
           {gosterAdayButonu && (
-            <button onClick={toggleAday} className="text-xs text-info font-medium hover:underline mt-1 block">
+            <button onClick={toggleAday} className="text-xs text-info font-medium hover:underline whitespace-nowrap">
               Adaylar ({adaySayisi}) {adayAcik ? "▲" : "▼"}
             </button>
           )}
         </td>
-        <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{new Date(talep.created_at).toLocaleDateString("tr-TR")}</td>
       </tr>
 
       {adayAcik && (
         <tr className="bg-gray-50/70 border-t border-gray-100">
-          <td colSpan={9} className="px-3 py-4">
+          <td colSpan={10} className="px-3 py-4">
             <div className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
 
               <div className="p-3 border-b border-gray-100 flex flex-wrap items-end gap-2 bg-gray-50/50">
@@ -186,10 +188,10 @@ export default function TalepRow({
                   <tbody>
                     {adaylar.map((a) => {
                       const benKararVerebilirim = a.durum === "YONLENDIRILDI" && (
-                          benimRolum === a.karari_veren_rol
-                          || benimRolum === "YONETIM"
-                          || (a.karari_veren_rol === "BM_VEYA_IK" && ["BM", "IK"].includes(benimRolum))
-                        );
+                        benimRolum === a.karari_veren_rol
+                        || benimRolum === "YONETIM"
+                        || (a.karari_veren_rol === "BM_VEYA_IK" && ["BM", "IK"].includes(benimRolum))
+                      );
                       const benSilebilirim = a.durum === "YONLENDIRILDI" && (a.yonlendiren_kullanici_id === benimKullaniciId || benimRolum === "YONETIM");
                       return (
                         <tr key={a.id} className="border-t border-gray-100">
