@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TalepRow from "./TalepRow";
 
-export default async function TaleplerimPage() {
+export default async function TaleplerPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -11,10 +11,10 @@ export default async function TaleplerimPage() {
     .from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) return null;
 
+  // RLS zaten kapsamı belirliyor: Yönetim hepsini, BM/İK sorumlu bölgesindekileri görür.
   const { data: talepler, error: talepHata } = await supabase
     .from("talepler")
-    .select("id, talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, magazalar!magaza_id(magaza_adi)")
-    .eq("acan_kullanici_id", me.id)
+    .select("id, talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, acan_kullanici_id, magazalar!magaza_id(magaza_adi), acan:kullanicilar!acan_kullanici_id(ad_soyad, rol)")
     .order("created_at", { ascending: false });
 
   if (talepHata) {
@@ -58,8 +58,8 @@ export default async function TaleplerimPage() {
   return (
     <div>
       <div className="mb-4">
-        <div className="text-lg font-semibold text-navy-3">Taleplerim</div>
-        <div className="text-xs text-gray-400 mt-0.5">Açtığınız talepler ve durumları</div>
+        <div className="text-lg font-semibold text-navy-3">Talepler</div>
+        <div className="text-xs text-gray-400 mt-0.5">Yetkiniz dahilindeki tüm talepler</div>
       </div>
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         <table className="w-full text-sm">
@@ -68,6 +68,7 @@ export default async function TaleplerimPage() {
               <th className="text-left px-3 py-2">Talep No</th>
               <th className="text-left px-3 py-2">Tür</th>
               <th className="text-left px-3 py-2">Mağaza</th>
+              <th className="text-left px-3 py-2">Açan</th>
               <th className="text-left px-3 py-2">Pozisyon</th>
               <th className="text-left px-3 py-2">Kişi</th>
               <th className="text-left px-3 py-2">Gönderim</th>
@@ -84,10 +85,13 @@ export default async function TaleplerimPage() {
                 benimKullaniciId={me.id}
                 benimRolum={me.rol}
                 baslangicAdaySayisi={adaySayilari[t.id] ?? 0}
+                acanAdi={t.acan?.ad_soyad}
+                acanRol={t.acan?.rol}
+                benimAcimMi={t.acan_kullanici_id === me.id}
               />
             ))}
             {(talepler ?? []).length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-6 text-center text-gray-400 text-xs">Henüz talep açmadınız.</td></tr>
+              <tr><td colSpan={9} className="px-3 py-6 text-center text-gray-400 text-xs">Görüntülenebilir talep yok.</td></tr>
             )}
           </tbody>
         </table>
