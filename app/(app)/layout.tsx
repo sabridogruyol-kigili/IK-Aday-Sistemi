@@ -12,7 +12,7 @@ const navItems = [
   { href: "/adaylar", label: "Adaylar", icon: "👤" },
   { href: "/raporlar", label: "Raporlar", icon: "▤" },
   { href: "/bildirimler", label: "Bildirimler", icon: "🔔" },
-  { href: "/kullanicilar", label: "Kullanıcı Yönetimi", icon: "👤" },
+  { href: "/ayarlar/kullanicilar", label: "Ayarlar", icon: "⚙" },
 ];
 
 export default async function AppLayout({
@@ -37,7 +37,7 @@ export default async function AppLayout({
   const initials = displayName.slice(0, 2).toUpperCase();
 
   const visibleNavItems = navItems.filter(
-    (item) => item.href !== "/kullanicilar" || profile?.rol === "YONETIM"
+    (item) => item.href !== "/ayarlar/kullanicilar" || profile?.rol === "YONETIM"
   );
 
   return (
