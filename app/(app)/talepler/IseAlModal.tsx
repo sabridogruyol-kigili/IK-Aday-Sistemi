@@ -2,25 +2,27 @@
 
 import { useState } from "react";
 
-export default function IseAlModal({ onClose, onConfirm, pending }: {
-  onClose: () => void; onConfirm: (tc: string, baslangic: string) => void; pending: boolean;
+export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
+  onClose: () => void; onConfirm: (tc: string, baslangic: string) => void; pending: boolean; hata?: string | null;
 }) {
   const [tc, setTc] = useState("");
   const [baslangic, setBaslangic] = useState(() => new Date().toISOString().slice(0, 10));
-  const [hata, setHata] = useState<string | null>(null);
+  const [yerelHata, setYerelHata] = useState<string | null>(null);
 
   function gonder() {
     if (!/^\d{11}$/.test(tc)) {
-      setHata("TC Kimlik No 11 haneli olmalı.");
+      setYerelHata("TC Kimlik No 11 haneli olmalı.");
       return;
     }
     if (!baslangic) {
-      setHata("Başlangıç tarihi zorunlu.");
+      setYerelHata("Başlangıç tarihi zorunlu.");
       return;
     }
-    setHata(null);
+    setYerelHata(null);
     onConfirm(tc, baslangic);
   }
+
+  const gosterilecekHata = yerelHata ?? hata;
 
   return (
     <div className="fixed inset-0 bg-navy-3/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -52,7 +54,9 @@ export default function IseAlModal({ onClose, onConfirm, pending }: {
             />
           </div>
 
-          {hata && <div className="text-[11px] text-danger">{hata}</div>}
+          {gosterilecekHata && (
+            <div className="text-[11px] text-danger bg-danger-bg rounded-md px-2 py-1.5">{gosterilecekHata}</div>
+          )}
 
           <button onClick={gonder} disabled={pending}
             className="w-full bg-success text-white rounded-md py-2 text-sm font-medium disabled:opacity-50">
