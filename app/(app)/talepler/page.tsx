@@ -20,47 +20,55 @@ export default async function TaleplerPage() {
     return <div className="text-xs text-danger">Hata: {talepHata.message}</div>;
   }
 
+  const talepIdleri = (talepler ?? []).map((t: any) => t.id);
   const duraklamislar = (talepler ?? []).filter((t: any) => t.durum === "DURAKLADI");
-  const redGerekceleri: Record<string, string> = {};
-  for (const t of duraklamislar) {
-    const { data: gonderim } = await supabase
-      .from("talep_gonderimler")
-      .select("id")
-      .eq("talep_id", t.id)
-      .eq("gonderim_no", t.aktif_gonderim_no)
-      .single();
-    if (gonderim) {
-      const { data: redOnay } = await supabase
-        .from("talep_onaylari")
-        .select("aciklama, onaylayici_rol_baglami")
-        .eq("gonderim_id", gonderim.id)
-        .eq("karar", "RED")
-        .limit(1)
-        .single();
-      if (redOnay) {
-        redGerekceleri[t.id] = `${redOnay.onaylayici_rol_baglami}: ${redOnay.aciklama}`;
-      }
-    }
-  }
+  const isealimKabulIdleri = (talepler ?? [])
+    .filter((t: any) => t.talep_turu === "ISE_ALIM" && t.durum === "KABUL_EDILDI")
+    .map((t: any) => t.id);
 
+  // 3 paralel sorgu (döngü yok)
+  const [gonderimlerRes, adaylarRes] = await Promise.all([
+    duraklamislar.length > 0
+      ? supabase.from("talep_gonderimler").select("id, talep_id, gonderim_no").in("talep_id", duraklamislar.map((t: any) => t.id))
+      : Promise.resolve({ data: [] as any[] }),
+    isealimKabulIdleri.length > 0
+      ? supabase.from("adaylar").select("talep_id, durum").in("talep_id", isealimKabulIdleri)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  // Duraklamış taleplerin aktif gönderimine ait id'leri bul
+  const aktifGonderimIdMap: Record<string, string> = {};
+  (gonderimlerRes.data ?? []).forEach((g: any) => {
+    const talep = duraklamislar.find((t: any) => t.id === g.talep_id);
+    if (talep && g.gonderim_no === talep.aktif_gonderim_no) {
+      aktifGonderimIdMap[talep.id] = g.id;
+    }
+  });
+
+  const gonderimIdleri = Object.values(aktifGonderimIdMap);
+  const { data: redOnaylar } = gonderimIdleri.length > 0
+    ? await supabase
+        .from("talep_onaylari")
+        .select("gonderim_id, aciklama, onaylayici_rol_baglami")
+        .in("gonderim_id", gonderimIdleri)
+        .eq("karar", "RED")
+    : { data: [] as any[] };
+
+  const redGerekceleri: Record<string, string> = {};
+  Object.entries(aktifGonderimIdMap).forEach(([talepId, gonderimId]) => {
+    const red = (redOnaylar ?? []).find((r: any) => r.gonderim_id === gonderimId);
+    if (red) redGerekceleri[talepId] = `${red.onaylayici_rol_baglami}: ${red.aciklama}`;
+  });
+
+  // Aday sayıları ve işe alınan sayıları JS'te grupla
   const adaySayilari: Record<string, number> = {};
   const iseAlinanSayilari: Record<string, number> = {};
-  for (const t of talepler ?? []) {
-    if (t.talep_turu === "ISE_ALIM" && t.durum === "KABUL_EDILDI") {
-      const { count: toplam } = await supabase
-        .from("adaylar")
-        .select("*", { count: "exact", head: true })
-        .eq("talep_id", t.id);
-      adaySayilari[t.id] = toplam ?? 0;
-
-      const { count: iseAlinan } = await supabase
-        .from("adaylar")
-        .select("*", { count: "exact", head: true })
-        .eq("talep_id", t.id)
-        .eq("durum", "ISE_ALINDI");
-      iseAlinanSayilari[t.id] = iseAlinan ?? 0;
+  (adaylarRes.data ?? []).forEach((a: any) => {
+    adaySayilari[a.talep_id] = (adaySayilari[a.talep_id] ?? 0) + 1;
+    if (a.durum === "ISE_ALINDI") {
+      iseAlinanSayilari[a.talep_id] = (iseAlinanSayilari[a.talep_id] ?? 0) + 1;
     }
-  }
+  });
 
   const zenginlestirilmis = (talepler ?? []).map((t: any) => {
     let kategori: "AKTIF" | "PASIF" = "AKTIF";
@@ -78,7 +86,6 @@ export default async function TaleplerPage() {
         }
       }
     } else {
-      // ISTEN_CIKARMA, ROTASYON
       if (t.durum === "KABUL_EDILDI") kategori = "PASIF";
     }
 
