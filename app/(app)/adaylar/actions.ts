@@ -78,7 +78,7 @@ export async function getAdaylarByTalep(talepId: string) {
   const supabase = createClient();
   const { data: adaylar, error } = await supabase
     .from("adaylar")
-    .select("id, ad_soyad, dogum_tarihi, cinsiyet, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id, onay_bm, onay_ik")
+    .select("id, ad_soyad, dogum_tarihi, cinsiyet, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id, onay_bm, onay_ik, tc_kimlik_no, ise_baslama_tarihi")
     .eq("talep_id", talepId)
     .order("created_at", { ascending: false });
 
