@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "QHR — Norm Kadro Yönetimi",
+  title: "İK Aday ve Süreç Takip Sistemi",
   description: "Mağaza norm kadro, personel ve talep yönetim sistemi",
 };
 
