@@ -12,7 +12,7 @@ export default async function TaleplerimPage() {
 
   const { data: talepler } = await supabase
     .from("talepler")
-    .select("id, talep_no, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, magazalar(magaza_adi)")
+    .select("id, talep_no, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, magazalar!magaza_id(magaza_adi)")
     .eq("acan_kullanici_id", me.id)
     .order("created_at", { ascending: false });
 
