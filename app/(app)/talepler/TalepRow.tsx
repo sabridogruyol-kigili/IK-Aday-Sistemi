@@ -136,8 +136,22 @@ export default function TalepRow({
         <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{new Date(talep.created_at).toLocaleDateString("tr-TR")}</td>
         <td className="px-3 py-2.5">
           {gosterAdayButonu && (
-            <button onClick={toggleAday} className="text-xs text-info font-medium hover:underline whitespace-nowrap">
-              Adaylar ({adaySayisi}) {adayAcik ? "▲" : "▼"}
+            <button
+              onClick={toggleAday}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                adayAcik
+                  ? "bg-navy text-white border-navy"
+                  : "bg-white text-navy border-navy/20 hover:border-navy hover:bg-navy/5"
+              }`}
+            >
+              <span className="text-[13px] leading-none">👤</span>
+              <span>Adaylar</span>
+              <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold ${
+                adayAcik ? "bg-white text-navy" : "bg-accent text-navy-3"
+              }`}>
+                {adaySayisi}
+              </span>
+              <span className={`text-[9px] transition-transform ${adayAcik ? "rotate-180" : ""}`}>▼</span>
             </button>
           )}
         </td>
