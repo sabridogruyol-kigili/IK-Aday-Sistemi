@@ -67,6 +67,7 @@ export async function ilerletDurum(formData: FormData) {
     p_yeni_durum: String(formData.get("yeni_durum")),
     p_not: String(formData.get("not") ?? "").trim() || null,
     p_tc_kimlik_no: String(formData.get("tc_kimlik_no") ?? "").trim() || null,
+    p_baslangic_tarihi: String(formData.get("baslangic_tarihi") ?? "").trim() || null,
   });
   revalidatePath("/talepler");
   revalidatePath("/adaylar");
