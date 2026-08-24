@@ -62,10 +62,19 @@ export async function getAdaylarByTalep(talepId: string) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("adaylar")
-    .select("id, ad_soyad, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id")
+    .select(`
+      id, ad_soyad, dogum_tarihi, cinsiyet, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id,
+      aday_surec_gecmisi ( durum, created_at )
+    `)
     .eq("talep_id", talepId)
     .order("created_at", { ascending: false });
-  return { data: data ?? [], error: error?.message };
+
+  const zenginlestirilmis = (data ?? []).map((a: any) => {
+    const onayKaydi = (a.aday_surec_gecmisi ?? []).find((g: any) => g.durum === "ONAYLANDI");
+    return { ...a, onay_tarihi: onayKaydi?.created_at ?? null };
+  });
+
+  return { data: zenginlestirilmis, error: error?.message };
 }
 
 export async function deleteAday(formData: FormData) {
