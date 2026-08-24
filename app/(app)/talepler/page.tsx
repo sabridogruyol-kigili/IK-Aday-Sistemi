@@ -13,13 +13,9 @@ export default async function TaleplerimPage() {
 
   const { data: talepler, error: talepHata } = await supabase
     .from("talepler")
-    .select("id, talep_no, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, magazalar!magaza_id(magaza_adi)")
+    .select("id, talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, magazalar!magaza_id(magaza_adi)")
     .eq("acan_kullanici_id", me.id)
     .order("created_at", { ascending: false });
-
-  if (talepHata) {
-    return <div className="text-xs text-danger">Hata: {talepHata.message}</div>;
-  }
 
   // Duraklamış talepler için son gönderimin red gerekçesini çek
   const duraklamislar = (talepler ?? []).filter((t: any) => t.durum === "DURAKLADI");
