@@ -54,7 +54,7 @@ export default function TalepRow({
   talep: Talep; redGerekce?: string; benimKullaniciId: string; benimRolum: string; baslangicAdaySayisi: number;
   acanAdi?: string; acanRol?: string; benimAcimMi: boolean;
 }) {
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
   const [adayAcik, setAdayAcik] = useState(false);
   const [adaylar, setAdaylar] = useState<Aday[]>([]);
   const [adaySayisi, setAdaySayisi] = useState(baslangicAdaySayisi);
@@ -219,26 +219,31 @@ export default function TalepRow({
                             <div className="flex flex-wrap gap-1.5">
                               {benKararVerebilirim && (
                                 <>
-                                  <button onClick={() => karar(a.id, "ONAY")} className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium">Onayla</button>
-                                  <button onClick={() => { const ac = prompt("Red gerekçesi:"); if (ac) karar(a.id, "RED", ac); }}
-                                    className="bg-danger-bg text-danger border border-danger/30 rounded-md px-2 py-1 text-[10px] font-medium">Reddet</button>
+                                  <button onClick={() => karar(a.id, "ONAY")} disabled={pending}
+                                    className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Onayla</button>
+                                  <button onClick={() => { const ac = prompt("Red gerekçesi:"); if (ac) karar(a.id, "RED", ac); }} disabled={pending}
+                                    className="bg-danger-bg text-danger border border-danger/30 rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Reddet</button>
                                 </>
                               )}
                               {a.durum === "ONAYLANDI" && (
-                                <button onClick={() => ilerlet(a.id, "ON_GORUSME_PLANLANDI")} className="bg-info text-white rounded-md px-2 py-1 text-[10px] font-medium">Ön Görüşme</button>
+                                <button onClick={() => ilerlet(a.id, "ON_GORUSME_PLANLANDI")} disabled={pending}
+                                  className="bg-info text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Ön Görüşme</button>
                               )}
                               {a.durum === "ON_GORUSME_PLANLANDI" && (
                                 <>
-                                  <button onClick={() => ilerlet(a.id, "GORUSULDU_OLUMLU")} className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium">Olumlu</button>
-                                  <button onClick={() => ilerlet(a.id, "GORUSULDU_OLUMSUZ")} className="bg-danger text-white rounded-md px-2 py-1 text-[10px] font-medium">Olumsuz</button>
+                                  <button onClick={() => ilerlet(a.id, "GORUSULDU_OLUMLU")} disabled={pending}
+                                    className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Olumlu</button>
+                                  <button onClick={() => ilerlet(a.id, "GORUSULDU_OLUMSUZ")} disabled={pending}
+                                    className="bg-danger text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Olumsuz</button>
                                 </>
                               )}
                               {a.durum === "GORUSULDU_OLUMLU" && (
-                                <button onClick={() => { const tc = prompt("TC Kimlik No:"); if (tc) ilerlet(a.id, "ISE_ALINDI", tc); }}
-                                  className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium">İşe Al</button>
+                                <button onClick={() => { const tc = prompt("TC Kimlik No:"); if (tc) ilerlet(a.id, "ISE_ALINDI", tc); }} disabled={pending}
+                                  className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">İşe Al</button>
                               )}
                               {benSilebilirim && (
-                                <button onClick={() => sil(a.id)} className="bg-gray-100 text-gray-500 rounded-md px-2 py-1 text-[10px] font-medium">Sil</button>
+                                <button onClick={() => sil(a.id)} disabled={pending}
+                                  className="bg-gray-100 text-gray-500 rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Sil</button>
                               )}
                             </div>
                           </td>
