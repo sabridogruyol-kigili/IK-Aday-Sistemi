@@ -1,19 +1,73 @@
-// TODO: Supabase'ten gerçek veriler çekilecek (norm/dolu oranı, açık talepler, turnover)
-// TODO: Rol bazlı veri kapsaması (BM: kendi bölgesi, İK: sorumlu bölge, Yönetim: tümü)
+import { createClient } from "@/lib/supabase/server";
 
-const kpis = [
-  { label: "Toplam Talep", value: "—" },
-  { label: "Bekleyen Talep", value: "—" },
-  { label: "Onaylanan Talep", value: "—" },
-  { label: "Norm Doluluk Oranı", value: "—" },
-];
+export default async function DashboardPage() {
+  const supabase = createClient();
 
-export default function DashboardPage() {
+  // RLS otomatik olarak kullanıcının rolüne göre satırları daraltıyor —
+  // burada ekstra rol filtresi yazmaya gerek yok.
+  const [
+    { count: toplamTalep },
+    { count: bekleyenTalep },
+    { count: onaylananTalep },
+    { data: magazalar },
+    { data: personelList },
+  ] = await Promise.all([
+    supabase.from("talepler").select("*", { count: "exact", head: true }),
+    supabase
+      .from("talepler")
+      .select("*", { count: "exact", head: true })
+      .eq("durum", "BEKLEMEDE"),
+    supabase
+      .from("talepler")
+      .select("*", { count: "exact", head: true })
+      .eq("durum", "KABUL_EDILDI"),
+    supabase
+      .from("magazalar")
+      .select("id, magaza_kodu, magaza_adi, aktif, norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
+      .eq("aktif", true),
+    supabase.from("personel").select("id, guncel_magaza_id").eq("durum", "aktif"),
+  ]);
+
+  // Mağaza başına aktif personel sayısı
+  const personelSayacMagaza: Record<string, number> = {};
+  (personelList ?? []).forEach((p) => {
+    if (p.guncel_magaza_id) {
+      personelSayacMagaza[p.guncel_magaza_id] =
+        (personelSayacMagaza[p.guncel_magaza_id] ?? 0) + 1;
+    }
+  });
+
+  // Mağaza bazlı norm/doluluk hesabı
+  const magazaDetay = (magazalar ?? []).map((m) => {
+    const normRow = Array.isArray(m.norm) ? m.norm[0] : m.norm;
+    const toplamNorm =
+      (normRow?.ana_kadro_norm ?? 0) +
+      (normRow?.donemsel_norm ?? 0) +
+      (normRow?.part_time_norm ?? 0);
+    const doluSayi = personelSayacMagaza[m.id] ?? 0;
+    const oran = toplamNorm > 0 ? Math.round((doluSayi / toplamNorm) * 100) : 0;
+    return { ...m, toplamNorm, doluSayi, oran };
+  });
+
+  const toplamNormGenel = magazaDetay.reduce((s, m) => s + m.toplamNorm, 0);
+  const toplamDoluGenel = magazaDetay.reduce((s, m) => s + m.doluSayi, 0);
+  const normDolulukOraniGenel =
+    toplamNormGenel > 0 ? Math.round((toplamDoluGenel / toplamNormGenel) * 100) : 0;
+
+  const kpis = [
+    { label: "Toplam Talep", value: String(toplamTalep ?? 0) },
+    { label: "Bekleyen Talep", value: String(bekleyenTalep ?? 0) },
+    { label: "Onaylanan Talep", value: String(onaylananTalep ?? 0) },
+    { label: "Norm Doluluk Oranı", value: `%${normDolulukOraniGenel}` },
+  ];
+
   return (
     <div>
       <div className="mb-4">
         <div className="text-lg font-semibold text-navy-3">Norm Kadro Dashboard</div>
-        <div className="text-xs text-gray-400 mt-0.5">Rol bazlı özet — veri bağlantısı yapılacak</div>
+        <div className="text-xs text-gray-400 mt-0.5">
+          Rol bazlı özet — RLS ile otomatik daraltılmış veri
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3 mb-5">
@@ -29,7 +83,28 @@ export default function DashboardPage() {
 
       <div className="bg-white border border-gray-200 rounded-card p-4">
         <div className="text-sm font-semibold text-navy-3 mb-3">Mağaza Detay Grafiği</div>
-        <div className="text-xs text-gray-400">Bölge/mağaza kırılımlı norm-doluluk grafiği burada görünecek.</div>
+        {magazaDetay.length === 0 ? (
+          <div className="text-xs text-gray-400">Görüntülenebilir mağaza bulunamadı.</div>
+        ) : (
+          <div className="space-y-2">
+            {magazaDetay.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 text-xs">
+                <span className="w-32 flex-shrink-0 text-gray-600 text-right truncate">
+                  {m.magaza_adi}
+                </span>
+                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-navy rounded-full"
+                    style={{ width: `${Math.min(m.oran, 100)}%` }}
+                  />
+                </div>
+                <span className="w-20 text-gray-400 font-mono flex-shrink-0">
+                  {m.doluSayi}/{m.toplamNorm} (%{m.oran})
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
