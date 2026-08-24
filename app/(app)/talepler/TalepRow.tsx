@@ -201,11 +201,12 @@ export default function TalepRow({
                   </thead>
                   <tbody>
                     {adaylar.map((a) => {
-                      const benKararVerebilirim = a.durum === "YONLENDIRILDI" && (
-                        benimRolum === a.karari_veren_rol
-                        || benimRolum === "YONETIM"
-                        || (a.karari_veren_rol === "BM_VEYA_IK" && ["BM", "IK"].includes(benimRolum))
-                      );
+                      const benKararVerebilirim = a.durum === "YONLENDIRILDI"
+                        && a.yonlendiren_kullanici_id !== benimKullaniciId
+                        && (
+                          benimRolum === a.karari_veren_rol
+                          || (a.karari_veren_rol === "BM_VEYA_IK" && ["BM", "IK"].includes(benimRolum))
+                        );
                       const benSilebilirim = a.durum === "YONLENDIRILDI" && (a.yonlendiren_kullanici_id === benimKullaniciId || benimRolum === "YONETIM");
                       return (
                         <tr key={a.id} className="border-t border-gray-100">
@@ -236,6 +237,11 @@ export default function TalepRow({
                                 {ADAY_DURUM_ETIKET[a.durum]}
                               </span>
                               <AdayStepper durum={a.durum} />
+                              {a.durum === "YONLENDIRILDI" && (
+                                <div className="text-[10px] text-gray-400 mt-1">
+                                  Onay bekliyor: {a.karari_veren_rol === "BM_VEYA_IK" ? "BM veya İK" : a.karari_veren_rol}
+                                </div>
+                              )}
                             </div>
                           </td>
                           <td className="px-3 py-2 text-gray-400 font-mono text-[10px]">
