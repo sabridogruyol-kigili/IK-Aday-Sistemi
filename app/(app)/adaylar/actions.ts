@@ -9,7 +9,7 @@ export async function yonlendirAday(formData: FormData) {
   if (!user) return { error: "Giriş yapmalısınız." };
 
   const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
-  if (!me || !["BM", "IK"].includes(me.rol)) return { error: "Sadece BM veya İK aday yönlendirebilir." };
+  if (!me || !["BM", "IK", "YONETIM"].includes(me.rol)) return { error: "Aday yönlendirme yetkiniz yok." };
 
   const talepId = String(formData.get("talep_id"));
   const adSoyad = String(formData.get("ad_soyad") ?? "").trim();
@@ -17,7 +17,7 @@ export async function yonlendirAday(formData: FormData) {
   const cinsiyet = String(formData.get("cinsiyet") ?? "").trim();
   if (!adSoyad) return { error: "Aday adı zorunlu." };
 
-  const karariVerenRol = me.rol === "BM" ? "IK" : "BM";
+  const karariVerenRol = me.rol === "YONETIM" ? "BM_VEYA_IK" : (me.rol === "BM" ? "IK" : "BM");
 
   const { error } = await supabase.from("adaylar").insert({
     talep_id: talepId,
@@ -29,6 +29,11 @@ export async function yonlendirAday(formData: FormData) {
     karari_veren_rol: karariVerenRol,
     durum: "YONLENDIRILDI",
   });
+
+  revalidatePath("/talepler");
+  revalidatePath("/adaylar");
+  return { error: error?.message };
+}
 
   revalidatePath("/talepler");
   revalidatePath("/adaylar");
