@@ -13,7 +13,8 @@ export async function yonlendirAday(formData: FormData) {
 
   const talepId = String(formData.get("talep_id"));
   const adSoyad = String(formData.get("ad_soyad") ?? "").trim();
-  const cvLink = String(formData.get("cv_drive_link") ?? "").trim();
+  const dogumTarihi = String(formData.get("dogum_tarihi") ?? "").trim();
+  const cinsiyet = String(formData.get("cinsiyet") ?? "").trim();
   if (!adSoyad) return { error: "Aday adı zorunlu." };
 
   const karariVerenRol = me.rol === "BM" ? "IK" : "BM";
@@ -21,7 +22,8 @@ export async function yonlendirAday(formData: FormData) {
   const { error } = await supabase.from("adaylar").insert({
     talep_id: talepId,
     ad_soyad: adSoyad,
-    cv_drive_link: cvLink || null,
+    dogum_tarihi: dogumTarihi || null,
+    cinsiyet: cinsiyet || null,
     yonlendiren_kullanici_id: me.id,
     yonlendiren_rol: me.rol,
     karari_veren_rol: karariVerenRol,
@@ -30,6 +32,15 @@ export async function yonlendirAday(formData: FormData) {
 
   revalidatePath("/talepler");
   revalidatePath("/adaylar");
+  return { error: error?.message };
+}
+
+export async function guncelleAdayCv(formData: FormData) {
+  const supabase = createClient();
+  const adayId = String(formData.get("aday_id"));
+  const cvYolu = String(formData.get("cv_yolu"));
+  const { error } = await supabase.from("adaylar").update({ cv_drive_link: cvYolu, updated_at: new Date().toISOString() }).eq("id", adayId);
+  revalidatePath("/talepler");
   return { error: error?.message };
 }
 
