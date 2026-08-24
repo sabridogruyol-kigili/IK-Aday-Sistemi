@@ -34,8 +34,6 @@ export async function yonlendirAday(formData: FormData) {
     durum: "YONLENDIRILDI",
   });
 
-  revalidatePath("/talepler");
-  revalidatePath("/adaylar");
   return { error: error?.message };
 }
 
@@ -44,7 +42,6 @@ export async function guncelleAdayCv(formData: FormData) {
   const adayId = String(formData.get("aday_id"));
   const cvYolu = String(formData.get("cv_yolu"));
   const { error } = await supabase.from("adaylar").update({ cv_drive_link: cvYolu, updated_at: new Date().toISOString() }).eq("id", adayId);
-  revalidatePath("/talepler");
   return { error: error?.message };
 }
 
@@ -55,8 +52,6 @@ export async function kararVerAday(formData: FormData) {
     p_karar: String(formData.get("karar")),
     p_aciklama: String(formData.get("aciklama") ?? "").trim() || null,
   });
-  revalidatePath("/talepler");
-  revalidatePath("/adaylar");
   return { error: error?.message };
 }
 
@@ -69,8 +64,8 @@ export async function ilerletDurum(formData: FormData) {
     p_tc_kimlik_no: String(formData.get("tc_kimlik_no") ?? "").trim() || null,
     p_baslangic_tarihi: String(formData.get("baslangic_tarihi") ?? "").trim() || null,
   });
+  // Sadece bu işlem talebin dışarıdaki "Tamamlandı" durumunu etkileyebildiği için sayfayı tazeliyoruz.
   revalidatePath("/talepler");
-  revalidatePath("/adaylar");
   return { error: error?.message };
 }
 
@@ -107,7 +102,5 @@ export async function deleteAday(formData: FormData) {
   const supabase = createClient();
   const adayId = String(formData.get("aday_id"));
   const { error } = await supabase.from("adaylar").delete().eq("id", adayId);
-  revalidatePath("/talepler");
-  revalidatePath("/adaylar");
   return { error: error?.message };
 }
