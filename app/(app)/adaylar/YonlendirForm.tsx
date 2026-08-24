@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { yonlendirAday } from "./actions";
 
-type Talep = { id: string; talep_no: string; pozisyon_tipi: string; kisi_sayisi: number; magazalar: { magaza_adi: string } | null };
+type Talep = { id: string; talep_no: string; pozisyon_tipi: string; kisi_sayisi: number; magazalar: any };
 
 export default function YonlendirForm({ talepler }: { talepler: Talep[] }) {
   const [pending, startTransition] = useTransition();
