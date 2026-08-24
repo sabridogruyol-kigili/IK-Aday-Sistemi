@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import TalepRow from "./TalepRow";
+import TaleplerTablosu from "./TaleplerTablosu";
 
 export default async function TaleplerPage() {
   const supabase = createClient();
@@ -11,7 +11,6 @@ export default async function TaleplerPage() {
     .from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) return null;
 
-  // RLS zaten kapsamı belirliyor: Yönetim hepsini, BM/İK sorumlu bölgesindekileri görür.
   const { data: talepler, error: talepHata } = await supabase
     .from("talepler")
     .select("id, talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, acan_kullanici_id, magazalar!magaza_id(magaza_adi), acan:kullanicilar!acan_kullanici_id(ad_soyad, rol)")
@@ -45,15 +44,55 @@ export default async function TaleplerPage() {
   }
 
   const adaySayilari: Record<string, number> = {};
+  const iseAlinanSayilari: Record<string, number> = {};
   for (const t of talepler ?? []) {
     if (t.talep_turu === "ISE_ALIM" && t.durum === "KABUL_EDILDI") {
-      const { count } = await supabase
+      const { count: toplam } = await supabase
         .from("adaylar")
         .select("*", { count: "exact", head: true })
         .eq("talep_id", t.id);
-      adaySayilari[t.id] = count ?? 0;
+      adaySayilari[t.id] = toplam ?? 0;
+
+      const { count: iseAlinan } = await supabase
+        .from("adaylar")
+        .select("*", { count: "exact", head: true })
+        .eq("talep_id", t.id)
+        .eq("durum", "ISE_ALINDI");
+      iseAlinanSayilari[t.id] = iseAlinan ?? 0;
     }
   }
+
+  const zenginlestirilmis = (talepler ?? []).map((t: any) => {
+    let kategori: "AKTIF" | "PASIF" = "AKTIF";
+    let gorunumEtiket: string | undefined;
+
+    if (t.durum === "KAPANDI_RED") {
+      kategori = "PASIF";
+    } else if (t.talep_turu === "ISE_ALIM") {
+      if (t.durum === "KABUL_EDILDI") {
+        const iseAlinan = iseAlinanSayilari[t.id] ?? 0;
+        const hedef = t.kisi_sayisi ?? 0;
+        if (hedef > 0 && iseAlinan >= hedef) {
+          kategori = "PASIF";
+          gorunumEtiket = "TAMAMLANDI";
+        }
+      }
+    } else {
+      // ISTEN_CIKARMA, ROTASYON
+      if (t.durum === "KABUL_EDILDI") kategori = "PASIF";
+    }
+
+    return {
+      ...t,
+      kategori,
+      gorunumEtiket,
+      redGerekce: redGerekceleri[t.id],
+      adaySayisi: adaySayilari[t.id] ?? 0,
+      benimAcimMi: t.acan_kullanici_id === me.id,
+      acanAdi: t.acan?.ad_soyad,
+      acanRol: t.acan?.rol,
+    };
+  });
 
   return (
     <div>
@@ -61,42 +100,7 @@ export default async function TaleplerPage() {
         <div className="text-lg font-semibold text-navy-3">Talepler</div>
         <div className="text-xs text-gray-400 mt-0.5">Yetkiniz dahilindeki tüm talepler</div>
       </div>
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase">
-              <th className="text-left px-3 py-2">Talep No</th>
-              <th className="text-left px-3 py-2">Tür</th>
-              <th className="text-left px-3 py-2">Mağaza</th>
-              <th className="text-left px-3 py-2">Açan</th>
-              <th className="text-left px-3 py-2">Pozisyon</th>
-              <th className="text-left px-3 py-2">Kişi</th>
-              <th className="text-left px-3 py-2">Gönderim</th>
-              <th className="text-left px-3 py-2">Durum</th>
-              <th className="text-left px-3 py-2">Tarih</th>
-              <th className="text-left px-3 py-2">Detay</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(talepler ?? []).map((t: any) => (
-              <TalepRow
-                key={t.id}
-                talep={t}
-                redGerekce={redGerekceleri[t.id]}
-                benimKullaniciId={me.id}
-                benimRolum={me.rol}
-                baslangicAdaySayisi={adaySayilari[t.id] ?? 0}
-                acanAdi={t.acan?.ad_soyad}
-                acanRol={t.acan?.rol}
-                benimAcimMi={t.acan_kullanici_id === me.id}
-              />
-            ))}
-            {(talepler ?? []).length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-400 text-xs">Görüntülenebilir talep yok.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TaleplerTablosu talepler={zenginlestirilmis} benimKullaniciId={me.id} benimRolum={me.rol} />
     </div>
   );
 }
