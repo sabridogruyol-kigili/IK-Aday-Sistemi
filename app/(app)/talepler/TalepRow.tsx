@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { getAdaylarByTalep, deleteAday, kararVerAday, ilerletDurum, yonlendirAday } from "../adaylar/actions";
+import { getAdaylarByTalep, deleteAday, kararVerAday, ilerletDurum } from "../adaylar/actions";
 import RevizyonForm from "./RevizyonForm";
 import CvModal from "./CvModal";
+import AdayEkleModal from "./AdayEkleModal";
 import AdayStepper from "./AdayStepper";
 
 const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon" };
@@ -53,15 +54,12 @@ export default function TalepRow({
   talep: Talep; redGerekce?: string; benimKullaniciId: string; benimRolum: string; baslangicAdaySayisi: number;
   acanAdi?: string; acanRol?: string; benimAcimMi: boolean;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [adayAcik, setAdayAcik] = useState(false);
   const [adaylar, setAdaylar] = useState<Aday[]>([]);
   const [adaySayisi, setAdaySayisi] = useState(baslangicAdaySayisi);
   const [cvModalAday, setCvModalAday] = useState<{ id: string; cv: string | null } | null>(null);
-  const [yeniAdSoyad, setYeniAdSoyad] = useState("");
-  const [yeniDogumTarihi, setYeniDogumTarihi] = useState("");
-  const [yeniCinsiyet, setYeniCinsiyet] = useState("");
-  const [hata, setHata] = useState<string | null>(null);
+  const [ekleModalAcik, setEkleModalAcik] = useState(false);
 
   function adaylariYukle() {
     startTransition(async () => {
@@ -74,25 +72,6 @@ export default function TalepRow({
   function toggleAday() {
     if (!adayAcik) adaylariYukle();
     setAdayAcik(!adayAcik);
-  }
-
-  function ekle() {
-    if (!yeniAdSoyad.trim()) return;
-    setHata(null);
-    const fd = new FormData();
-    fd.set("talep_id", talep.id);
-    fd.set("ad_soyad", yeniAdSoyad);
-    fd.set("dogum_tarihi", yeniDogumTarihi);
-    fd.set("cinsiyet", yeniCinsiyet);
-    startTransition(async () => {
-      const res = await yonlendirAday(fd);
-      if (res?.error) {
-        setHata(res.error);
-        return;
-      }
-      setYeniAdSoyad(""); setYeniDogumTarihi(""); setYeniCinsiyet("");
-      adaylariYukle();
-    });
   }
 
   function sil(adayId: string) {
@@ -162,28 +141,17 @@ export default function TalepRow({
           <td colSpan={10} className="px-3 py-4">
             <div className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
 
-              <div className="p-3 border-b border-gray-100 flex flex-wrap items-end gap-2 bg-gray-50/50">
-                <input value={yeniAdSoyad} onChange={(e) => setYeniAdSoyad(e.target.value)} placeholder="Ad Soyad"
-                  className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1 min-w-[160px]" />
-                <input type="date" value={yeniDogumTarihi} onChange={(e) => setYeniDogumTarihi(e.target.value)}
-                  className="border border-gray-300 rounded-md px-2 py-1.5 text-xs" />
-                <select value={yeniCinsiyet} onChange={(e) => setYeniCinsiyet(e.target.value)}
-                  className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
-                  <option value="">Cinsiyet</option>
-                  <option value="Kadın">Kadın</option>
-                  <option value="Erkek">Erkek</option>
-                  <option value="Belirtilmedi">Belirtilmedi</option>
-                </select>
-                <button onClick={ekle} disabled={pending || !yeniAdSoyad.trim()}
-                  className="bg-navy text-white rounded-md px-4 py-1.5 text-xs font-medium disabled:opacity-50">
-                  Aday Ekle
+              <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="text-xs font-semibold text-navy-3">Adaylar</div>
+                <button onClick={() => setEkleModalAcik(true)}
+                  className="bg-navy text-white rounded-md px-3 py-1.5 text-xs font-medium">
+                  + Yeni Aday Ekle
                 </button>
-                {hata && <div className="text-[11px] text-danger w-full mt-1">{hata}</div>}
               </div>
 
               {adaylar.length === 0 ? (
                 <div className="p-5 text-center text-xs text-gray-400">
-                  Bu talep için henüz aday yönlendirilmedi — yukarıdaki formdan ekleyin.
+                  Bu talep için henüz aday yönlendirilmedi — "Yeni Aday Ekle" ile başlayın.
                 </div>
               ) : (
                 <table className="w-full text-xs">
@@ -292,6 +260,14 @@ export default function TalepRow({
           mevcutCv={cvModalAday.cv}
           onClose={() => setCvModalAday(null)}
           onDone={() => { setCvModalAday(null); adaylariYukle(); }}
+        />
+      )}
+
+      {ekleModalAcik && (
+        <AdayEkleModal
+          talepId={talep.id}
+          onClose={() => setEkleModalAcik(false)}
+          onDone={() => { setEkleModalAcik(false); adaylariYukle(); }}
         />
       )}
     </>
