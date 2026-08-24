@@ -35,11 +35,6 @@ export async function yonlendirAday(formData: FormData) {
   return { error: error?.message };
 }
 
-  revalidatePath("/talepler");
-  revalidatePath("/adaylar");
-  return { error: error?.message };
-}
-
 export async function guncelleAdayCv(formData: FormData) {
   const supabase = createClient();
   const adayId = String(formData.get("aday_id"));
