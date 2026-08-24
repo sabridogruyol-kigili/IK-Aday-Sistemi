@@ -17,7 +17,7 @@ export default async function OnayBekleyenlerPage() {
       id, onaylayici_rol_baglami,
       talep_gonderimler!inner (
         id, aciklama, norm_kontrol_sonucu,
-        talepler!inner ( talep_no, pozisyon_tipi, kisi_sayisi, acan_rol, magazalar(magaza_adi) )
+        talepler!inner ( talep_no, pozisyon_tipi, kisi_sayisi, acan_rol, magazalar!magaza_id(magaza_adi) )
       )
     `)
     .eq("onaylayici_kullanici_id", me.id)
