@@ -28,6 +28,7 @@ export async function yonlendirAday(formData: FormData) {
     durum: "YONLENDIRILDI",
   });
 
+  revalidatePath("/talepler");
   revalidatePath("/adaylar");
   return { error: error?.message };
 }
@@ -39,6 +40,7 @@ export async function kararVerAday(formData: FormData) {
     p_karar: String(formData.get("karar")),
     p_aciklama: String(formData.get("aciklama") ?? "").trim() || null,
   });
+  revalidatePath("/talepler");
   revalidatePath("/adaylar");
   return { error: error?.message };
 }
@@ -51,6 +53,26 @@ export async function ilerletDurum(formData: FormData) {
     p_not: String(formData.get("not") ?? "").trim() || null,
     p_tc_kimlik_no: String(formData.get("tc_kimlik_no") ?? "").trim() || null,
   });
+  revalidatePath("/talepler");
+  revalidatePath("/adaylar");
+  return { error: error?.message };
+}
+
+export async function getAdaylarByTalep(talepId: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("adaylar")
+    .select("id, ad_soyad, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id")
+    .eq("talep_id", talepId)
+    .order("created_at", { ascending: false });
+  return { data: data ?? [], error: error?.message };
+}
+
+export async function deleteAday(formData: FormData) {
+  const supabase = createClient();
+  const adayId = String(formData.get("aday_id"));
+  const { error } = await supabase.from("adaylar").delete().eq("id", adayId);
+  revalidatePath("/talepler");
   revalidatePath("/adaylar");
   return { error: error?.message };
 }
