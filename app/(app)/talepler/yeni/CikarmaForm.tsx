@@ -1,18 +1,33 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { createIstenCikarmaTalebi } from "./actions-cikarma";
 
 const POZISYONLAR = ["Müdür", "Yardımcı", "SD", "Dönemsel", "Part Time"];
 
-type Personel = { id: string; ad_soyad: string; guncel_unvan: string | null };
+type Personel = { id: string; ad_soyad: string; guncel_unvan: string | null; magaza_adi: string; bolge_adi: string };
 
 export default function CikarmaForm({ personelListesi }: { personelListesi: Personel[] }) {
   const [pending, startTransition] = useTransition();
-  const [yerineAlim, setYerineAlim] = useState(false);
   const [normUyari, setNormUyari] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [israrli, setIsrarli] = useState(false);
+  const [yerineAlim, setYerineAlim] = useState(false);
+
+  const bolgeler = useMemo(() => Array.from(new Set(personelListesi.map((p) => p.bolge_adi).filter(Boolean))).sort(), [personelListesi]);
+  const [bolgeFiltre, setBolgeFiltre] = useState("");
+  const [arama, setArama] = useState("");
+
+  const filtrelenmisPersonel = useMemo(() => {
+    return personelListesi.filter((p) => {
+      if (bolgeFiltre && p.bolge_adi !== bolgeFiltre) return false;
+      if (arama) {
+        const q = arama.toLocaleLowerCase("tr-TR");
+        if (!p.ad_soyad.toLocaleLowerCase("tr-TR").includes(q) && !(p.guncel_unvan ?? "").toLocaleLowerCase("tr-TR").includes(q)) return false;
+      }
+      return true;
+    });
+  }, [personelListesi, bolgeFiltre, arama]);
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -28,11 +43,21 @@ export default function CikarmaForm({ personelListesi }: { personelListesi: Pers
   return (
     <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl space-y-4">
       <div>
+        <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Filtrele</div>
+        <div className="flex gap-2 mb-2">
+          <select value={bolgeFiltre} onChange={(e) => setBolgeFiltre(e.target.value)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1">
+            <option value="">Tüm Bölgeler (yetkiniz dahilinde)</option>
+            {bolgeler.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <input value={arama} onChange={(e) => setArama(e.target.value)}
+            placeholder="İsim / unvan ara..." className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1" />
+        </div>
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Çıkarılacak Personel *</label>
         <select name="personel_id" required className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm">
           <option value="">Seçin</option>
-          {personelListesi.map((p) => (
-            <option key={p.id} value={p.id}>{p.ad_soyad} — {p.guncel_unvan}</option>
+          {filtrelenmisPersonel.map((p) => (
+            <option key={p.id} value={p.id}>{p.ad_soyad} — {p.guncel_unvan} — {p.magaza_adi} ({p.bolge_adi})</option>
           ))}
         </select>
       </div>
