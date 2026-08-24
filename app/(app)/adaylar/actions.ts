@@ -17,7 +17,7 @@ export async function yonlendirAday(formData: FormData) {
   const cinsiyet = String(formData.get("cinsiyet") ?? "").trim();
   if (!adSoyad) return { error: "Aday adı zorunlu." };
 
-  const karariVerenRol = me.rol === "YONETIM" ? "BM_VEYA_IK" : (me.rol === "BM" ? "IK" : "BM");
+  const karariVerenRol = me.rol === "YONETIM" ? "BM_VE_IK" : (me.rol === "BM" ? "IK" : "BM");
 
   const { error } = await supabase.from("adaylar").insert({
     talep_id: talepId,
@@ -74,7 +74,7 @@ export async function getAdaylarByTalep(talepId: string) {
   const { data, error } = await supabase
     .from("adaylar")
     .select(`
-      id, ad_soyad, dogum_tarihi, cinsiyet, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id,
+      id, ad_soyad, dogum_tarihi, cinsiyet, cv_drive_link, yonlendiren_rol, karari_veren_rol, durum, yonlendiren_kullanici_id, onay_bm, onay_ik,
       aday_surec_gecmisi ( durum, created_at )
     `)
     .eq("talep_id", talepId)
