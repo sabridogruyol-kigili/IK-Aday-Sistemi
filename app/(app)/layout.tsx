@@ -6,7 +6,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "◈" },
   { href: "/norm", label: "Mağazalarım / Norm", icon: "▦" },
   { href: "/talepler/yeni", label: "Yeni Talep", icon: "＋" },
-  { href: "/talepler", label: "Taleplerim", icon: "☰" },
+  { href: "/talepler", label: "Talepler", icon: "☰" },
   { href: "/onay-bekleyenler", label: "Onay Bekleyenler", icon: "✓" },
   { href: "/personel", label: "Personel Listesi", icon: "◒" },
   { href: "/raporlar", label: "Raporlar", icon: "▤" },
