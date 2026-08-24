@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RevizyonForm from "./RevizyonForm";
+import AdayPanel from "./AdayPanel";
 
 const TALEP_TURU_ETIKET: Record<string, string> = {
   ISE_ALIM: "İşe Alım",
@@ -14,7 +15,7 @@ export default async function TaleplerimPage() {
   if (!user) redirect("/login");
 
   const { data: me } = await supabase
-    .from("kullanicilar").select("id").eq("email", user.email).single();
+    .from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) return null;
 
   const { data: talepler, error: talepHata } = await supabase
@@ -99,6 +100,11 @@ export default async function TaleplerimPage() {
                   )}
                   {t.durum === "DURAKLADI" && t.aktif_gonderim_no >= 3 && (
                     <div className="text-[11px] text-gray-400 mt-0.5">3 deneme doldu, yeni talep açın</div>
+                  )}
+                  {t.talep_turu === "ISE_ALIM" && t.durum === "KABUL_EDILDI" && (
+                    <div className="mt-1">
+                      <AdayPanel talepId={t.id} benimKullaniciId={me.id} benimRolum={me.rol} />
+                    </div>
                   )}
                 </td>
                 <td className="px-3 py-2 text-gray-400 font-mono text-xs">
