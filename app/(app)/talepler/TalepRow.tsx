@@ -178,3 +178,114 @@ export default function TalepRow({
                           || (a.karari_veren_rol === "BM_VE_IK" && benimRolum === "BM" && !a.onay_bm)
                           || (a.karari_veren_rol === "BM_VE_IK" && benimRolum === "IK" && !a.onay_ik)
                         );
+                      const benSilebilirim = a.durum === "YONLENDIRILDI" && (a.yonlendiren_kullanici_id === benimKullaniciId || benimRolum === "YONETIM");
+                      return (
+                        <tr key={a.id} className="border-t border-gray-100">
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-[10px] font-bold text-navy-3 flex-shrink-0">
+                                {inisiyal(a.ad_soyad)}
+                              </div>
+                              <span className="font-medium text-navy-3">{a.ad_soyad}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">{yasHesapla(a.dogum_tarihi)}</td>
+                          <td className="px-3 py-2 text-gray-600">{a.cinsiyet ?? "—"}</td>
+                          <td className="px-3 py-2">
+                            <span className="px-1.5 py-0.5 rounded bg-navy/10 text-navy text-[10px] font-medium">
+                              {a.yonlendiren_rol}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <button onClick={() => setCvModalAday({ id: a.id, cv: a.cv_drive_link })}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${a.cv_drive_link ? "bg-success-bg text-success" : "bg-gray-100 text-gray-500"}`}>
+                              {a.cv_drive_link ? "CV Var — Güncelle" : "CV Ekle"}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="space-y-1">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${ADAY_DURUM_RENK[a.durum] ?? ""}`}>
+                                {ADAY_DURUM_ETIKET[a.durum]}
+                              </span>
+                              <AdayStepper durum={a.durum} />
+                              {a.durum === "YONLENDIRILDI" && (
+                                <div className="text-[10px] text-gray-400 mt-1">
+                                  {a.karari_veren_rol === "BM_VE_IK" ? (
+                                    <>
+                                      BM: {a.onay_bm === "ONAY" ? "✓ Onayladı" : a.onay_bm === "RED" ? "✗ Reddetti" : "Bekliyor"}
+                                      {" · "}
+                                      İK: {a.onay_ik === "ONAY" ? "✓ Onayladı" : a.onay_ik === "RED" ? "✗ Reddetti" : "Bekliyor"}
+                                    </>
+                                  ) : (
+                                    <>Onay bekliyor: {a.karari_veren_rol}</>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-gray-400 font-mono text-[10px]">
+                            {a.onay_tarihi ? new Date(a.onay_tarihi).toLocaleDateString("tr-TR") : "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap gap-1.5">
+                              {benKararVerebilirim && (
+                                <>
+                                  <button onClick={() => karar(a.id, "ONAY")} disabled={pending}
+                                    className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Onayla</button>
+                                  <button onClick={() => { const ac = prompt("Red gerekçesi:"); if (ac) karar(a.id, "RED", ac); }} disabled={pending}
+                                    className="bg-danger-bg text-danger border border-danger/30 rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Reddet</button>
+                                </>
+                              )}
+                              {a.durum === "ONAYLANDI" && (
+                                <button onClick={() => ilerlet(a.id, "ON_GORUSME_PLANLANDI")} disabled={pending}
+                                  className="bg-info text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Ön Görüşme</button>
+                              )}
+                              {a.durum === "ON_GORUSME_PLANLANDI" && (
+                                <>
+                                  <button onClick={() => ilerlet(a.id, "GORUSULDU_OLUMLU")} disabled={pending}
+                                    className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Olumlu</button>
+                                  <button onClick={() => ilerlet(a.id, "GORUSULDU_OLUMSUZ")} disabled={pending}
+                                    className="bg-danger text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Olumsuz</button>
+                                </>
+                              )}
+                              {a.durum === "GORUSULDU_OLUMLU" && (
+                                <button onClick={() => { const tc = prompt("TC Kimlik No:"); if (tc) ilerlet(a.id, "ISE_ALINDI", tc); }} disabled={pending}
+                                  className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">İşe Al</button>
+                              )}
+                              {benSilebilirim && (
+                                <button onClick={() => sil(a.id)} disabled={pending}
+                                  className="bg-gray-100 text-gray-500 rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Sil</button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+
+      {cvModalAday && (
+        <CvModal
+          adayId={cvModalAday.id}
+          talepId={talep.id}
+          mevcutCv={cvModalAday.cv}
+          onClose={() => setCvModalAday(null)}
+          onDone={() => { setCvModalAday(null); adaylariYukle(); }}
+        />
+      )}
+
+      {ekleModalAcik && (
+        <AdayEkleModal
+          talepId={talep.id}
+          onClose={() => setEkleModalAcik(false)}
+          onDone={() => { setEkleModalAcik(false); adaylariYukle(); }}
+        />
+      )}
+    </>
+  );
+}
