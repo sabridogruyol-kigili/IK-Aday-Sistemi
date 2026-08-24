@@ -47,7 +47,7 @@ type Talep = {
 type Aday = {
   id: string; ad_soyad: string; dogum_tarihi: string | null; cinsiyet: string | null; cv_drive_link: string | null;
   yonlendiren_rol: string; karari_veren_rol: string; durum: string; yonlendiren_kullanici_id: string; onay_tarihi: string | null;
-  onay_bm: string | null; onay_ik: string | null;
+  onay_bm: string | null; onay_ik: string | null; tc_kimlik_no: string | null; ise_baslama_tarihi: string | null;
 };
 
 export default function TalepRow({
@@ -158,6 +158,7 @@ export default function TalepRow({
                   Bu talep için henüz aday yönlendirilmedi — "Yeni Aday Ekle" ile başlayın.
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase">
@@ -168,6 +169,8 @@ export default function TalepRow({
                       <th className="text-left px-3 py-2">CV</th>
                       <th className="text-left px-3 py-2">Süreç</th>
                       <th className="text-left px-3 py-2">Onay Tarihi</th>
+                      <th className="text-left px-3 py-2">TC Kimlik No</th>
+                      <th className="text-left px-3 py-2">İşe Başlama</th>
                       <th className="text-left px-3 py-2">İşlemler</th>
                     </tr>
                   </thead>
@@ -229,6 +232,12 @@ export default function TalepRow({
                           <td className="px-3 py-2 text-gray-400 font-mono text-[10px]">
                             {a.onay_tarihi ? new Date(a.onay_tarihi).toLocaleDateString("tr-TR") : "—"}
                           </td>
+                          <td className="px-3 py-2 text-gray-600 font-mono text-[10px]">
+                            {a.tc_kimlik_no ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 font-mono text-[10px]">
+                            {a.ise_baslama_tarihi ? new Date(a.ise_baslama_tarihi).toLocaleDateString("tr-TR") : "—"}
+                          </td>
                           <td className="px-3 py-2">
                             <div className="flex flex-wrap gap-1.5">
                               {benKararVerebilirim && (
@@ -266,6 +275,7 @@ export default function TalepRow({
                     })}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </td>
