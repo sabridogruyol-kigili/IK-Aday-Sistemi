@@ -12,6 +12,7 @@ const navItems = [
   { href: "/raporlar", label: "Raporlar", icon: "▤" },
   { href: "/bildirimler", label: "Bildirimler", icon: "🔔" },
   { href: "/kullanicilar", label: "Kullanıcı Yönetimi", icon: "👤" },
+  { href: "/adaylar", label: "Adaylar", icon: "👤" },
 ];
 
 export default async function AppLayout({
