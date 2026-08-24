@@ -15,7 +15,10 @@ export async function yonlendirAday(formData: FormData) {
   const adSoyad = String(formData.get("ad_soyad") ?? "").trim();
   const dogumTarihi = String(formData.get("dogum_tarihi") ?? "").trim();
   const cinsiyet = String(formData.get("cinsiyet") ?? "").trim();
+  const cvYolu = String(formData.get("cv_yolu") ?? "").trim();
+
   if (!adSoyad) return { error: "Aday adı zorunlu." };
+  if (!cvYolu) return { error: "CV yüklemeden aday eklenemez." };
 
   const karariVerenRol = me.rol === "YONETIM" ? "BM_VE_IK" : (me.rol === "BM" ? "IK" : "BM");
 
@@ -24,6 +27,7 @@ export async function yonlendirAday(formData: FormData) {
     ad_soyad: adSoyad,
     dogum_tarihi: dogumTarihi || null,
     cinsiyet: cinsiyet || null,
+    cv_drive_link: cvYolu,
     yonlendiren_kullanici_id: me.id,
     yonlendiren_rol: me.rol,
     karari_veren_rol: karariVerenRol,
