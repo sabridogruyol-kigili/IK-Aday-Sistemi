@@ -9,10 +9,10 @@ const navItems = [
   { href: "/talepler", label: "Talepler", icon: "☰" },
   { href: "/onay-bekleyenler", label: "Onay Bekleyenler", icon: "✓" },
   { href: "/personel", label: "Personel Listesi", icon: "◒" },
+  { href: "/adaylar", label: "Adaylar", icon: "👤" },
   { href: "/raporlar", label: "Raporlar", icon: "▤" },
   { href: "/bildirimler", label: "Bildirimler", icon: "🔔" },
   { href: "/kullanicilar", label: "Kullanıcı Yönetimi", icon: "👤" },
-  { href: "/adaylar", label: "Adaylar", icon: "👤" },
 ];
 
 export default async function AppLayout({
@@ -36,7 +36,6 @@ export default async function AppLayout({
   const displayName = profile?.ad_soyad ?? user.email ?? "Kullanıcı";
   const initials = displayName.slice(0, 2).toUpperCase();
 
-  // Kullanıcı Yönetimi sadece Yönetim rolüne görünür
   const visibleNavItems = navItems.filter(
     (item) => item.href !== "/kullanicilar" || profile?.rol === "YONETIM"
   );
@@ -45,11 +44,9 @@ export default async function AppLayout({
     <div className="flex h-screen">
       <aside className="w-[210px] min-w-[210px] bg-navy flex flex-col">
         <div className="px-4 pt-[18px] pb-[14px] border-b border-white/10">
-          <div className="w-[34px] h-[34px] bg-accent rounded-[7px] flex items-center justify-center font-bold text-xs text-navy-3 mb-2 tracking-wide">
-            QHR
+          <div className="text-white text-sm font-semibold leading-tight">
+            İK Aday ve Süreç Takip Sistemi
           </div>
-          <div className="text-white text-sm font-semibold">Qualis Portal</div>
-          <div className="text-white/40 text-[11px] mt-0.5">Norm Kadro</div>
         </div>
         <nav className="py-2 flex-1 overflow-y-auto">
           {visibleNavItems.map((item) => (
