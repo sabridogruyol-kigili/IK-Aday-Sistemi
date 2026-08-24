@@ -185,7 +185,11 @@ export default function TalepRow({
                   </thead>
                   <tbody>
                     {adaylar.map((a) => {
-                      const benKararVerebilirim = a.durum === "YONLENDIRILDI" && (benimRolum === a.karari_veren_rol || benimRolum === "YONETIM");
+                      const benKararVerebilirim = a.durum === "YONLENDIRILDI" && (
+                          benimRolum === a.karari_veren_rol
+                          || benimRolum === "YONETIM"
+                          || (a.karari_veren_rol === "BM_VEYA_IK" && ["BM", "IK"].includes(benimRolum))
+                        );
                       const benSilebilirim = a.durum === "YONLENDIRILDI" && (a.yonlendiren_kullanici_id === benimKullaniciId || benimRolum === "YONETIM");
                       return (
                         <tr key={a.id} className="border-t border-gray-100">
