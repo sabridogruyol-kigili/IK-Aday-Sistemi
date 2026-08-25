@@ -3,11 +3,22 @@
 import { useMemo, useState, useTransition } from "react";
 import { createIstenCikarmaTalebi } from "./actions-cikarma";
 
-const POZISYONLAR = ["Müdür", "Yardımcı", "SD", "Dönemsel", "Part Time"];
-
+type Pozisyon = { unvan: string; kategori: string };
 type Personel = { id: string; ad_soyad: string; guncel_unvan: string | null; magaza_adi: string; bolge_adi: string };
 
-export default function CikarmaForm({ personelListesi }: { personelListesi: Personel[] }) {
+const KATEGORI_LABEL: Record<string, string> = {
+  ANA_KADRO: "Ana Kadro",
+  DONEMSEL: "Dönemsel",
+  PART_TIME: "Part Time",
+};
+
+export default function CikarmaForm({
+  personelListesi,
+  pozisyonlar,
+}: {
+  personelListesi: Personel[];
+  pozisyonlar: Pozisyon[];
+}) {
   const [pending, startTransition] = useTransition();
   const [normUyari, setNormUyari] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +39,8 @@ export default function CikarmaForm({ personelListesi }: { personelListesi: Pers
       return true;
     });
   }, [personelListesi, bolgeFiltre, arama]);
+
+  const gruplar = Array.from(new Set(pozisyonlar.map((p) => p.kategori)));
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -73,7 +86,13 @@ export default function CikarmaForm({ personelListesi }: { personelListesi: Pers
             <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Yeni Pozisyon Tipi *</label>
             <select name="pozisyon_tipi" required className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm">
               <option value="">Seçin</option>
-              {POZISYONLAR.map((p) => <option key={p} value={p}>{p}</option>)}
+              {gruplar.map((kategori) => (
+                <optgroup key={kategori} label={KATEGORI_LABEL[kategori] ?? kategori}>
+                  {pozisyonlar.filter((p) => p.kategori === kategori).map((p) => (
+                    <option key={p.unvan} value={p.unvan}>{p.unvan}</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
           <div>
