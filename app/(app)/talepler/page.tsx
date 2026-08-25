@@ -1,113 +1,76 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import TaleplerTablosu from "./TaleplerTablosu";
+import TalepForm from "./TalepForm";
+import CikarmaForm from "./CikarmaForm";
+import RotasyonForm from "./RotasyonForm";
 
-export default async function TaleplerPage() {
+export default async function YeniTalepPage({ searchParams }: { searchParams: { tur?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase
-    .from("kullanicilar").select("id, rol").eq("email", user.email).single();
-  if (!me) return null;
+  const tur = ["ise_alim", "cikarma", "rotasyon"].includes(searchParams.tur ?? "") ? searchParams.tur! : "ise_alim";
 
-  const { data: talepler, error: talepHata } = await supabase
-    .from("talepler")
-    .select("id, talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, acan_kullanici_id, magazalar!magaza_id(magaza_adi), acan:kullanicilar!acan_kullanici_id(ad_soyad, rol)")
-    .order("created_at", { ascending: false });
+  const { data: magazalar } = await supabase
+    .from("magazalar").select("id, magaza_adi, magaza_kodu").eq("aktif", true).order("magaza_adi");
 
-  if (talepHata) {
-    return <div className="text-xs text-danger">Hata: {talepHata.message}</div>;
-  }
+  // Gerçek ünvan listesi — norm hesabına giren kategoriler (ANA_KADRO/DONEMSEL/PART_TIME).
+  // HARIC (Bölge Müdürü vb.) ve KATEGORISIZ (Engelli Personel) burada listelenmez,
+  // çünkü bunlar mağaza kadrosu İşe Alım/İşten Çıkarma akışıyla açılmaz.
+  const { data: pozisyonlarHam } = await supabase
+    .from("unvan_kadro_kategorisi")
+    .select("unvan, kategori")
+    .in("kategori", ["ANA_KADRO", "DONEMSEL", "PART_TIME"])
+    .order("kategori")
+    .order("unvan");
+  const pozisyonlar = pozisyonlarHam ?? [];
 
-  const talepIdleri = (talepler ?? []).map((t: any) => t.id);
-  const duraklamislar = (talepler ?? []).filter((t: any) => t.durum === "DURAKLADI");
-  const isealimKabulIdleri = (talepler ?? [])
-    .filter((t: any) => t.talep_turu === "ISE_ALIM" && t.durum === "KABUL_EDILDI")
-    .map((t: any) => t.id);
+  // İşten Çıkarma: sadece kullanıcının yetkisi dahilindeki (RLS ile sınırlı) personel + bölge/mağaza bilgisiyle zenginleştirilmiş
+  const { data: personelHam } = await supabase
+    .from("personel")
+    .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, magazalar(magaza_adi, bolge_id, bolgeler(ad))")
+    .eq("durum", "aktif")
+    .order("ad_soyad");
 
-  // 3 paralel sorgu (döngü yok)
-  const [gonderimlerRes, adaylarRes] = await Promise.all([
-    duraklamislar.length > 0
-      ? supabase.from("talep_gonderimler").select("id, talep_id, gonderim_no").in("talep_id", duraklamislar.map((t: any) => t.id))
-      : Promise.resolve({ data: [] as any[] }),
-    isealimKabulIdleri.length > 0
-      ? supabase.from("adaylar").select("talep_id, durum").in("talep_id", isealimKabulIdleri)
-      : Promise.resolve({ data: [] as any[] }),
-  ]);
+  const personelListesi = (personelHam ?? []).map((p: any) => ({
+    id: p.id,
+    ad_soyad: p.ad_soyad,
+    guncel_unvan: p.guncel_unvan,
+    magaza_adi: p.magazalar?.magaza_adi ?? "",
+    bolge_adi: p.magazalar?.bolgeler?.ad ?? "",
+  }));
 
-  // Duraklamış taleplerin aktif gönderimine ait id'leri bul
-  const aktifGonderimIdMap: Record<string, string> = {};
-  (gonderimlerRes.data ?? []).forEach((g: any) => {
-    const talep = duraklamislar.find((t: any) => t.id === g.talep_id);
-    if (talep && g.gonderim_no === talep.aktif_gonderim_no) {
-      aktifGonderimIdMap[talep.id] = g.id;
-    }
-  });
+  // Rotasyon: bölge sınırlaması olmadan TÜM mağaza ve personeli görmesi gerekiyor
+  const { data: tumMagazalar } = tur === "rotasyon"
+    ? await supabase.rpc("tum_magazalar_listesi")
+    : { data: [] };
+  const { data: tumPersonel } = tur === "rotasyon"
+    ? await supabase.rpc("tum_aktif_personel_listesi")
+    : { data: [] };
 
-  const gonderimIdleri = Object.values(aktifGonderimIdMap);
-  const { data: redOnaylar } = gonderimIdleri.length > 0
-    ? await supabase
-        .from("talep_onaylari")
-        .select("gonderim_id, aciklama, onaylayici_rol_baglami")
-        .in("gonderim_id", gonderimIdleri)
-        .eq("karar", "RED")
-    : { data: [] as any[] };
-
-  const redGerekceleri: Record<string, string> = {};
-  Object.entries(aktifGonderimIdMap).forEach(([talepId, gonderimId]) => {
-    const red = (redOnaylar ?? []).find((r: any) => r.gonderim_id === gonderimId);
-    if (red) redGerekceleri[talepId] = `${red.onaylayici_rol_baglami}: ${red.aciklama}`;
-  });
-
-  // Aday sayıları ve işe alınan sayıları JS'te grupla
-  const adaySayilari: Record<string, number> = {};
-  const iseAlinanSayilari: Record<string, number> = {};
-  (adaylarRes.data ?? []).forEach((a: any) => {
-    adaySayilari[a.talep_id] = (adaySayilari[a.talep_id] ?? 0) + 1;
-    if (a.durum === "ISE_ALINDI") {
-      iseAlinanSayilari[a.talep_id] = (iseAlinanSayilari[a.talep_id] ?? 0) + 1;
-    }
-  });
-
-  const zenginlestirilmis = (talepler ?? []).map((t: any) => {
-    let kategori: "AKTIF" | "PASIF" = "AKTIF";
-    let gorunumEtiket: string | undefined;
-
-    if (t.durum === "KAPANDI_RED") {
-      kategori = "PASIF";
-    } else if (t.talep_turu === "ISE_ALIM") {
-      if (t.durum === "KABUL_EDILDI") {
-        const iseAlinan = iseAlinanSayilari[t.id] ?? 0;
-        const hedef = t.kisi_sayisi ?? 0;
-        if (hedef > 0 && iseAlinan >= hedef) {
-          kategori = "PASIF";
-          gorunumEtiket = "TAMAMLANDI";
-        }
-      }
-    } else {
-      if (t.durum === "KABUL_EDILDI") kategori = "PASIF";
-    }
-
-    return {
-      ...t,
-      kategori,
-      gorunumEtiket,
-      redGerekce: redGerekceleri[t.id],
-      adaySayisi: adaySayilari[t.id] ?? 0,
-      benimAcimMi: t.acan_kullanici_id === me.id,
-      acanAdi: t.acan?.ad_soyad,
-      acanRol: t.acan?.rol,
-    };
-  });
+  const sekmeler = [
+    { key: "ise_alim", label: "İşe Alım" },
+    { key: "cikarma", label: "İşten Çıkarma" },
+    { key: "rotasyon", label: "Rotasyon" },
+  ];
 
   return (
     <div>
       <div className="mb-4">
-        <div className="text-lg font-semibold text-navy-3">Talepler</div>
-        <div className="text-xs text-gray-400 mt-0.5">Yetkiniz dahilindeki tüm talepler</div>
+        <div className="text-lg font-semibold text-navy-3">Yeni Talep</div>
+        <div className="text-xs text-gray-400 mt-0.5">Norm kontrolü anında yapılır</div>
       </div>
-      <TaleplerTablosu talepler={zenginlestirilmis} benimKullaniciId={me.id} benimRolum={me.rol} />
+      <div className="flex gap-2 mb-4">
+        {sekmeler.map((s) => (
+          <a key={s.key} href={`/talepler/yeni?tur=${s.key}`}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium ${tur === s.key ? "bg-navy text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
+            {s.label}
+          </a>
+        ))}
+      </div>
+      {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} />}
+      {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} pozisyonlar={pozisyonlar} />}
+      {tur === "rotasyon" && <RotasyonForm personelListesi={tumPersonel ?? []} magazalar={tumMagazalar ?? []} />}
     </div>
   );
 }
