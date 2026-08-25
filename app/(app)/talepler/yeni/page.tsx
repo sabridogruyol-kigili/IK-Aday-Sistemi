@@ -14,7 +14,14 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const { data: magazalar } = await supabase
     .from("magazalar").select("id, magaza_adi, magaza_kodu").eq("aktif", true).order("magaza_adi");
 
-  // İşten Çıkarma: sadece kullanıcının yetkisi dahilindeki (RLS ile sınırlı) personel + bölge/mağaza bilgisiyle zenginleştirilmiş
+  const { data: pozisyonlarHam } = await supabase
+    .from("unvan_kadro_kategorisi")
+    .select("unvan, kategori")
+    .in("kategori", ["ANA_KADRO", "DONEMSEL", "PART_TIME"])
+    .order("kategori")
+    .order("unvan");
+  const pozisyonlar = pozisyonlarHam ?? [];
+
   const { data: personelHam } = await supabase
     .from("personel")
     .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, magazalar(magaza_adi, bolge_id, bolgeler(ad))")
@@ -29,7 +36,6 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
     bolge_adi: p.magazalar?.bolgeler?.ad ?? "",
   }));
 
-  // Rotasyon: bölge sınırlaması olmadan TÜM mağaza ve personeli görmesi gerekiyor
   const { data: tumMagazalar } = tur === "rotasyon"
     ? await supabase.rpc("tum_magazalar_listesi")
     : { data: [] };
@@ -57,8 +63,8 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
           </a>
         ))}
       </div>
-      {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} />}
-      {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} />}
+      {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} />}
+      {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} pozisyonlar={pozisyonlar} />}
       {tur === "rotasyon" && <RotasyonForm personelListesi={tumPersonel ?? []} magazalar={tumMagazalar ?? []} />}
     </div>
   );
