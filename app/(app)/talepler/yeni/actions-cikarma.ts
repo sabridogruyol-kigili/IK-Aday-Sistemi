@@ -4,11 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-const KATEGORI_MAP: Record<string, "ANA_KADRO" | "DONEMSEL" | "PART_TIME"> = {
-  "Müdür": "ANA_KADRO", "Yardımcı": "ANA_KADRO", "SD": "ANA_KADRO",
-  "Dönemsel": "DONEMSEL", "Part Time": "PART_TIME",
-};
-
 type Sonuc = { error?: string; norm_uyari?: string };
 
 export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonuc> {
@@ -43,8 +38,17 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
     if (!pozisyonTipi || !kisiSayisi || kisiSayisi < 1) {
       return { error: "Yerine alım için pozisyon tipi ve kişi sayısı zorunlu." };
     }
-    const kategori = KATEGORI_MAP[pozisyonTipi];
-    if (!kategori) return { error: "Geçersiz pozisyon tipi." };
+
+    const { data: unvanKaydi } = await supabase
+      .from("unvan_kadro_kategorisi")
+      .select("kategori")
+      .eq("unvan", pozisyonTipi)
+      .single();
+
+    const kategori = unvanKaydi?.kategori as "ANA_KADRO" | "DONEMSEL" | "PART_TIME" | undefined;
+    if (!kategori || !["ANA_KADRO", "DONEMSEL", "PART_TIME"].includes(kategori)) {
+      return { error: "Geçersiz pozisyon tipi." };
+    }
 
     const { data: norm } = await supabase
       .from("norm")
@@ -64,8 +68,11 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
       .eq("durum", "aktif")
       .eq("kadro_kategorisi", kategori);
 
-    const kategoriPozisyonlari = Object.entries(KATEGORI_MAP)
-      .filter(([, k]) => k === kategori).map(([p]) => p);
+    const { data: kategoriUnvanlariHam } = await supabase
+      .from("unvan_kadro_kategorisi")
+      .select("unvan")
+      .eq("kategori", kategori);
+    const kategoriPozisyonlari = (kategoriUnvanlariHam ?? []).map((u) => u.unvan);
 
     const { data: bekleyenTalepler } = await supabase
       .from("talepler")
@@ -75,7 +82,6 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
       .in("pozisyon_tipi", kategoriPozisyonlari);
 
     const bekleyenKisiSayisi = (bekleyenTalepler ?? []).reduce((s, t) => s + (t.kisi_sayisi ?? 0), 0);
-    // Çıkan personel aynı kategorideyse, henüz aktif sayıldığı için 1 düşüyoruz (net değişim sıfır olsun diye)
     const cikanDusum = personel.kadro_kategorisi === kategori ? 1 : 0;
     const doluSayi = (aktifPersonelSayisi ?? 0) + bekleyenKisiSayisi - cikanDusum;
     const kalanKontenjan = toplamNorm - doluSayi;
