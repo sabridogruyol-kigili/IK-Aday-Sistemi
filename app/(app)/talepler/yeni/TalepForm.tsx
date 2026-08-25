@@ -3,13 +3,27 @@
 import { useState, useTransition } from "react";
 import { createIseAlimTalebi } from "./actions";
 
-const POZISYONLAR = ["Müdür", "Yardımcı", "SD", "Dönemsel", "Part Time"];
+type Pozisyon = { unvan: string; kategori: string };
 
-export default function TalepForm({ magazalar }: { magazalar: { id: string; magaza_adi: string; magaza_kodu: string }[] }) {
+const KATEGORI_LABEL: Record<string, string> = {
+  ANA_KADRO: "Ana Kadro",
+  DONEMSEL: "Dönemsel",
+  PART_TIME: "Part Time",
+};
+
+export default function TalepForm({
+  magazalar,
+  pozisyonlar,
+}: {
+  magazalar: { id: string; magaza_adi: string; magaza_kodu: string }[];
+  pozisyonlar: Pozisyon[];
+}) {
   const [pending, startTransition] = useTransition();
   const [normUyari, setNormUyari] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [israrli, setIsrarli] = useState(false);
+
+  const gruplar = Array.from(new Set(pozisyonlar.map((p) => p.kategori)));
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -40,7 +54,13 @@ export default function TalepForm({ magazalar }: { magazalar: { id: string; maga
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Pozisyon Tipi *</label>
         <select name="pozisyon_tipi" required className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm">
           <option value="">Seçin</option>
-          {POZISYONLAR.map((p) => <option key={p} value={p}>{p}</option>)}
+          {gruplar.map((kategori) => (
+            <optgroup key={kategori} label={KATEGORI_LABEL[kategori] ?? kategori}>
+              {pozisyonlar.filter((p) => p.kategori === kategori).map((p) => (
+                <option key={p.unvan} value={p.unvan}>{p.unvan}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
 
