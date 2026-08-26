@@ -24,7 +24,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
 
   const { data: personelHam } = await supabase
     .from("personel")
-    .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, magazalar(magaza_adi, bolge_id, bolgeler(ad))")
+    .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar(magaza_adi, bolge_id, bolgeler(ad))")
     .eq("durum", "aktif")
     .order("ad_soyad");
 
@@ -34,6 +34,10 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
     guncel_unvan: p.guncel_unvan,
     magaza_adi: p.magazalar?.magaza_adi ?? "",
     bolge_adi: p.magazalar?.bolgeler?.ad ?? "",
+    performans_ortalama_hgo: p.performans_ortalama_hgo,
+    performans_80_alti_sayisi: p.performans_80_alti_sayisi,
+    performans_80_100_arasi_sayisi: p.performans_80_100_arasi_sayisi,
+    performans_100_ustu_sayisi: p.performans_100_ustu_sayisi,
   }));
 
   const { data: tumMagazalar } = tur === "rotasyon"
