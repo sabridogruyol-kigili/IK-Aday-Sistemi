@@ -2,14 +2,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TalepForm from "./TalepForm";
 import CikarmaForm from "./CikarmaForm";
-import RotasyonForm from "./RotasyonForm";
 
 export default async function YeniTalepPage({ searchParams }: { searchParams: { tur?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const tur = ["ise_alim", "cikarma", "rotasyon"].includes(searchParams.tur ?? "") ? searchParams.tur! : "ise_alim";
+  const tur = ["ise_alim", "cikarma"].includes(searchParams.tur ?? "") ? searchParams.tur! : "ise_alim";
 
   const { data: magazalar } = await supabase
     .from("magazalar").select("id, magaza_adi, magaza_kodu").eq("aktif", true).order("magaza_adi");
@@ -40,17 +39,9 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
     performans_100_ustu_sayisi: p.performans_100_ustu_sayisi,
   }));
 
-  const { data: tumMagazalar } = tur === "rotasyon"
-    ? await supabase.rpc("tum_magazalar_listesi")
-    : { data: [] };
-  const { data: tumPersonel } = tur === "rotasyon"
-    ? await supabase.rpc("tum_aktif_personel_listesi")
-    : { data: [] };
-
   const sekmeler = [
     { key: "ise_alim", label: "İşe Alım" },
     { key: "cikarma", label: "İşten Çıkarma" },
-    { key: "rotasyon", label: "Rotasyon" },
   ];
 
   return (
@@ -69,7 +60,6 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
       </div>
       {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} />}
       {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} pozisyonlar={pozisyonlar} />}
-      {tur === "rotasyon" && <RotasyonForm personelListesi={tumPersonel ?? []} magazalar={tumMagazalar ?? []} />}
     </div>
   );
 }
