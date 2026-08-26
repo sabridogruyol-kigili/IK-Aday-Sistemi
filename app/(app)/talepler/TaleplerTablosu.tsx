@@ -75,6 +75,7 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
               <th className="text-left px-3 py-2">Kişi</th>
               <th className="text-left px-3 py-2">Gönderim</th>
               <th className="text-left px-3 py-2">Durum</th>
+              <th className="text-left px-3 py-2">Süreç</th>
               <th className="text-left px-3 py-2">Tarih</th>
               <th className="text-left px-3 py-2">Detay</th>
             </tr>
@@ -95,7 +96,7 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
               />
             ))}
             {filtrelenmis.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-400 text-xs">Bu filtreye uyan talep yok.</td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-gray-400 text-xs">Bu filtreye uyan talep yok.</td></tr>
             )}
           </tbody>
         </table>
