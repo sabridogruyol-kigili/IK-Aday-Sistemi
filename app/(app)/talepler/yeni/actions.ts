@@ -81,8 +81,8 @@ export async function createIseAlimTalebi(formData: FormData): Promise<Sonuc> {
       norm_uyari: `Norm yetersiz — ${kategori} kategorisinde toplam norm: ${toplamNorm}, dolu+bekleyen: ${doluSayi}, kalan kontenjan: ${kalanKontenjan}. ${kisiSayisi} kişilik talebiniz bu kontenjanı aşıyor.`,
     };
   }
-  if (!uygun && israrli && !aciklama) {
-    return { error: "Norm aşıldığı için açıklama girmeniz zorunlu." };
+  if (!uygun && israrli && aciklama.length < 100) {
+    return { error: "Norm aşıldığı için en az 100 karakterlik açıklama girmeniz zorunlu." };
   }
 
   const { data: talepNo } = await supabase.rpc("sonraki_talep_no");
