@@ -59,12 +59,16 @@ export default function OnayKarti({
           <textarea
             value={redAciklama}
             onChange={(e) => setRedAciklama(e.target.value)}
-            placeholder="Red gerekçesi (zorunlu)"
-            rows={2}
+            placeholder="Red gerekçesi (en az 100 karakter, zorunlu)"
+            rows={3}
+            minLength={100}
             className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs"
           />
+          <div className={`text-[10px] ${redAciklama.trim().length >= 100 ? "text-success" : "text-gray-400"}`}>
+            {redAciklama.trim().length} / 100 karakter
+          </div>
           <div className="flex gap-2">
-            <button onClick={() => gonder("RED")} disabled={pending || !redAciklama.trim()}
+            <button onClick={() => gonder("RED")} disabled={pending || redAciklama.trim().length < 100}
               className="bg-danger text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">
               Reddi Onayla
             </button>
