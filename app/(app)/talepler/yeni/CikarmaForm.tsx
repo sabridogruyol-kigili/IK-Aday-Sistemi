@@ -4,7 +4,17 @@ import { useMemo, useState, useTransition } from "react";
 import { createIstenCikarmaTalebi } from "./actions-cikarma";
 
 type Pozisyon = { unvan: string; kategori: string };
-type Personel = { id: string; ad_soyad: string; guncel_unvan: string | null; magaza_adi: string; bolge_adi: string };
+type Personel = {
+  id: string;
+  ad_soyad: string;
+  guncel_unvan: string | null;
+  magaza_adi: string;
+  bolge_adi: string;
+  performans_ortalama_hgo: number | null;
+  performans_80_alti_sayisi: number | null;
+  performans_80_100_arasi_sayisi: number | null;
+  performans_100_ustu_sayisi: number | null;
+};
 
 const KATEGORI_LABEL: Record<string, string> = {
   ANA_KADRO: "Ana Kadro",
@@ -24,6 +34,11 @@ export default function CikarmaForm({
   const [error, setError] = useState<string | null>(null);
   const [israrli, setIsrarli] = useState(false);
   const [yerineAlim, setYerineAlim] = useState(false);
+  const [seciliPersonelId, setSeciliPersonelId] = useState("");
+
+  const seciliPersonel = personelListesi.find((p) => p.id === seciliPersonelId) ?? null;
+  const hgoDusuk = seciliPersonel != null && seciliPersonel.performans_ortalama_hgo != null && seciliPersonel.performans_ortalama_hgo < 80;
+  const aciklamaZorunlu = israrli || hgoDusuk;
 
   const bolgeler = useMemo(() => Array.from(new Set(personelListesi.map((p) => p.bolge_adi).filter(Boolean))).sort(), [personelListesi]);
   const [bolgeFiltre, setBolgeFiltre] = useState("");
@@ -67,13 +82,36 @@ export default function CikarmaForm({
             placeholder="İsim / unvan ara..." className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1" />
         </div>
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Çıkarılacak Personel *</label>
-        <select name="personel_id" required className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm">
+        <select name="personel_id" required value={seciliPersonelId}
+          onChange={(e) => setSeciliPersonelId(e.target.value)}
+          className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm">
           <option value="">Seçin</option>
           {filtrelenmisPersonel.map((p) => (
             <option key={p.id} value={p.id}>{p.ad_soyad} — {p.guncel_unvan} — {p.magaza_adi} ({p.bolge_adi})</option>
           ))}
         </select>
       </div>
+
+      {seciliPersonel && (
+        <div className={`rounded-md p-3 text-xs space-y-1 ${hgoDusuk ? "bg-danger-bg border border-danger/30" : "bg-gray-50 border border-gray-200"}`}>
+          <div className="font-semibold text-navy-3 mb-1">Performans Özeti — {seciliPersonel.ad_soyad}</div>
+          {seciliPersonel.performans_ortalama_hgo == null ? (
+            <div className="text-gray-400">Bu personel için henüz performans verisi içe aktarılmamış.</div>
+          ) : (
+            <>
+              <div className={hgoDusuk ? "text-danger font-semibold" : "text-gray-700"}>
+                Ortalama HGO: %{seciliPersonel.performans_ortalama_hgo.toFixed(1)}
+                {hgoDusuk && " — %80 altı, açıklama zorunlu"}
+              </div>
+              <div className="text-gray-500">
+                %80 altı: {seciliPersonel.performans_80_alti_sayisi ?? 0} ay ·
+                {" "}%80–100: {seciliPersonel.performans_80_100_arasi_sayisi ?? 0} ay ·
+                {" "}%100 üstü: {seciliPersonel.performans_100_ustu_sayisi ?? 0} ay
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-xs text-gray-600">
         <input type="checkbox" checked={yerineAlim} onChange={(e) => setYerineAlim(e.target.checked)} />
@@ -114,9 +152,9 @@ export default function CikarmaForm({
 
       <div>
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
-          Açıklama {israrli && "*"}
+          Açıklama {aciklamaZorunlu && "*"}
         </label>
-        <textarea name="aciklama" rows={3} required={israrli} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+        <textarea name="aciklama" rows={3} required={aciklamaZorunlu} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
       </div>
 
       {error && <div className="text-xs text-danger">{error}</div>}
