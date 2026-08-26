@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { createIseAlimTalebi } from "./actions";
+import YeniMagazaModal from "./YeniMagazaModal";
 
 type Pozisyon = { unvan: string; kategori: string };
+type Bolge = { id: string; ad: string };
 
 const KATEGORI_LABEL: Record<string, string> = {
   ANA_KADRO: "Ana Kadro",
@@ -14,15 +16,18 @@ const KATEGORI_LABEL: Record<string, string> = {
 export default function TalepForm({
   magazalar,
   pozisyonlar,
+  bolgeler,
 }: {
   magazalar: { id: string; magaza_adi: string; magaza_kodu: string }[];
   pozisyonlar: Pozisyon[];
+  bolgeler: Bolge[];
 }) {
   const [pending, startTransition] = useTransition();
   const [normUyari, setNormUyari] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [israrli, setIsrarli] = useState(false);
   const [aciklama, setAciklama] = useState("");
+  const [yeniMagazaModalAcik, setYeniMagazaModalAcik] = useState(false);
 
   const gruplar = Array.from(new Set(pozisyonlar.map((p) => p.kategori)));
 
@@ -40,6 +45,7 @@ export default function TalepForm({
   }
 
   return (
+    <>
     <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl space-y-4">
       <div>
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Mağaza *</label>
@@ -49,6 +55,10 @@ export default function TalepForm({
             <option key={m.id} value={m.id}>{m.magaza_adi} ({m.magaza_kodu})</option>
           ))}
         </select>
+        <button type="button" onClick={() => setYeniMagazaModalAcik(true)}
+          className="text-[11px] text-info underline mt-1">
+          Sistemde olmayan yeni bir mağaza/çadır/pop-up için mi talep açıyorsunuz?
+        </button>
       </div>
 
       <div>
@@ -100,5 +110,15 @@ export default function TalepForm({
         {pending ? "Gönderiliyor..." : "Talebi Gönder"}
       </button>
     </form>
+
+    {yeniMagazaModalAcik && (
+      <YeniMagazaModal
+        bolgeler={bolgeler}
+        pozisyonlar={pozisyonlar}
+        onClose={() => setYeniMagazaModalAcik(false)}
+        onDone={() => { setYeniMagazaModalAcik(false); window.location.href = "/talepler"; }}
+      />
+    )}
+    </>
   );
 }
