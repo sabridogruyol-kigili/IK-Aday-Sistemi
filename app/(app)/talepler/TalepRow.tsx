@@ -8,7 +8,7 @@ import AdayEkleModal from "./AdayEkleModal";
 import AdayStepper from "./AdayStepper";
 import IseAlModal from "./IseAlModal";
 
-const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon" };
+const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma" };
 const DURUM_RENK: Record<string, string> = {
   BEKLEMEDE: "text-accent", KABUL_EDILDI: "text-success", DURAKLADI: "text-danger", KAPANDI_RED: "text-danger", ISLEME_DEVAM: "text-info",
 };
@@ -26,16 +26,6 @@ const ADAY_DURUM_RENK: Record<string, string> = {
   GORUSULDU_OLUMSUZ: "bg-danger-bg text-danger", ISE_ALINDI: "bg-success text-white",
 };
 
-function yasHesapla(dogumTarihi: string | null) {
-  if (!dogumTarihi) return "—";
-  const dt = new Date(dogumTarihi);
-  const bugun = new Date();
-  let yas = bugun.getFullYear() - dt.getFullYear();
-  const ay = bugun.getMonth() - dt.getMonth();
-  if (ay < 0 || (ay === 0 && bugun.getDate() < dt.getDate())) yas--;
-  return yas;
-}
-
 function inisiyal(adSoyad: string) {
   return adSoyad.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
@@ -45,7 +35,7 @@ type Talep = {
   durum: string; aktif_gonderim_no: number; created_at: string; magazalar: { magaza_adi: string } | null;
 };
 type Aday = {
-  id: string; ad_soyad: string; dogum_tarihi: string | null; cinsiyet: string | null; cv_drive_link: string | null;
+  id: string; ad_soyad: string; telefon: string | null; email: string | null; cinsiyet: string | null; cv_drive_link: string | null;
   yonlendiren_rol: string; karari_veren_rol: string; durum: string; yonlendiren_kullanici_id: string; onay_tarihi: string | null;
   onay_bm: string | null; onay_ik: string | null; tc_kimlik_no: string | null; ise_baslama_tarihi: string | null;
 };
@@ -64,6 +54,8 @@ export default function TalepRow({
   const [ekleModalAcik, setEkleModalAcik] = useState(false);
   const [iseAlAdayId, setIseAlAdayId] = useState<string | null>(null);
   const [iseAlHata, setIseAlHata] = useState<string | null>(null);
+  const [redModAdayId, setRedModAdayId] = useState<string | null>(null);
+  const [redAciklama, setRedAciklama] = useState("");
 
   function adaylariYukle() {
     startTransition(async () => {
@@ -92,6 +84,8 @@ export default function TalepRow({
     startTransition(async () => {
       const res = await kararVerAday(fd);
       if (res?.error) { alert(res.error); return; }
+      setRedModAdayId(null);
+      setRedAciklama("");
       adaylariYukle();
     });
   }
@@ -195,7 +189,8 @@ export default function TalepRow({
                   <thead>
                     <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase">
                       <th className="text-left px-3 py-2">Aday</th>
-                      <th className="text-left px-3 py-2">Yaş</th>
+                      <th className="text-left px-3 py-2">Telefon</th>
+                      <th className="text-left px-3 py-2">E-posta</th>
                       <th className="text-left px-3 py-2">Cinsiyet</th>
                       <th className="text-left px-3 py-2">Yönlendiren</th>
                       <th className="text-left px-3 py-2">CV</th>
@@ -227,7 +222,8 @@ export default function TalepRow({
                               <span className="font-medium text-navy-3">{a.ad_soyad}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-gray-600">{yasHesapla(a.dogum_tarihi)}</td>
+                          <td className="px-3 py-2 text-gray-600 font-mono text-[10px]">{a.telefon ?? "—"}</td>
+                          <td className="px-3 py-2 text-gray-600 text-[10px]">{a.email ?? "—"}</td>
                           <td className="px-3 py-2 text-gray-600">{a.cinsiyet ?? "—"}</td>
                           <td className="px-3 py-2">
                             <span className="px-1.5 py-0.5 rounded bg-navy/10 text-navy text-[10px] font-medium">
@@ -271,14 +267,35 @@ export default function TalepRow({
                             {a.ise_baslama_tarihi ? new Date(a.ise_baslama_tarihi).toLocaleDateString("tr-TR") : "—"}
                           </td>
                           <td className="px-3 py-2">
-                            <div className="flex flex-wrap gap-1.5">
-                              {benKararVerebilirim && (
+                            <div className="flex flex-wrap gap-1.5 items-start">
+                              {benKararVerebilirim && redModAdayId !== a.id && (
                                 <>
                                   <button onClick={() => karar(a.id, "ONAY")} disabled={pending}
                                     className="bg-success text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Onayla</button>
-                                  <button onClick={() => { const ac = prompt("Red gerekçesi:"); if (ac) karar(a.id, "RED", ac); }} disabled={pending}
+                                  <button onClick={() => { setRedModAdayId(a.id); setRedAciklama(""); }} disabled={pending}
                                     className="bg-danger-bg text-danger border border-danger/30 rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Reddet</button>
                                 </>
+                              )}
+                              {redModAdayId === a.id && (
+                                <div className="w-56 space-y-1">
+                                  <textarea
+                                    value={redAciklama}
+                                    onChange={(e) => setRedAciklama(e.target.value)}
+                                    placeholder="Red gerekçesi (en az 100 karakter)"
+                                    rows={3}
+                                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-[10px]"
+                                    autoFocus
+                                  />
+                                  <div className={`text-[9px] ${redAciklama.trim().length >= 100 ? "text-success" : "text-gray-400"}`}>
+                                    {redAciklama.trim().length} / 100 karakter
+                                  </div>
+                                  <div className="flex gap-1.5">
+                                    <button onClick={() => karar(a.id, "RED", redAciklama)} disabled={pending || redAciklama.trim().length < 100}
+                                      className="bg-danger text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Reddi Onayla</button>
+                                    <button onClick={() => { setRedModAdayId(null); setRedAciklama(""); }}
+                                      className="text-[10px] text-gray-400">Vazgeç</button>
+                                  </div>
+                                </div>
                               )}
                               {a.durum === "ONAYLANDI" && (
                                 <button onClick={() => ilerlet(a.id, "ON_GORUSME_PLANLANDI")} disabled={pending}
