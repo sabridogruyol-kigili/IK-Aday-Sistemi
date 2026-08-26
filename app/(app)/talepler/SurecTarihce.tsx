@@ -1,8 +1,8 @@
 "use client";
 
-type Olay = { tarih: string; baslik: string; detay?: string | null };
+export type TarihceOlay = { tarih: string; baslik: string; detay?: string | null };
 
-export default function SurecTarihce({ olaylar }: { olaylar: Olay[] }) {
+export default function SurecTarihce({ olaylar }: { olaylar: TarihceOlay[] }) {
   if (olaylar.length === 0) {
     return <div className="text-[11px] text-gray-400 p-2">Tarihçe kaydı bulunamadı.</div>;
   }
