@@ -27,6 +27,10 @@ const ADAY_DURUM_RENK: Record<string, string> = {
   ON_GORUSME_PLANLANDI: "bg-info-bg text-info", GORUSULDU_OLUMLU: "bg-success-bg text-success",
   GORUSULDU_OLUMSUZ: "bg-danger-bg text-danger", ISE_ALINDI: "bg-success text-white",
 };
+const SUREC_OZET: Record<string, string> = {
+  BEKLEMEDE: "Onay bekliyor", DURAKLADI: "Revizyon bekliyor", ISLEME_DEVAM: "İşlemde",
+  KABUL_EDILDI: "Kabul edildi", KAPANDI_RED: "Kapandı — Red",
+};
 
 function inisiyal(adSoyad: string) {
   return adSoyad.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -175,11 +179,18 @@ export default function TalepRow({
           {talep.durum === "DURAKLADI" && talep.aktif_gonderim_no >= 3 && benimAcimMi && (
             <div className="text-[11px] text-gray-400 mt-0.5">3 deneme doldu, yeni talep açın</div>
           )}
-          {(talep.durum === "KABUL_EDILDI" || talep.durum === "KAPANDI_RED") && (
-            <button onClick={talepTarihceyiAcKapa} className="text-[10px] text-info underline mt-0.5">
-              🕐 {talepTarihceAcik ? "Tarihçeyi gizle" : "Süreç tarihçesi"}
-            </button>
-          )}
+        </td>
+        <td className="px-3 py-2.5">
+          <button
+            onClick={talepTarihceyiAcKapa}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors ${
+              talepTarihceAcik ? "bg-navy text-white border-navy" : "bg-gray-50 text-gray-600 border-gray-200 hover:border-navy hover:bg-white"
+            }`}
+          >
+            <span>🕐</span>
+            <span>{SUREC_OZET[talep.durum] ?? talep.durum}</span>
+            <span className={`text-[8px] transition-transform ${talepTarihceAcik ? "rotate-180" : ""}`}>▼</span>
+          </button>
         </td>
         <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{new Date(talep.created_at).toLocaleDateString("tr-TR")}</td>
         <td className="px-3 py-2.5">
@@ -207,7 +218,7 @@ export default function TalepRow({
 
       {talepTarihceAcik && (
         <tr className="bg-gray-50/50 border-t border-gray-100">
-          <td colSpan={10} className="px-6 py-3">
+          <td colSpan={11} className="px-6 py-3">
             <div className="rounded-lg border border-gray-200 bg-white p-3 max-w-md">
               <div className="text-[11px] font-semibold text-navy-3 mb-2">Süreç Tarihçesi — {talep.talep_no}</div>
               {talepTarihcePending ? (
@@ -222,7 +233,7 @@ export default function TalepRow({
 
       {adayAcik && (
         <tr className="bg-gray-50/70 border-t border-gray-100">
-          <td colSpan={10} className="px-3 py-4">
+          <td colSpan={11} className="px-3 py-4">
             <div className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
 
               <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -310,6 +321,13 @@ export default function TalepRow({
                                   )}
                                 </div>
                               )}
+                              <button onClick={() => adayTarihceyiAcKapa(a.id)}
+                                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
+                                  adayTarihceAcikId === a.id ? "bg-navy text-white border-navy" : "bg-gray-50 text-gray-500 border-gray-200 hover:border-navy hover:bg-white"
+                                }`}>
+                                <span>🕐 Süreç detayı</span>
+                                <span className={`text-[7px] transition-transform ${adayTarihceAcikId === a.id ? "rotate-180" : ""}`}>▼</span>
+                              </button>
                             </div>
                           </td>
                           <td className="px-3 py-2 text-gray-400 font-mono text-[10px]">
@@ -372,18 +390,12 @@ export default function TalepRow({
                                 <button onClick={() => sil(a.id)} disabled={pending}
                                   className="bg-gray-100 text-gray-500 rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">Sil</button>
                               )}
-                              {["ISE_ALINDI", "REDDEDILDI", "GORUSULDU_OLUMSUZ"].includes(a.durum) && (
-                                <button onClick={() => adayTarihceyiAcKapa(a.id)} disabled={pending}
-                                  className="bg-white text-info border border-info/30 rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50">
-                                  🕐 {adayTarihceAcikId === a.id ? "Gizle" : "Tarihçe"}
-                                </button>
-                              )}
                             </div>
                           </td>
                         </tr>
                         {adayTarihceAcikId === a.id && (
                           <tr className="bg-gray-50/50 border-t border-gray-100">
-                            <td colSpan={10} className="px-6 py-3">
+                            <td colSpan={11} className="px-6 py-3">
                               <div className="rounded-lg border border-gray-200 bg-white p-3 max-w-md">
                                 <div className="text-[11px] font-semibold text-navy-3 mb-2">Süreç Tarihçesi — {a.ad_soyad}</div>
                                 <SurecTarihce olaylar={adayTarihce} />
