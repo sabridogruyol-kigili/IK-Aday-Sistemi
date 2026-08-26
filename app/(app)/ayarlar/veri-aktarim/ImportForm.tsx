@@ -3,17 +3,64 @@
 import { useRef, useState, useTransition } from "react";
 import * as XLSX from "xlsx";
 import { iceAktarMagazaNorm } from "./actions";
+import { iceAktarPersonel } from "./actions-personel";
+import { iceAktarPerformans } from "./actions-performans";
 
 type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string };
 
+type Sablon = {
+  key: string;
+  label: string;
+  aciklama: string;
+  action: (rows: any[]) => Promise<Sonuc>;
+};
+
+const SABLONLAR: Sablon[] = [
+  {
+    key: "norm",
+    label: "Mağaza / Bölge / Norm",
+    aciklama: "Şablon sütunları: Mağaza Kodu, Mağaza Adı, Bölge Adı, Ana Kadro Norm, Dönemsel Norm, Part-Time Norm",
+    action: iceAktarMagazaNorm,
+  },
+  {
+    key: "personel",
+    label: "Personel",
+    aciklama:
+      "Şablon sütunları: Personel Kodu, TC Kimlik No, Adı-Soyadı, Departman Kodu, Departman Açıklaması, İş Ünvanı Açıklaması, İşyeri Başlama Tarihi, İşten Ayrılma Tarihi, Doğum Tarihi, Cinsiyet Açıklaması, Bölge Açıklama, Bölge Müdürü Açıklama, İlk Başlama Tarihi. Not: İşten Ayrılma Tarihi dolu olan satırlar otomatik atlanır. Mağaza (Departman Kodu) sistemde önceden kayıtlı olmalı.",
+    action: iceAktarPersonel,
+  },
+  {
+    key: "performans",
+    label: "Performans",
+    aciklama:
+      "Şablon sütunları: YIL, AY, Şubeler, Plasiyer Adı, Plasiyer Kodu, Title, Plasiyer Hedef Ciro (Kdv Dahil), Toplam Ciro KDV Dahil, ... Not: Personel önceden içe aktarılmış olmalı (Plasiyer Kodu, Personel Kodu ile eşleştirilir). 'Total' satırları mağaza aylık HGO'ya, kişi satırları kişi aylık HGO'ya yazılır.",
+    action: iceAktarPerformans,
+  },
+];
+
 export default function ImportForm() {
+  const [sablonKey, setSablonKey] = useState(SABLONLAR[0].key);
+  const sablon = SABLONLAR.find((s) => s.key === sablonKey)!;
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [dosyaAdi, setDosyaAdi] = useState<string | null>(null);
   const [satirSayisi, setSatirSayisi] = useState(0);
   const [rows, setRows] = useState<any[]>([]);
+  const [ilkSutunlar, setIlkSutunlar] = useState<string[]>([]);
   const [sonuc, setSonuc] = useState<Sonuc | null>(null);
   const [okumaHatasi, setOkumaHatasi] = useState<string | null>(null);
+
+  function sablonDegistir(key: string) {
+    setSablonKey(key);
+    setDosyaAdi(null);
+    setSatirSayisi(0);
+    setRows([]);
+    setIlkSutunlar([]);
+    setSonuc(null);
+    setOkumaHatasi(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   function dosyaSec(file: File) {
     setOkumaHatasi(null);
@@ -29,10 +76,12 @@ export default function ImportForm() {
         const json = XLSX.utils.sheet_to_json(sheet);
         setRows(json);
         setSatirSayisi(json.length);
+        setIlkSutunlar(json.length > 0 ? Object.keys(json[0] as object) : []);
       } catch (err: any) {
         setOkumaHatasi("Dosya okunamadı: " + err.message);
         setRows([]);
         setSatirSayisi(0);
+        setIlkSutunlar([]);
       }
     };
     reader.readAsBinaryString(file);
@@ -42,18 +91,30 @@ export default function ImportForm() {
     if (rows.length === 0) return;
     setSonuc(null);
     startTransition(async () => {
-      const res = await iceAktarMagazaNorm(rows);
+      const res = await sablon.action(rows);
       setSonuc(res);
     });
   }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 max-w-2xl space-y-4">
+      <div className="flex gap-2 border-b border-gray-100 pb-3">
+        {SABLONLAR.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => sablonDegistir(s.key)}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+              sablonKey === s.key ? "bg-navy text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       <div>
-        <div className="text-sm font-semibold text-navy-3 mb-1">Mağaza / Bölge / Norm</div>
-        <div className="text-xs text-gray-400 mb-3">
-          Şablon sütunları: Mağaza Kodu, Mağaza Adı, Bölge Adı, Ana Kadro Norm, Dönemsel Norm, Part-Time Norm
-        </div>
+        <div className="text-sm font-semibold text-navy-3 mb-1">{sablon.label}</div>
+        <div className="text-xs text-gray-400 mb-3">{sablon.aciklama}</div>
 
         <div
           onClick={() => fileInputRef.current?.click()}
@@ -75,6 +136,12 @@ export default function ImportForm() {
             </>
           )}
         </div>
+
+        {ilkSutunlar.length > 0 && (
+          <div className="mt-2 text-[10px] text-gray-400">
+            <span className="font-semibold">Bulunan sütunlar:</span> {ilkSutunlar.join(", ")}
+          </div>
+        )}
 
         {okumaHatasi && <div className="text-xs text-danger mt-2">{okumaHatasi}</div>}
 
