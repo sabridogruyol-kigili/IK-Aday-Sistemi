@@ -33,8 +33,8 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
 
   // Tasarım notu 4.3 / 5.4: ortalama HGO %80 altındaysa açıklama zorunlu (norm aşımından bağımsız bir kural)
   const hgoDusuk = personel.performans_ortalama_hgo != null && personel.performans_ortalama_hgo < 80;
-  if (hgoDusuk && !aciklama) {
-    return { error: "Bu personelin ortalama performansı (HGO) %80'in altında — açıklama girmeniz zorunlu." };
+  if (hgoDusuk && aciklama.length < 100) {
+    return { error: "Bu personelin ortalama performansı (HGO) %80'in altında — en az 100 karakterlik açıklama girmeniz zorunlu." };
   }
 
   let normUyari: string | undefined;
@@ -98,8 +98,8 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
         norm_uyari: `Norm yetersiz — ${kategori} kategorisinde toplam norm: ${toplamNorm}, dolu+bekleyen: ${doluSayi}, kalan kontenjan: ${kalanKontenjan}.`,
       };
     }
-    if (!uygun && israrli && !aciklama) {
-      return { error: "Norm aşıldığı için açıklama girmeniz zorunlu." };
+    if (!uygun && israrli && aciklama.length < 100) {
+      return { error: "Norm aşıldığı için en az 100 karakterlik açıklama girmeniz zorunlu." };
     }
     normSonuc = uygun ? "UYGUN" : "UYGUN_DEGIL_ISRARLI";
   }
