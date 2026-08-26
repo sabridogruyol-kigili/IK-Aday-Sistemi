@@ -13,6 +13,9 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const { data: magazalar } = await supabase
     .from("magazalar").select("id, magaza_adi, magaza_kodu").eq("aktif", true).order("magaza_adi");
 
+  const { data: bolgeler } = await supabase
+    .from("bolgeler").select("id, ad").order("ad");
+
   const { data: pozisyonlarHam } = await supabase
     .from("unvan_kadro_kategorisi")
     .select("unvan, kategori")
@@ -58,7 +61,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
           </a>
         ))}
       </div>
-      {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} />}
+      {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} bolgeler={bolgeler ?? []} />}
       {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} pozisyonlar={pozisyonlar} />}
     </div>
   );
