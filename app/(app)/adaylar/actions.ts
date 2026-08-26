@@ -150,3 +150,45 @@ export async function deleteAday(formData: FormData) {
   const { error } = await supabase.from("adaylar").delete().eq("id", adayId);
   return { error: error?.message };
 }
+
+const ADAY_DURUM_ETIKET_TARIHCE: Record<string, string> = {
+  YONLENDIRILDI: "Yönlendirildi",
+  ARA_KARAR_BM_ONAY: "BM onayladı (İK bekleniyor)",
+  ARA_KARAR_BM_RED: "BM reddetti",
+  ARA_KARAR_IK_ONAY: "İK onayladı (BM bekleniyor)",
+  ARA_KARAR_IK_RED: "İK reddetti",
+  ONAYLANDI: "Onaylandı",
+  REDDEDILDI: "Reddedildi",
+  ON_GORUSME_PLANLANDI: "Ön görüşme planlandı",
+  GORUSULDU_OLUMLU: "Görüşüldü — Olumlu",
+  GORUSULDU_OLUMSUZ: "Görüşüldü — Olumsuz",
+  ISE_ALINDI: "İşe alındı",
+};
+
+export async function getAdaySurecGecmisi(adayId: string) {
+  const supabase = createClient();
+
+  const { data: aday, error: adayHata } = await supabase
+    .from("adaylar")
+    .select("ad_soyad, created_at, yonlendiren_rol")
+    .eq("id", adayId)
+    .single();
+  if (adayHata || !aday) return { data: [], error: adayHata?.message ?? "Aday bulunamadı." };
+
+  const { data: gecmis } = await supabase
+    .from("aday_surec_gecmisi")
+    .select("durum, aciklama, created_at, degistiren:kullanicilar!degistiren_kullanici_id(ad_soyad)")
+    .eq("aday_id", adayId)
+    .order("created_at");
+
+  const olaylar = [
+    { tarih: aday.created_at, baslik: `Aday eklendi — yönlendiren: ${aday.yonlendiren_rol}`, detay: null as string | null },
+    ...(gecmis ?? []).map((g: any) => ({
+      tarih: g.created_at,
+      baslik: `${ADAY_DURUM_ETIKET_TARIHCE[g.durum] ?? g.durum}${g.degistiren?.ad_soyad ? " — " + g.degistiren.ad_soyad : ""}`,
+      detay: g.aciklama as string | null,
+    })),
+  ];
+
+  return { data: olaylar };
+}
