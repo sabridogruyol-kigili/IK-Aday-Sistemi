@@ -26,10 +26,16 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
 
   const { data: personel } = await supabase
     .from("personel")
-    .select("id, ad_soyad, guncel_magaza_id, kadro_kategorisi")
+    .select("id, ad_soyad, guncel_magaza_id, kadro_kategorisi, performans_ortalama_hgo")
     .eq("id", personelId)
     .single();
   if (!personel) return { error: "Personel bulunamadı." };
+
+  // Tasarım notu 4.3 / 5.4: ortalama HGO %80 altındaysa açıklama zorunlu (norm aşımından bağımsız bir kural)
+  const hgoDusuk = personel.performans_ortalama_hgo != null && personel.performans_ortalama_hgo < 80;
+  if (hgoDusuk && !aciklama) {
+    return { error: "Bu personelin ortalama performansı (HGO) %80'in altında — açıklama girmeniz zorunlu." };
+  }
 
   let normUyari: string | undefined;
   let normSonuc: "UYGUN" | "UYGUN_DEGIL_ISRARLI" = "UYGUN";
