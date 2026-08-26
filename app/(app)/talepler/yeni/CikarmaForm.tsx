@@ -35,6 +35,7 @@ export default function CikarmaForm({
   const [israrli, setIsrarli] = useState(false);
   const [yerineAlim, setYerineAlim] = useState(false);
   const [seciliPersonelId, setSeciliPersonelId] = useState("");
+  const [aciklama, setAciklama] = useState("");
 
   const seciliPersonel = personelListesi.find((p) => p.id === seciliPersonelId) ?? null;
   const hgoDusuk = seciliPersonel != null && seciliPersonel.performans_ortalama_hgo != null && seciliPersonel.performans_ortalama_hgo < 80;
@@ -154,12 +155,19 @@ export default function CikarmaForm({
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
           Açıklama {aciklamaZorunlu && "*"}
         </label>
-        <textarea name="aciklama" rows={3} required={aciklamaZorunlu} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+        <textarea name="aciklama" value={aciklama} onChange={(e) => setAciklama(e.target.value)}
+          rows={3} required={aciklamaZorunlu} minLength={aciklamaZorunlu ? 100 : undefined}
+          className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+        {aciklamaZorunlu && (
+          <div className={`text-[10px] mt-1 ${aciklama.trim().length >= 100 ? "text-success" : "text-gray-400"}`}>
+            {aciklama.trim().length} / 100 karakter
+          </div>
+        )}
       </div>
 
       {error && <div className="text-xs text-danger">{error}</div>}
 
-      <button type="submit" disabled={pending} className="bg-navy text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50">
+      <button type="submit" disabled={pending || (aciklamaZorunlu && aciklama.trim().length < 100)} className="bg-navy text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50">
         {pending ? "Gönderiliyor..." : "Talebi Gönder"}
       </button>
     </form>
