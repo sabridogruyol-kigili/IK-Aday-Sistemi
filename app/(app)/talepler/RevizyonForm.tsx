@@ -29,17 +29,23 @@ export default function RevizyonForm({ talepId }: { talepId: string }) {
     );
   }
 
+  const yeterliUzunluk = aciklama.trim().length >= 100;
+
   return (
     <div className="space-y-2 mt-1">
       <textarea
         value={aciklama}
         onChange={(e) => setAciklama(e.target.value)}
-        placeholder="Neden ısrar ediyorsunuz? (zorunlu)"
-        rows={2}
+        placeholder="Neden ısrar ediyorsunuz? (en az 100 karakter, zorunlu)"
+        rows={3}
+        minLength={100}
         className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs"
       />
+      <div className={`text-[10px] ${yeterliUzunluk ? "text-success" : "text-gray-400"}`}>
+        {aciklama.trim().length} / 100 karakter
+      </div>
       <div className="flex gap-2">
-        <button onClick={gonder} disabled={pending || !aciklama.trim()}
+        <button onClick={gonder} disabled={pending || !yeterliUzunluk}
           className="bg-navy text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">
           {pending ? "Gönderiliyor..." : "Tekrar Gönder"}
         </button>
