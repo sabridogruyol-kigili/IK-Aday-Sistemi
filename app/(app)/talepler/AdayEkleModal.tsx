@@ -11,7 +11,8 @@ export default function AdayEkleModal({ talepId, onClose, onDone }: {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [adSoyad, setAdSoyad] = useState("");
-  const [dogumTarihi, setDogumTarihi] = useState("");
+  const [telefon, setTelefon] = useState("");
+  const [email, setEmail] = useState("");
   const [cinsiyet, setCinsiyet] = useState("");
   const [hata, setHata] = useState<string | null>(null);
 
@@ -38,13 +39,19 @@ export default function AdayEkleModal({ talepId, onClose, onDone }: {
     setCvAdi(file.name);
   }
 
+  function emailGecerliMi(v: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+  }
+
   function ekle() {
     if (!adSoyad.trim() || !cvYolu) return;
+    if (!emailGecerliMi(email)) { setHata("Geçerli bir e-posta adresi girin."); return; }
     setHata(null);
     const fd = new FormData();
     fd.set("talep_id", talepId);
     fd.set("ad_soyad", adSoyad);
-    fd.set("dogum_tarihi", dogumTarihi);
+    fd.set("telefon", telefon);
+    fd.set("email", email);
     fd.set("cinsiyet", cinsiyet);
     fd.set("cv_yolu", cvYolu);
     startTransition(async () => {
@@ -72,9 +79,19 @@ export default function AdayEkleModal({ talepId, onClose, onDone }: {
               className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" autoFocus />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Doğum Tarihi</label>
-            <input type="date" value={dogumTarihi} onChange={(e) => setDogumTarihi(e.target.value)}
+            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Telefon Numarası</label>
+            <input type="tel" value={telefon} onChange={(e) => setTelefon(e.target.value)}
+              placeholder="05XX XXX XX XX"
               className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">E-posta *</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="aday@ornek.com"
+              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+            <div className="text-[10px] text-gray-400 mt-1">
+              Süreç onaylandığında ve işe alım tamamlandığında adaya bu adrese bilgilendirme maili gider.
+            </div>
           </div>
           <div>
             <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Cinsiyet</label>
@@ -120,7 +137,7 @@ export default function AdayEkleModal({ talepId, onClose, onDone }: {
 
           {hata && <div className="text-[11px] text-danger">{hata}</div>}
 
-          <button onClick={ekle} disabled={pending || !adSoyad.trim() || !cvYolu}
+          <button onClick={ekle} disabled={pending || !adSoyad.trim() || !cvYolu || !emailGecerliMi(email)}
             className="w-full bg-navy text-white rounded-md py-2 text-sm font-medium disabled:opacity-50">
             {pending ? "Ekleniyor..." : "Ekle"}
           </button>
