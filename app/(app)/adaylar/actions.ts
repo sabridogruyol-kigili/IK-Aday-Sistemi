@@ -81,7 +81,9 @@ export async function mulakatIsaretle(formData: FormData) {
   return { error: undefined };
 }
 
-export async function kararVerAday(formData: FormData) {
+type KararSonuc = { error?: string; aday?: { durum: string; onay_bm: string | null; onay_ik: string | null } };
+
+export async function kararVerAday(formData: FormData): Promise<KararSonuc> {
   const supabase = createClient();
   const adayId = String(formData.get("aday_id"));
 
@@ -94,22 +96,25 @@ export async function kararVerAday(formData: FormData) {
 
   const { data: aday } = await supabase
     .from("adaylar")
-    .select("ad_soyad, email, durum")
+    .select("ad_soyad, email, durum, onay_bm, onay_ik")
     .eq("id", adayId)
     .single();
 
+  // Mail gönderimini beklemeden (arka planda) tetikle — SMTP round-trip'i kullanıcıyı bekletmesin.
   if (aday?.durum === "ONAYLANDI" && aday.email) {
-    await sendMail({
+    sendMail({
       to: aday.email,
       subject: "İşe Alım Sürecinizde Onay Aldınız",
       text: `Sayın ${aday.ad_soyad},\n\nİşe alım sürecinizdeki başvurunuz onaylanmıştır. Süreç ilerledikçe sizinle iletişime geçilecektir.\n\nİyi günler dileriz.`,
-    });
+    }).catch(() => {});
   }
 
-  return { error: undefined };
+  return { error: undefined, aday: aday ? { durum: aday.durum, onay_bm: aday.onay_bm, onay_ik: aday.onay_ik } : undefined };
 }
 
-export async function ilerletDurum(formData: FormData) {
+type IlerletSonuc = { error?: string; aday?: { durum: string; tc_kimlik_no: string | null; ise_baslama_tarihi: string | null } };
+
+export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
   const supabase = createClient();
   const adayId = String(formData.get("aday_id"));
   const yeniDurum = String(formData.get("yeni_durum"));
@@ -125,23 +130,25 @@ export async function ilerletDurum(formData: FormData) {
 
   if (error) return { error: error.message };
 
-  if (yeniDurum === "ISE_ALINDI") {
-    const { data: aday } = await supabase
-      .from("adaylar")
-      .select("ad_soyad, email")
-      .eq("id", adayId)
-      .single();
+  const { data: aday } = await supabase
+    .from("adaylar")
+    .select("ad_soyad, email, durum, tc_kimlik_no, ise_baslama_tarihi")
+    .eq("id", adayId)
+    .single();
 
-    if (aday?.email) {
-      await sendMail({
-        to: aday.email,
-        subject: "İşe Alım Süreciniz Tamamlandı",
-        text: `Sayın ${aday.ad_soyad},\n\nİşe alım süreciniz başarıyla tamamlanmıştır. Aramıza hoş geldiniz.\n\nİyi günler dileriz.`,
-      });
-    }
+  // Mail gönderimini beklemeden (arka planda) tetikle — SMTP round-trip'i kullanıcıyı bekletmesin.
+  if (yeniDurum === "ISE_ALINDI" && aday?.email) {
+    sendMail({
+      to: aday.email,
+      subject: "İşe Alım Süreciniz Tamamlandı",
+      text: `Sayın ${aday.ad_soyad},\n\nİşe alım süreciniz başarıyla tamamlanmıştır. Aramıza hoş geldiniz.\n\nİyi günler dileriz.`,
+    }).catch(() => {});
   }
 
-  return { error: undefined };
+  return {
+    error: undefined,
+    aday: aday ? { durum: aday.durum, tc_kimlik_no: aday.tc_kimlik_no, ise_baslama_tarihi: aday.ise_baslama_tarihi } : undefined,
+  };
 }
 
 export async function getAdaylarByTalep(talepId: string) {
