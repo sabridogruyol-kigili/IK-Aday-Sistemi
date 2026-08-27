@@ -103,11 +103,13 @@ export default function TalepRow({
   }
 
   function sil(adayId: string) {
+    const oncekiListe = adaylar;
+    setAdaylar((prev) => prev.filter((a) => a.id !== adayId));
+    setAdaySayisi((n) => Math.max(0, n - 1));
     const fd = new FormData(); fd.set("aday_id", adayId);
     startTransition(async () => {
       const res = await deleteAday(fd);
-      if (res?.error) { alert(res.error); return; }
-      adaylariYukle();
+      if (res?.error) { alert(res.error); setAdaylar(oncekiListe); setAdaySayisi(oncekiListe.length); }
     });
   }
 
@@ -118,18 +120,23 @@ export default function TalepRow({
       if (res?.error) { alert(res.error); return; }
       setRedModAdayId(null);
       setRedAciklama("");
-      adaylariYukle();
+      if (res.aday) {
+        setAdaylar((prev) => prev.map((a) => (a.id === adayId ? { ...a, ...res.aday } : a)));
+      } else {
+        adaylariYukle();
+      }
     });
   }
 
   function mulakatDegistir(adayId: string, rol: "BM" | "IK", mevcutDeger: string | null) {
-    // Döngü: işaretsiz -> Yapıldı -> Yapılmadı -> işaretsize benzer şekilde Yapıldı'ya döner (temizleme ihtiyacı azdır)
     const yeniDeger = mevcutDeger === "YAPILDI" ? "YAPILMADI" : "YAPILDI";
+    const kolon = rol === "BM" ? "mulakat_bm" : "mulakat_ik";
+    const oncekiListe = adaylar;
+    // Optimistic: sunucu cevabını beklemeden ekranı hemen güncelle.
+    setAdaylar((prev) => prev.map((a) => (a.id === adayId ? { ...a, [kolon]: yeniDeger } : a)));
     const fd = new FormData(); fd.set("aday_id", adayId); fd.set("rol", rol); fd.set("durum", yeniDeger);
-    startTransition(async () => {
-      const res = await mulakatIsaretle(fd);
-      if (res?.error) { alert(res.error); return; }
-      adaylariYukle();
+    mulakatIsaretle(fd).then((res) => {
+      if (res?.error) { alert(res.error); setAdaylar(oncekiListe); }
     });
   }
 
@@ -138,7 +145,11 @@ export default function TalepRow({
     startTransition(async () => {
       const res = await ilerletDurum(fd);
       if (res?.error) { alert(res.error); return; }
-      adaylariYukle();
+      if (res.aday) {
+        setAdaylar((prev) => prev.map((a) => (a.id === adayId ? { ...a, ...res.aday } : a)));
+      } else {
+        adaylariYukle();
+      }
     });
   }
 
@@ -150,6 +161,7 @@ export default function TalepRow({
     fd.set("yeni_durum", "ISE_ALINDI");
     fd.set("tc_kimlik_no", tc);
     fd.set("baslangic_tarihi", baslangic);
+    const hedefAdayId = iseAlAdayId;
     startTransition(async () => {
       const res = await ilerletDurum(fd);
       if (res?.error) {
@@ -157,7 +169,11 @@ export default function TalepRow({
         return;
       }
       setIseAlAdayId(null);
-      adaylariYukle();
+      if (res.aday) {
+        setAdaylar((prev) => prev.map((a) => (a.id === hedefAdayId ? { ...a, ...res.aday } : a)));
+      } else {
+        adaylariYukle();
+      }
     });
   }
 
