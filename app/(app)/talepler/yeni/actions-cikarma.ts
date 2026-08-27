@@ -144,7 +144,7 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
   const onayRolleri = (["BM", "IK", "YONETIM"] as const).filter((r) => r !== me.rol);
   const onaySatirlari: { gonderim_id: string; onaylayici_kullanici_id: string; onaylayici_rol_baglami: string }[] = [];
 
-  for (const rol of onayRolleri) {
+  await Promise.all(onayRolleri.map(async (rol) => {
     if (rol === "YONETIM") {
       const { data: yonetimler } = await supabase
         .from("kullanicilar").select("id").eq("rol", "YONETIM").eq("aktif", true);
@@ -162,7 +162,7 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
         onaySatirlari.push({ gonderim_id: gonderim.id, onaylayici_kullanici_id: b.kullanici_id, onaylayici_rol_baglami: rol })
       );
     }
-  }
+  }));
 
   if (onaySatirlari.length > 0) {
     await supabase.from("talep_onaylari").insert(onaySatirlari);
