@@ -215,43 +215,49 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
   const g = gecmis ?? [];
 
   const adimlar: SurecAdimi[] = [];
+  const adayDurum = aday.durum;
+  const karariVerenRol = aday.karari_veren_rol;
+  const onayBm = aday.onay_bm;
+  const onayIk = aday.onay_ik;
+  const mulakatBm = aday.mulakat_bm;
+  const mulakatIk = aday.mulakat_ik;
 
   adimlar.push({ tarih: aday.created_at, baslik: `Aday Eklendi — ${aday.yonlendiren_rol}`, durum: "TAMAMLANDI_NOTR" });
 
   const durumSirasi = ["YONLENDIRILDI", "ONAYLANDI", "REDDEDILDI", "ON_GORUSME_PLANLANDI", "GORUSULDU_OLUMLU", "GORUSULDU_OLUMSUZ", "ISE_ALINDI"];
-  const mevcutIndex = durumSirasi.indexOf(aday.durum);
+  const mevcutIndex = durumSirasi.indexOf(adayDurum);
 
   function mulakatAdimi(rol: "BM" | "IK", deger: string | null) {
     const tarih = enSonTarih(g, [`MULAKAT_${rol}_YAPILDI`, `MULAKAT_${rol}_YAPILMADI`]);
     if (deger === "YAPILDI") adimlar.push({ tarih, baslik: `Mülakat (${rol}) — Yapıldı`, durum: "TAMAMLANDI_OLUMLU" });
     else if (deger === "YAPILMADI") adimlar.push({ tarih, baslik: `Mülakat (${rol}) — Yapılmadı`, durum: "TAMAMLANDI_OLUMSUZ" });
-    else adimlar.push({ tarih: null, baslik: `Mülakat (${rol})`, durum: aday.durum === "YONLENDIRILDI" ? "MEVCUT" : "GELECEK" });
+    else adimlar.push({ tarih: null, baslik: `Mülakat (${rol})`, durum: adayDurum === "YONLENDIRILDI" ? "MEVCUT" : "GELECEK" });
   }
 
-  if (aday.durum === "REDDEDILDI" || aday.durum === "ONAYLANDI" || aday.durum === "YONLENDIRILDI") {
-    if (aday.karari_veren_rol === "BM_VE_IK") {
-      mulakatAdimi("BM", aday.mulakat_bm);
-      mulakatAdimi("IK", aday.mulakat_ik);
+  if (adayDurum === "REDDEDILDI" || adayDurum === "ONAYLANDI" || adayDurum === "YONLENDIRILDI") {
+    if (karariVerenRol === "BM_VE_IK") {
+      mulakatAdimi("BM", mulakatBm);
+      mulakatAdimi("IK", mulakatIk);
       const bmTarih = enSonTarih(g, ["ARA_KARAR_BM_ONAY", "ARA_KARAR_BM_RED"]);
       const ikTarih = enSonTarih(g, ["ARA_KARAR_IK_ONAY", "ARA_KARAR_IK_RED"]);
       adimlar.push({
         tarih: bmTarih,
-        baslik: aday.onay_bm ? `BM Kararı — ${aday.onay_bm === "ONAY" ? "Onayladı" : "Reddetti"}` : "BM Kararı",
-        durum: aday.onay_bm === "ONAY" ? "TAMAMLANDI_OLUMLU" : aday.onay_bm === "RED" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
+        baslik: onayBm ? `BM Kararı — ${onayBm === "ONAY" ? "Onayladı" : "Reddetti"}` : "BM Kararı",
+        durum: onayBm === "ONAY" ? "TAMAMLANDI_OLUMLU" : onayBm === "RED" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
       });
       adimlar.push({
         tarih: ikTarih,
-        baslik: aday.onay_ik ? `İK Kararı — ${aday.onay_ik === "ONAY" ? "Onayladı" : "Reddetti"}` : "İK Kararı",
-        durum: aday.onay_ik === "ONAY" ? "TAMAMLANDI_OLUMLU" : aday.onay_ik === "RED" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
+        baslik: onayIk ? `İK Kararı — ${onayIk === "ONAY" ? "Onayladı" : "Reddetti"}` : "İK Kararı",
+        durum: onayIk === "ONAY" ? "TAMAMLANDI_OLUMLU" : onayIk === "RED" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
       });
     } else {
-      const rol = aday.karari_veren_rol as "BM" | "IK";
-      mulakatAdimi(rol, rol === "BM" ? aday.mulakat_bm : aday.mulakat_ik);
+      const rol = karariVerenRol as "BM" | "IK";
+      mulakatAdimi(rol, rol === "BM" ? mulakatBm : mulakatIk);
       const kararTarihi = enSonTarih(g, ["ONAYLANDI", "REDDEDILDI"]);
       adimlar.push({
-        tarih: aday.durum === "YONLENDIRILDI" ? null : kararTarihi,
-        baslik: aday.durum === "ONAYLANDI" ? `Karar (${rol}) — Onayladı` : aday.durum === "REDDEDILDI" ? `Karar (${rol}) — Reddetti` : `Karar (${rol})`,
-        durum: aday.durum === "ONAYLANDI" ? "TAMAMLANDI_OLUMLU" : aday.durum === "REDDEDILDI" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
+        tarih: adayDurum === "YONLENDIRILDI" ? null : kararTarihi,
+        baslik: adayDurum === "ONAYLANDI" ? `Karar (${rol}) — Onayladı` : adayDurum === "REDDEDILDI" ? `Karar (${rol}) — Reddetti` : `Karar (${rol})`,
+        durum: adayDurum === "ONAYLANDI" ? "TAMAMLANDI_OLUMLU" : adayDurum === "REDDEDILDI" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
       });
     }
   } else {
@@ -259,7 +265,7 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
     adimlar.push({ tarih: enSonTarih(g, ["ONAYLANDI"]), baslik: "Karar — Onaylandı", durum: "TAMAMLANDI_OLUMLU" });
   }
 
-  if (aday.durum === "REDDEDILDI") {
+  if (adayDurum === "REDDEDILDI") {
     return { data: adimlar };
   }
 
@@ -268,21 +274,21 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
     tarih: enSonTarih(g, ["ON_GORUSME_PLANLANDI"]),
     baslik: "Ön Görüşme Planlandı",
     durum: mevcutIndex > durumSirasi.indexOf("ON_GORUSME_PLANLANDI") ? "TAMAMLANDI_NOTR"
-      : aday.durum === "ON_GORUSME_PLANLANDI" ? "TAMAMLANDI_NOTR"
-      : aday.durum === "ONAYLANDI" ? "MEVCUT" : "GELECEK",
+      : adayDurum === "ON_GORUSME_PLANLANDI" ? "TAMAMLANDI_NOTR"
+      : adayDurum === "ONAYLANDI" ? "MEVCUT" : "GELECEK",
   });
 
   // Görüşüldü
-  const gorusuldu = aday.durum === "GORUSULDU_OLUMLU" || aday.durum === "GORUSULDU_OLUMSUZ" || aday.durum === "ISE_ALINDI";
+  const gorusuldu = adayDurum === "GORUSULDU_OLUMLU" || adayDurum === "GORUSULDU_OLUMSUZ" || adayDurum === "ISE_ALINDI";
   adimlar.push({
     tarih: enSonTarih(g, ["GORUSULDU_OLUMLU", "GORUSULDU_OLUMSUZ"]),
-    baslik: aday.durum === "GORUSULDU_OLUMSUZ" ? "Görüşüldü — Olumsuz" : gorusuldu ? "Görüşüldü — Olumlu" : "Görüşüldü",
-    durum: aday.durum === "GORUSULDU_OLUMLU" || aday.durum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU"
-      : aday.durum === "GORUSULDU_OLUMSUZ" ? "TAMAMLANDI_OLUMSUZ"
-      : aday.durum === "ON_GORUSME_PLANLANDI" ? "MEVCUT" : "GELECEK",
+    baslik: adayDurum === "GORUSULDU_OLUMSUZ" ? "Görüşüldü — Olumsuz" : gorusuldu ? "Görüşüldü — Olumlu" : "Görüşüldü",
+    durum: adayDurum === "GORUSULDU_OLUMLU" || adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU"
+      : adayDurum === "GORUSULDU_OLUMSUZ" ? "TAMAMLANDI_OLUMSUZ"
+      : adayDurum === "ON_GORUSME_PLANLANDI" ? "MEVCUT" : "GELECEK",
   });
 
-  if (aday.durum === "GORUSULDU_OLUMSUZ") {
+  if (adayDurum === "GORUSULDU_OLUMSUZ") {
     return { data: adimlar };
   }
 
@@ -290,7 +296,7 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
   adimlar.push({
     tarih: enSonTarih(g, ["ISE_ALINDI"]),
     baslik: "İşe Alındı",
-    durum: aday.durum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU" : aday.durum === "GORUSULDU_OLUMLU" ? "MEVCUT" : "GELECEK",
+    durum: adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU" : adayDurum === "GORUSULDU_OLUMLU" ? "MEVCUT" : "GELECEK",
   });
 
   return { data: adimlar };
