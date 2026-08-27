@@ -5,8 +5,9 @@ import * as XLSX from "xlsx";
 import { iceAktarMagazaNorm } from "./actions";
 import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarPerformans } from "./actions-performans";
+import { iceAktarMagazaBilgisi } from "./actions-magazabilgisi";
 
-type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string };
+type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string; eslenemeyenSutunlar?: string[] };
 
 type Sablon = {
   key: string;
@@ -35,6 +36,13 @@ const SABLONLAR: Sablon[] = [
     aciklama:
       "Şablon sütunları: YIL, AY, Şubeler, Plasiyer Adı, Plasiyer Kodu, Title, Plasiyer Hedef Ciro (Kdv Dahil), Toplam Ciro KDV Dahil, ... Not: Personel önceden içe aktarılmış olmalı (Plasiyer Kodu, Personel Kodu ile eşleştirilir). 'Total' satırları mağaza aylık HGO'ya, kişi satırları kişi aylık HGO'ya yazılır.",
     action: iceAktarPerformans,
+  },
+  {
+    key: "magazabilgisi",
+    label: "Mağaza Bilgisi",
+    aciklama:
+      "Sabit sütunlar: Şube Listesi (kod+ad birleşik, örn 'A003 İstanbul Carousel'), Bölge Listesi, SUBETIPI, NETM2. Bunların dışındaki her sütun bir ay-metrik kombinasyonu olarak okunur (başlıkta ay adı/numarası + yıl + SEPET ORTALAMASI / SEPET DERİNLİĞİ / DÖNÜŞÜM ORANI / GİREN MÜŞTERİ SAYISI ifadelerinden biri geçmeli). Mağaza sistemde yoksa otomatik oluşturulur. Sütun başlığı tanınamazsa aşağıda listelenir — gerekirse başlığı standardize edip tekrar deneyin.",
+    action: iceAktarMagazaBilgisi,
   },
 ];
 
@@ -185,6 +193,12 @@ export default function ImportForm() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {sonuc.eslenemeyenSutunlar && sonuc.eslenemeyenSutunlar.length > 0 && (
+            <div className="bg-accent/10 text-accent text-xs rounded-md px-3 py-2 border border-accent/30">
+              <div className="font-semibold mb-1">Tanınamayan {sonuc.eslenemeyenSutunlar.length} sütun (aylık metrik olarak okunamadı, atlandı):</div>
+              <div className="text-[11px] text-navy-3">{sonuc.eslenemeyenSutunlar.join(", ")}</div>
             </div>
           )}
         </div>
