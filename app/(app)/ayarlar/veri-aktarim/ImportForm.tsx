@@ -58,6 +58,7 @@ export default function ImportForm() {
   const [ilkSutunlar, setIlkSutunlar] = useState<string[]>([]);
   const [sonuc, setSonuc] = useState<Sonuc | null>(null);
   const [okumaHatasi, setOkumaHatasi] = useState<string | null>(null);
+  const [surukleniyor, setSurukleniyor] = useState(false);
 
   function sablonDegistir(key: string) {
     setSablonKey(key);
@@ -95,6 +96,31 @@ export default function ImportForm() {
     reader.readAsBinaryString(file);
   }
 
+  function suruklemeUzerinden(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSurukleniyor(true);
+  }
+
+  function suruklemeAyrildi(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSurukleniyor(false);
+  }
+
+  function birakildi(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSurukleniyor(false);
+    const dosya = e.dataTransfer.files?.[0];
+    if (!dosya) return;
+    if (!/\.(xlsx|xls)$/i.test(dosya.name)) {
+      setOkumaHatasi("Sadece .xlsx veya .xls dosyaları kabul edilir.");
+      return;
+    }
+    dosyaSec(dosya);
+  }
+
   function yukle() {
     if (rows.length === 0) return;
     setSonuc(null);
@@ -126,7 +152,13 @@ export default function ImportForm() {
 
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-navy hover:bg-gray-50 transition-colors"
+          onDragOver={suruklemeUzerinden}
+          onDragEnter={suruklemeUzerinden}
+          onDragLeave={suruklemeAyrildi}
+          onDrop={birakildi}
+          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+            surukleniyor ? "border-navy bg-gray-50" : "border-gray-300 hover:border-navy hover:bg-gray-50"
+          }`}
         >
           <input
             ref={fileInputRef}
