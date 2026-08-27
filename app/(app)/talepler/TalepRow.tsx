@@ -158,7 +158,7 @@ export default function TalepRow({
           {talep.talep_no}
           {talep.magaza_grup_id && (
             <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full bg-accent/20 text-navy-3 text-[9px] font-sans font-medium align-middle">
-              Yeni Mağaza Grubu
+              Toplu Talep Grubu
             </span>
           )}
         </td>
