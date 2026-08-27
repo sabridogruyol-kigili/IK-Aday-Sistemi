@@ -41,7 +41,7 @@ const SABLONLAR: Sablon[] = [
     key: "magazabilgisi",
     label: "Mağaza Bilgisi",
     aciklama:
-      "Sabit sütunlar: Şube Listesi (kod+ad birleşik, örn 'A003 İstanbul Carousel'), Bölge Listesi, SUBETIPI, NETM2. Bunların dışındaki her sütun bir ay-metrik kombinasyonu olarak okunur (başlıkta ay adı/numarası + yıl + SEPET ORTALAMASI / SEPET DERİNLİĞİ / DÖNÜŞÜM ORANI / GİREN MÜŞTERİ SAYISI ifadelerinden biri geçmeli). Mağaza sistemde yoksa otomatik oluşturulur. Sütun başlığı tanınamazsa aşağıda listelenir — gerekirse başlığı standardize edip tekrar deneyin.",
+      "Gerçek dosya 3 başlık satırından oluşuyor: 1. satır YIL, 2. satır AY (Oca/Şub/Mar...), 3. satır alan adı (Şube Listesi, Bölge Listesi, SUBETIPI, NETM2, SEPET ORTALAMASI, SEPET DERINLIGI, DONUSUMORANI, GIRENMUSTERISAYISI). Veri 4. satırdan başlar. Mağaza sistemde yoksa otomatik oluşturulur.",
     action: iceAktarMagazaBilgisi,
   },
 ];
@@ -82,10 +82,18 @@ export default function ImportForm() {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: "binary" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
-        setRows(json);
-        setSatirSayisi(json.length);
-        setIlkSutunlar(json.length > 0 ? Object.keys(json[0] as object) : []);
+
+        if (sablonKey === "magazabilgisi") {
+          const { satirlar, sutunOzeti } = magazaBilgisiAyristir(sheet);
+          setRows(satirlar);
+          setSatirSayisi(satirlar.length);
+          setIlkSutunlar(sutunOzeti);
+        } else {
+          const json = XLSX.utils.sheet_to_json(sheet);
+          setRows(json);
+          setSatirSayisi(json.length);
+          setIlkSutunlar(json.length > 0 ? Object.keys(json[0] as object) : []);
+        }
       } catch (err: any) {
         setOkumaHatasi("Dosya okunamadı: " + err.message);
         setRows([]);
@@ -94,6 +102,54 @@ export default function ImportForm() {
       }
     };
     reader.readAsBinaryString(file);
+  }
+
+  // Mağaza Bilgisi şablonu 3 başlık satırından oluşuyor (YIL / AY / ALAN ADI) — normal
+  // tek-satır-başlık okuması bu dosya için çalışmaz, elle ayrıştırıyoruz.
+  const AY_KISA_MAP: Record<string, number> = {
+    "Oca": 1, "Şub": 2, "Mar": 3, "Nis": 4, "May": 5, "Haz": 6,
+    "Tem": 7, "Ağu": 8, "Eyl": 9, "Eki": 10, "Kas": 11, "Ara": 12,
+  };
+
+  function magazaBilgisiAyristir(sheet: XLSX.WorkSheet): { satirlar: any[]; sutunOzeti: string[] } {
+    const aoa: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null }) as any[][];
+    if (aoa.length < 4) return { satirlar: [], sutunOzeti: [] };
+
+    const yilRow = aoa[0];
+    const ayRow = aoa[1];
+    const alanRow = aoa[2];
+
+    const kolonlar: { index: number; yil: number; ay: number; alan: string }[] = [];
+    const maxKolon = Math.max(yilRow.length, ayRow.length, alanRow.length);
+    for (let c = 4; c < maxKolon; c++) {
+      const yil = Number(yilRow[c]);
+      const ayKisa = String(ayRow[c] ?? "").trim();
+      const ayNo = AY_KISA_MAP[ayKisa];
+      const alan = String(alanRow[c] ?? "").trim();
+      if (!yil || !ayNo || !alan) continue;
+      kolonlar.push({ index: c, yil, ay: ayNo, alan });
+    }
+
+    const satirlar: any[] = [];
+    for (let r = 3; r < aoa.length; r++) {
+      const row = aoa[r];
+      if (!row || row.every((v) => v === null || v === undefined || v === "")) continue;
+      const metrikler = kolonlar.map((k) => ({ yil: k.yil, ay: k.ay, alan: k.alan, deger: row[k.index] }));
+      satirlar.push({
+        sube_listesi: row[0],
+        bolge_listesi: row[1],
+        subetipi: row[2],
+        netm2: row[3],
+        metrikler,
+      });
+    }
+
+    const ayGruplari = Array.from(new Set(kolonlar.map((k) => `${k.yil}-${String(k.ay).padStart(2, "0")}`))).sort();
+    const sutunOzeti = [
+      "Şube Listesi", "Bölge Listesi", "SUBETIPI", "NETM2",
+      `+ ${kolonlar.length} aylık metrik sütunu (${ayGruplari.length} ay: ${ayGruplari[0] ?? "?"} → ${ayGruplari[ayGruplari.length - 1] ?? "?"})`,
+    ];
+    return { satirlar, sutunOzeti };
   }
 
   function suruklemeUzerinden(e: React.DragEvent<HTMLDivElement>) {
