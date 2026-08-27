@@ -13,6 +13,7 @@ function excelTarih(v: any): string | null {
     const ms = Math.round((v - 25569) * 86400 * 1000);
     return new Date(ms).toISOString().slice(0, 10);
   }
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
   const s = String(v).trim();
   // dd.mm.yyyy veya dd/mm/yyyy formatlarını da destekle
   const m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
@@ -22,7 +23,24 @@ function excelTarih(v: any): string | null {
   return null;
 }
 
-export async function iceAktarPersonel(rows: any[]): Promise<Sonuc> {
+// Gerçek dosyada başlıklar "Personel\nKodu" gibi kelimeler arası satır sonu (\n) içeriyor,
+// boşluk değil. Bu yüzden anahtarları normalize edip (her tür boşluk -> tek boşluk) öyle okuyoruz.
+function baslikNormallestir(s: string): string {
+  return s.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function satirNormallestir(r: Record<string, any>): Record<string, any> {
+  const yeni: Record<string, any> = {};
+  for (const k of Object.keys(r)) {
+    yeni[baslikNormallestir(k)] = r[k];
+  }
+  return yeni;
+}
+
+function turkceBuyut(s: string): string {
+  return s.toLocaleUpperCase("tr-TR").trim();
+}
+
+export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { basarili: 0, hatalar: [], yetkiHatasi: "Giriş yapmalısınız." };
@@ -30,10 +48,11 @@ export async function iceAktarPersonel(rows: any[]): Promise<Sonuc> {
   const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
   if (!me || me.rol !== "YONETIM") return { basarili: 0, hatalar: [], yetkiHatasi: "Sadece Yönetim veri içe aktarabilir." };
 
-  // Ünvan -> kategori eşlemesini bir kere çekip cache'liyoruz (26 satır, tüm dosya için tek sorgu yeterli)
+  // Ünvan -> kategori eşlemesini bir kere çekip cache'liyoruz. Gerçek dosyada ünvanlar
+  // BÜYÜK HARFLE geliyor ("SATIŞ DANIŞMANI") — bu yüzden Türkçe büyük harfe çevrilmiş anahtarla eşleştiriyoruz.
   const { data: unvanlarHam } = await supabase.from("unvan_kadro_kategorisi").select("unvan, kategori");
   const unvanMap: Record<string, string> = {};
-  (unvanlarHam ?? []).forEach((u: any) => { unvanMap[u.unvan] = u.kategori; });
+  (unvanlarHam ?? []).forEach((u: any) => { unvanMap[turkceBuyut(u.unvan)] = u.kategori; });
 
   // Mağaza Kodu -> mağaza id eşlemesini de bir kere çekiyoruz
   const { data: magazalarHam } = await supabase.from("magazalar").select("id, magaza_kodu");
@@ -43,13 +62,15 @@ export async function iceAktarPersonel(rows: any[]): Promise<Sonuc> {
   let basarili = 0;
   const hatalar: SatirHata[] = [];
 
-  for (let i = 0; i < rows.length; i++) {
+  for (let i = 0; i < rowsHam.length; i++) {
     const satirNo = i + 2;
-    const r = rows[i];
+    const r = satirNormallestir(rowsHam[i]);
 
-    const ayrilmaTarihi = String(r["İşten Ayrılma Tarihi"] ?? "").trim();
-    if (ayrilmaTarihi) {
-      // Tasarım kararı: ayrılmış personel içe aktarılmaz
+    // Gerçek dosyada "İşten Ayrılma Tarihi" hiç boş gelmiyor — hâlâ çalışanlar için 1900-01-01
+    // placeholder tarih kullanılıyor. Sadece bunun DIŞINDA bir tarih varsa gerçekten ayrılmış sayılır.
+    const ayrilmaTarihiParsed = excelTarih(r["İşten Ayrılma Tarihi"]);
+    const gercektenAyrilmisMi = ayrilmaTarihiParsed !== null && ayrilmaTarihiParsed !== "1900-01-01";
+    if (gercektenAyrilmisMi) {
       continue;
     }
 
@@ -57,12 +78,12 @@ export async function iceAktarPersonel(rows: any[]): Promise<Sonuc> {
     const personelKodu = String(r["Personel Kodu"] ?? "").trim();
     const adSoyad = String(r["Adı-Soyadı"] ?? "").trim();
     const departmanKodu = String(r["Departman Kodu"] ?? "").trim();
-    const unvan = String(r["İş Ünvanı Açıklaması"] ?? "").trim();
+    const unvanHam = String(r["İş Ünvanı Açıklaması"] ?? "").trim();
     const dogumTarihi = excelTarih(r["Doğum Tarihi"]);
     const cinsiyet = String(r["Cinsiyet Açıklaması"] ?? "").trim() || null;
     const iseBaslamaTarihi = excelTarih(r["İşyeri Başlama Tarihi"]);
 
-    if (!tcKimlikNo || !adSoyad || !departmanKodu || !unvan) {
+    if (!tcKimlikNo || !adSoyad || !departmanKodu || !unvanHam) {
       hatalar.push({ satir: satirNo, hata: "TC Kimlik No, Adı-Soyadı, Departman Kodu veya İş Ünvanı Açıklaması eksik." });
       continue;
     }
@@ -73,9 +94,9 @@ export async function iceAktarPersonel(rows: any[]): Promise<Sonuc> {
       continue;
     }
 
-    const kategori = unvanMap[unvan];
+    const kategori = unvanMap[turkceBuyut(unvanHam)];
     if (!kategori) {
-      hatalar.push({ satir: satirNo, hata: `İş Ünvanı Açıklaması (${unvan}) tanınan ünvan listesinde yok.` });
+      hatalar.push({ satir: satirNo, hata: `İş Ünvanı Açıklaması (${unvanHam}) tanınan ünvan listesinde yok.` });
       continue;
     }
 
@@ -89,7 +110,7 @@ export async function iceAktarPersonel(rows: any[]): Promise<Sonuc> {
           dogum_tarihi: dogumTarihi,
           cinsiyet: cinsiyet,
           guncel_magaza_id: magazaId,
-          guncel_unvan: unvan,
+          guncel_unvan: unvanHam,
           durum: "aktif",
           kadro_kategorisi: kategori,
           kidem_baslangic_tarihi: iseBaslamaTarihi,
@@ -118,7 +139,7 @@ export async function iceAktarPersonel(rows: any[]): Promise<Sonuc> {
         await supabase.from("personel_atama_gecmisi").insert({
           personel_id: personel.id,
           magaza_id: magazaId,
-          unvan: unvan,
+          unvan: unvanHam,
           baslama_tarihi: iseBaslamaTarihi,
           kaynak: "import",
         });
