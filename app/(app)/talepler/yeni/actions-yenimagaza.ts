@@ -16,14 +16,14 @@ export async function createYeniMagazaTalebi(formData: FormData): Promise<Sonuc>
   const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) return { error: "Kullanıcı bulunamadı." };
 
-  const magazaKodu = String(formData.get("magaza_kodu") ?? "").trim();
+  const magazaKoduGirilen = String(formData.get("magaza_kodu") ?? "").trim();
   const magazaAdi = String(formData.get("magaza_adi") ?? "").trim();
   const bolgeId = String(formData.get("bolge_id") ?? "").trim();
   const aciklama = String(formData.get("aciklama") ?? "").trim();
   const pozisyonlarJson = String(formData.get("pozisyonlar") ?? "[]");
 
-  if (!magazaKodu || !magazaAdi || !bolgeId) {
-    return { error: "Mağaza Kodu, Mağaza Adı ve Bölge zorunlu." };
+  if (!magazaAdi || !bolgeId) {
+    return { error: "Mağaza Adı ve Bölge zorunlu." };
   }
 
   let pozisyonlar: PozisyonSatiri[] = [];
@@ -41,14 +41,25 @@ export async function createYeniMagazaTalebi(formData: FormData): Promise<Sonuc>
     }
   }
 
-  // Aynı kodda mağaza zaten varsa bu akış yanlış — normal İşe Alım Talebi kullanılmalı.
-  const { data: mevcutMagaza } = await supabase
-    .from("magazalar")
-    .select("id")
-    .eq("magaza_kodu", magazaKodu)
-    .maybeSingle();
-  if (mevcutMagaza) {
-    return { error: `Mağaza Kodu (${magazaKodu}) sistemde zaten kayıtlı. Bu akış sadece yeni mağaza/çadır/pop-up açılışları içindir — mevcut mağaza için normal İşe Alım Talebi kullanın.` };
+  // Mağaza Kodu girilmemişse otomatik üret (POPUP-<rastgele 5 haneli> formatında,
+  // çakışma ihtimaline karşı birkaç kez dener). Girilmişse aynı kodda mağaza olup olmadığını kontrol et.
+  let magazaKodu = magazaKoduGirilen;
+  if (!magazaKodu) {
+    for (let deneme = 0; deneme < 10; deneme++) {
+      const aday = `POPUP-${Math.floor(10000 + Math.random() * 90000)}`;
+      const { data: cakisan } = await supabase.from("magazalar").select("id").eq("magaza_kodu", aday).maybeSingle();
+      if (!cakisan) { magazaKodu = aday; break; }
+    }
+    if (!magazaKodu) return { error: "Otomatik mağaza kodu üretilemedi, lütfen elle bir kod girin." };
+  } else {
+    const { data: mevcutMagaza } = await supabase
+      .from("magazalar")
+      .select("id")
+      .eq("magaza_kodu", magazaKodu)
+      .maybeSingle();
+    if (mevcutMagaza) {
+      return { error: `Mağaza Kodu (${magazaKodu}) sistemde zaten kayıtlı. Bu akış sadece yeni mağaza/çadır/pop-up açılışları içindir — mevcut mağaza için normal İşe Alım Talebi kullanın.` };
+    }
   }
 
   // Ünvan -> kategori eşlemesi
