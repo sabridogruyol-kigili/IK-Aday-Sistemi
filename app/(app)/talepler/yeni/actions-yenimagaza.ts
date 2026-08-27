@@ -110,50 +110,15 @@ export async function createYeniMagazaTalebi(formData: FormData): Promise<Sonuc>
   const { data: anaTalepNo } = await supabase.rpc("sonraki_talep_no");
   if (!anaTalepNo) return { error: "Talep numarası üretilemedi." };
 
+  // Onaylayıcı listesini (BM/İK/Yönetim) TEK SEFER hesapla — her pozisyon için tekrar sorgu atmak yerine.
   const onayRolleri = (["BM", "IK", "YONETIM"] as const).filter((r) => r !== me.rol);
+  const onaylayiciListesi: { kullanici_id: string; rol_baglami: string }[] = [];
 
-  for (let i = 0; i < pozisyonlar.length; i++) {
-    const p = pozisyonlar[i];
-    const talepNo = `${anaTalepNo}-${i + 1}`;
-
-    const { data: yeniTalep, error: talepHata } = await supabase
-      .from("talepler")
-      .insert({
-        talep_no: talepNo,
-        talep_turu: "ISE_ALIM",
-        magaza_id: yeniMagaza.id,
-        acan_kullanici_id: me.id,
-        acan_rol: me.rol,
-        pozisyon_tipi: p.pozisyon_tipi,
-        kisi_sayisi: p.kisi_sayisi,
-        durum: "BEKLEMEDE",
-        aktif_gonderim_no: 1,
-        magaza_grup_id: grupId,
-      })
-      .select("id")
-      .single();
-    if (talepHata || !yeniTalep) return { error: `Talep (${talepNo}) oluşturulamadı: ` + talepHata?.message };
-
-    const { data: gonderim, error: gonderimHata } = await supabase
-      .from("talep_gonderimler")
-      .insert({
-        talep_id: yeniTalep.id,
-        gonderim_no: 1,
-        aciklama: aciklama || `Yeni mağaza/çadır/pop-up açılışı: ${magazaAdi} (${magazaKodu})`,
-        norm_kontrol_sonucu: "UYGUN",
-      })
-      .select("id")
-      .single();
-    if (gonderimHata || !gonderim) return { error: `Gönderim kaydı (${talepNo}) oluşturulamadı.` };
-
-    const onaySatirlari: { gonderim_id: string; onaylayici_kullanici_id: string; onaylayici_rol_baglami: string }[] = [];
-    for (const rol of onayRolleri) {
+  await Promise.all(
+    onayRolleri.map(async (rol) => {
       if (rol === "YONETIM") {
-        const { data: yonetimler } = await supabase
-          .from("kullanicilar").select("id").eq("rol", "YONETIM").eq("aktif", true);
-        (yonetimler ?? []).forEach((y) =>
-          onaySatirlari.push({ gonderim_id: gonderim.id, onaylayici_kullanici_id: y.id, onaylayici_rol_baglami: "YONETIM" })
-        );
+        const { data: yonetimler } = await supabase.from("kullanicilar").select("id").eq("rol", "YONETIM").eq("aktif", true);
+        (yonetimler ?? []).forEach((y) => onaylayiciListesi.push({ kullanici_id: y.id, rol_baglami: "YONETIM" }));
       } else {
         const { data: bolgeliler } = await supabase
           .from("kullanici_bolge_atama")
@@ -161,14 +126,47 @@ export async function createYeniMagazaTalebi(formData: FormData): Promise<Sonuc>
           .eq("bolge_id", bolgeId)
           .eq("kullanicilar.rol", rol)
           .eq("kullanicilar.aktif", true);
-        (bolgeliler ?? []).forEach((b: any) =>
-          onaySatirlari.push({ gonderim_id: gonderim.id, onaylayici_kullanici_id: b.kullanici_id, onaylayici_rol_baglami: rol })
-        );
+        (bolgeliler ?? []).forEach((b: any) => onaylayiciListesi.push({ kullanici_id: b.kullanici_id, rol_baglami: rol }));
       }
-    }
-    if (onaySatirlari.length > 0) {
-      await supabase.from("talep_onaylari").insert(onaySatirlari);
-    }
+    })
+  );
+
+  // Talepleri TOPLU insert et
+  const talepSatirlari = pozisyonlar.map((p, i) => ({
+    talep_no: `${anaTalepNo}-${i + 1}`,
+    talep_turu: "ISE_ALIM",
+    magaza_id: yeniMagaza.id,
+    acan_kullanici_id: me.id,
+    acan_rol: me.rol,
+    pozisyon_tipi: p.pozisyon_tipi,
+    kisi_sayisi: p.kisi_sayisi,
+    durum: "BEKLEMEDE",
+    aktif_gonderim_no: 1,
+    magaza_grup_id: grupId,
+  }));
+  const { data: yeniTalepler, error: talepHata } = await supabase.from("talepler").insert(talepSatirlari).select("id");
+  if (talepHata || !yeniTalepler || yeniTalepler.length !== talepSatirlari.length) {
+    return { error: "Talepler oluşturulamadı: " + talepHata?.message };
+  }
+
+  const gonderimSatirlari = yeniTalepler.map((t) => ({
+    talep_id: t.id,
+    gonderim_no: 1,
+    aciklama: aciklama || `Yeni mağaza/çadır/pop-up açılışı: ${magazaAdi} (${magazaKodu})`,
+    norm_kontrol_sonucu: "UYGUN",
+  }));
+  const { data: yeniGonderimler, error: gonderimHata } = await supabase.from("talep_gonderimler").insert(gonderimSatirlari).select("id");
+  if (gonderimHata || !yeniGonderimler) return { error: "Gönderim kayıtları oluşturulamadı: " + gonderimHata?.message };
+
+  const onaySatirlari = yeniGonderimler.flatMap((g) =>
+    onaylayiciListesi.map((o) => ({
+      gonderim_id: g.id,
+      onaylayici_kullanici_id: o.kullanici_id,
+      onaylayici_rol_baglami: o.rol_baglami,
+    }))
+  );
+  if (onaySatirlari.length > 0) {
+    await supabase.from("talep_onaylari").insert(onaySatirlari);
   }
 
   revalidatePath("/talepler");
