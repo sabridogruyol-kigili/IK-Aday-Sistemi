@@ -48,7 +48,7 @@ export default function YeniMagazaModal({
   }
 
   const gecerliMi =
-    magazaKodu.trim() && magazaAdi.trim() && bolgeId &&
+    magazaAdi.trim() && bolgeId &&
     satirlar.every((s) => s.pozisyon_tipi && s.kisi_sayisi >= 1);
 
   function gonder() {
@@ -81,9 +81,9 @@ export default function YeniMagazaModal({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Mağaza Kodu *</label>
+              <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Mağaza Kodu (opsiyonel)</label>
               <input value={magazaKodu} onChange={(e) => setMagazaKodu(e.target.value)}
-                placeholder="Örn. A050" className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+                placeholder="Boş bırakılırsa otomatik üretilir" className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
             </div>
             <div>
               <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Bölge *</label>
