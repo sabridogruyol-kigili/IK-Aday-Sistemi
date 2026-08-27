@@ -22,14 +22,21 @@ export default function AdayKarti({
   const [tarihceAcik, setTarihceAcik] = useState(false);
   const [tarihce, setTarihce] = useState<SurecAdimi[]>([]);
 
+  // Sunucudan onay dönene kadar beklemek yerine, aksiyon sonrası dönen veriyle anında güncellenen yerel durum.
+  const [durumL, setDurumL] = useState(durum);
+  const [onayBmL, setOnayBmL] = useState(onayBm);
+  const [onayIkL, setOnayIkL] = useState(onayIk);
+  const [mulakatBmL, setMulakatBmL] = useState(mulakatBm);
+  const [mulakatIkL, setMulakatIkL] = useState(mulakatIk);
+
   const benKararVerebilirim =
-    durum === "YONLENDIRILDI" &&
+    durumL === "YONLENDIRILDI" &&
     yonlendirenKullaniciId !== benimKullaniciId &&
     (
       (kariVerenRol === "BM" && benimRolum === "BM") ||
       (kariVerenRol === "IK" && benimRolum === "IK") ||
-      (kariVerenRol === "BM_VE_IK" && benimRolum === "BM" && !onayBm) ||
-      (kariVerenRol === "BM_VE_IK" && benimRolum === "IK" && !onayIk)
+      (kariVerenRol === "BM_VE_IK" && benimRolum === "BM" && !onayBmL) ||
+      (kariVerenRol === "BM_VE_IK" && benimRolum === "IK" && !onayIkL)
     );
 
   function karar(k: "ONAY" | "RED") {
@@ -41,16 +48,24 @@ export default function AdayKarti({
       if (res?.error) { setError(res.error); return; }
       setRedMod(false);
       setAciklama("");
+      if (res.aday) {
+        setDurumL(res.aday.durum);
+        setOnayBmL(res.aday.onay_bm);
+        setOnayIkL(res.aday.onay_ik);
+      }
     });
   }
 
   function mulakatDegistir(rol: "BM" | "IK", mevcutDeger: string | null) {
     const yeniDeger = mevcutDeger === "YAPILDI" ? "YAPILMADI" : "YAPILDI";
+    if (rol === "BM") setMulakatBmL(yeniDeger); else setMulakatIkL(yeniDeger);
     const fd = new FormData();
     fd.set("aday_id", adayId); fd.set("rol", rol); fd.set("durum", yeniDeger);
-    startTransition(async () => {
-      const res = await mulakatIsaretle(fd);
-      if (res?.error) setError(res.error);
+    mulakatIsaretle(fd).then((res) => {
+      if (res?.error) {
+        setError(res.error);
+        if (rol === "BM") setMulakatBmL(mevcutDeger); else setMulakatIkL(mevcutDeger);
+      }
     });
   }
 
@@ -61,7 +76,8 @@ export default function AdayKarti({
     if (yeniDurum === "ISE_ALINDI") fd.set("tc_kimlik_no", tcKimlik);
     startTransition(async () => {
       const res = await ilerletDurum(fd);
-      if (res?.error) setError(res.error);
+      if (res?.error) { setError(res.error); return; }
+      if (res.aday) setDurumL(res.aday.durum);
     });
   }
 
@@ -77,6 +93,12 @@ export default function AdayKarti({
     ON_GORUSME_PLANLANDI: "text-info", GORUSULDU_OLUMLU: "text-success",
     GORUSULDU_OLUMSUZ: "text-danger", ISE_ALINDI: "text-success",
   };
+  const durumEtiketMap: Record<string, string> = {
+    YONLENDIRILDI: "Yönlendirildi", ONAYLANDI: "Onaylandı", REDDEDILDI: "Reddedildi",
+    ON_GORUSME_PLANLANDI: "Ön Görüşme Planlandı", GORUSULDU_OLUMLU: "Görüşüldü — Olumlu",
+    GORUSULDU_OLUMSUZ: "Görüşüldü — Olumsuz", ISE_ALINDI: "İşe Alındı",
+  };
+  const durumEtiketL = durumEtiketMap[durumL] ?? durumEtiket;
 
   return (
     <div className="bg-white border border-gray-200 rounded-card p-4">
@@ -89,40 +111,40 @@ export default function AdayKarti({
           </div>
           {cvLink && <span className="text-xs text-success">CV kayıtlı</span>}
         </div>
-        <span className={`text-xs font-medium ${durumRenk[durum] ?? ""}`}>{durumEtiket}</span>
+        <span className={`text-xs font-medium ${durumRenk[durumL] ?? ""}`}>{durumEtiketL}</span>
       </div>
 
-      {durum === "YONLENDIRILDI" && kariVerenRol === "BM_VE_IK" && (
+      {durumL === "YONLENDIRILDI" && kariVerenRol === "BM_VE_IK" && (
         <div className="text-[10px] text-gray-400 mb-2">
-          BM: {onayBm === "ONAY" ? "✓ Onayladı" : onayBm === "RED" ? "✗ Reddetti" : "Bekliyor"}
+          BM: {onayBmL === "ONAY" ? "✓ Onayladı" : onayBmL === "RED" ? "✗ Reddetti" : "Bekliyor"}
           {" · "}
-          İK: {onayIk === "ONAY" ? "✓ Onayladı" : onayIk === "RED" ? "✗ Reddetti" : "Bekliyor"}
+          İK: {onayIkL === "ONAY" ? "✓ Onayladı" : onayIkL === "RED" ? "✗ Reddetti" : "Bekliyor"}
         </div>
       )}
 
-      {durum === "YONLENDIRILDI" && (
+      {durumL === "YONLENDIRILDI" && (
         <div className="flex gap-1 mb-2">
           <button
-            onClick={() => (benimRolum === "BM" || benimRolum === "YONETIM") && mulakatDegistir("BM", mulakatBm)}
+            onClick={() => (benimRolum === "BM" || benimRolum === "YONETIM") && mulakatDegistir("BM", mulakatBmL)}
             disabled={pending || !(benimRolum === "BM" || benimRolum === "YONETIM")}
             className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-              mulakatBm === "YAPILDI" ? "bg-success-bg text-success"
-              : mulakatBm === "YAPILMADI" ? "bg-danger-bg text-danger"
+              mulakatBmL === "YAPILDI" ? "bg-success-bg text-success"
+              : mulakatBmL === "YAPILMADI" ? "bg-danger-bg text-danger"
               : "bg-gray-100 text-gray-400"
             } ${(benimRolum === "BM" || benimRolum === "YONETIM") ? "cursor-pointer hover:opacity-75" : "cursor-default"}`}
           >
-            BM Mülakat: {mulakatBm === "YAPILDI" ? "Yapıldı ✓" : mulakatBm === "YAPILMADI" ? "Yapılmadı ✗" : "İşaretlenmedi"}
+            BM Mülakat: {mulakatBmL === "YAPILDI" ? "Yapıldı ✓" : mulakatBmL === "YAPILMADI" ? "Yapılmadı ✗" : "İşaretlenmedi"}
           </button>
           <button
-            onClick={() => (benimRolum === "IK" || benimRolum === "YONETIM") && mulakatDegistir("IK", mulakatIk)}
+            onClick={() => (benimRolum === "IK" || benimRolum === "YONETIM") && mulakatDegistir("IK", mulakatIkL)}
             disabled={pending || !(benimRolum === "IK" || benimRolum === "YONETIM")}
             className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-              mulakatIk === "YAPILDI" ? "bg-success-bg text-success"
-              : mulakatIk === "YAPILMADI" ? "bg-danger-bg text-danger"
+              mulakatIkL === "YAPILDI" ? "bg-success-bg text-success"
+              : mulakatIkL === "YAPILMADI" ? "bg-danger-bg text-danger"
               : "bg-gray-100 text-gray-400"
             } ${(benimRolum === "IK" || benimRolum === "YONETIM") ? "cursor-pointer hover:opacity-75" : "cursor-default"}`}
           >
-            İK Mülakat: {mulakatIk === "YAPILDI" ? "Yapıldı ✓" : mulakatIk === "YAPILMADI" ? "Yapılmadı ✗" : "İşaretlenmedi"}
+            İK Mülakat: {mulakatIkL === "YAPILDI" ? "Yapıldı ✓" : mulakatIkL === "YAPILMADI" ? "Yapılmadı ✗" : "İşaretlenmedi"}
           </button>
         </div>
       )}
@@ -144,20 +166,20 @@ export default function AdayKarti({
         </div>
       )}
 
-      {durum === "ONAYLANDI" && (
+      {durumL === "ONAYLANDI" && (
         <button onClick={() => ilerlet("ON_GORUSME_PLANLANDI")} disabled={pending} className="mt-2 bg-info text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">
           Ön Görüşme Planlandı Olarak İşaretle
         </button>
       )}
 
-      {durum === "ON_GORUSME_PLANLANDI" && (
+      {durumL === "ON_GORUSME_PLANLANDI" && (
         <div className="flex gap-2 mt-2">
           <button onClick={() => ilerlet("GORUSULDU_OLUMLU")} disabled={pending} className="bg-success text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">Görüşüldü — Olumlu</button>
           <button onClick={() => ilerlet("GORUSULDU_OLUMSUZ")} disabled={pending} className="bg-danger text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">Görüşüldü — Olumsuz</button>
         </div>
       )}
 
-      {durum === "GORUSULDU_OLUMLU" && (
+      {durumL === "GORUSULDU_OLUMLU" && (
         <div className="flex gap-2 mt-2 items-center">
           <input value={tcKimlik} onChange={(e) => setTcKimlik(e.target.value)} placeholder="TC Kimlik No" className="border border-gray-300 rounded-md px-2 py-1.5 text-xs w-40" />
           <button onClick={() => ilerlet("ISE_ALINDI")} disabled={pending || !tcKimlik.trim()} className="bg-success text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">
