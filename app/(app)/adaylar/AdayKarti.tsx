@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { kararVerAday, ilerletDurum, getAdaySurecGecmisi } from "./actions";
-import SurecTarihce, { type TarihceOlay } from "../talepler/SurecTarihce";
+import { kararVerAday, ilerletDurum, getAdaySurecGecmisi, mulakatIsaretle } from "./actions";
+import SurecTarihce, { type SurecAdimi } from "../talepler/SurecTarihce";
 
 export default function AdayKarti({
   adayId, adSoyad, telefon, email, cvLink, talepNo, magaza,
-  yonlendirenRol, yonlendirenKullaniciId, kariVerenRol, onayBm, onayIk,
+  yonlendirenRol, yonlendirenKullaniciId, kariVerenRol, onayBm, onayIk, mulakatBm, mulakatIk,
   durum, durumEtiket, benimKullaniciId, benimRolum,
 }: {
   adayId: string; adSoyad: string; telefon: string | null; email: string | null; cvLink: string | null;
   talepNo: string; magaza?: string; yonlendirenRol: string; yonlendirenKullaniciId: string;
-  kariVerenRol: string; onayBm: string | null; onayIk: string | null;
+  kariVerenRol: string; onayBm: string | null; onayIk: string | null; mulakatBm: string | null; mulakatIk: string | null;
   durum: string; durumEtiket: string; benimKullaniciId: string; benimRolum: string;
 }) {
   const [pending, startTransition] = useTransition();
@@ -20,7 +20,7 @@ export default function AdayKarti({
   const [tcKimlik, setTcKimlik] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [tarihceAcik, setTarihceAcik] = useState(false);
-  const [tarihce, setTarihce] = useState<TarihceOlay[]>([]);
+  const [tarihce, setTarihce] = useState<SurecAdimi[]>([]);
 
   const benKararVerebilirim =
     durum === "YONLENDIRILDI" &&
@@ -41,6 +41,16 @@ export default function AdayKarti({
       if (res?.error) { setError(res.error); return; }
       setRedMod(false);
       setAciklama("");
+    });
+  }
+
+  function mulakatDegistir(rol: "BM" | "IK", mevcutDeger: string | null) {
+    const yeniDeger = mevcutDeger === "YAPILDI" ? "YAPILMADI" : "YAPILDI";
+    const fd = new FormData();
+    fd.set("aday_id", adayId); fd.set("rol", rol); fd.set("durum", yeniDeger);
+    startTransition(async () => {
+      const res = await mulakatIsaretle(fd);
+      if (res?.error) setError(res.error);
     });
   }
 
@@ -87,6 +97,33 @@ export default function AdayKarti({
           BM: {onayBm === "ONAY" ? "✓ Onayladı" : onayBm === "RED" ? "✗ Reddetti" : "Bekliyor"}
           {" · "}
           İK: {onayIk === "ONAY" ? "✓ Onayladı" : onayIk === "RED" ? "✗ Reddetti" : "Bekliyor"}
+        </div>
+      )}
+
+      {durum === "YONLENDIRILDI" && (
+        <div className="flex gap-1 mb-2">
+          <button
+            onClick={() => (benimRolum === "BM" || benimRolum === "YONETIM") && mulakatDegistir("BM", mulakatBm)}
+            disabled={pending || !(benimRolum === "BM" || benimRolum === "YONETIM")}
+            className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+              mulakatBm === "YAPILDI" ? "bg-success-bg text-success"
+              : mulakatBm === "YAPILMADI" ? "bg-danger-bg text-danger"
+              : "bg-gray-100 text-gray-400"
+            } ${(benimRolum === "BM" || benimRolum === "YONETIM") ? "cursor-pointer hover:opacity-75" : "cursor-default"}`}
+          >
+            BM Mülakat: {mulakatBm === "YAPILDI" ? "Yapıldı ✓" : mulakatBm === "YAPILMADI" ? "Yapılmadı ✗" : "İşaretlenmedi"}
+          </button>
+          <button
+            onClick={() => (benimRolum === "IK" || benimRolum === "YONETIM") && mulakatDegistir("IK", mulakatIk)}
+            disabled={pending || !(benimRolum === "IK" || benimRolum === "YONETIM")}
+            className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+              mulakatIk === "YAPILDI" ? "bg-success-bg text-success"
+              : mulakatIk === "YAPILMADI" ? "bg-danger-bg text-danger"
+              : "bg-gray-100 text-gray-400"
+            } ${(benimRolum === "IK" || benimRolum === "YONETIM") ? "cursor-pointer hover:opacity-75" : "cursor-default"}`}
+          >
+            İK Mülakat: {mulakatIk === "YAPILDI" ? "Yapıldı ✓" : mulakatIk === "YAPILMADI" ? "Yapılmadı ✗" : "İşaretlenmedi"}
+          </button>
         </div>
       )}
 
@@ -139,7 +176,7 @@ export default function AdayKarti({
         <span className={`text-[7px] transition-transform ${tarihceAcik ? "rotate-180" : ""}`}>▼</span>
       </button>
       {tarihceAcik && (
-        <div className="mt-2 border border-gray-100 rounded-md p-2 bg-gray-50/50">
+        <div className="mt-2 border border-gray-100 rounded-md p-2 bg-gray-50/50 w-full">
           <SurecTarihce olaylar={tarihce} />
         </div>
       )}
