@@ -119,7 +119,7 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
 
     // Tasarım notu 5.3 madde 1: KDV Dahil sütunlar kullanılır, KDV Hariç hiç kullanılmaz.
     const hedefCiro = sayi(r["Plasiyer Hedef Ciro (Kdv Dahil)"]);
-    const gerceklesenCiro = sayi(r["Satış Tutarı KDV Dahil (OMS Hariç)"]) ?? sayi(r["Toplam Ciro KDV Dahil"]);
+    const gerceklesenCiro = sayi(r["Toplam Ciro KDV Dahil"]);
 
     if (hedefCiro === null || gerceklesenCiro === null) {
       hatalar.push({ satir: satirNo, hata: "Hedef Ciro (KDV Dahil) veya Toplam Ciro (KDV Dahil) okunamadı." });
