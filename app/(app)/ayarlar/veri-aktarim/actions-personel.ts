@@ -9,13 +9,11 @@ type Sonuc = { basarili: number; hatalar: SatirHata[]; yetkiHatasi?: string };
 function excelTarih(v: any): string | null {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") {
-    // Excel seri tarih -> JS Date (1900 sistemi, epoch farkı 25569 gün)
     const ms = Math.round((v - 25569) * 86400 * 1000);
     return new Date(ms).toISOString().slice(0, 10);
   }
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   const s = String(v).trim();
-  // dd.mm.yyyy veya dd/mm/yyyy formatlarını da destekle
   const m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
   if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
   const d = new Date(s);
@@ -23,8 +21,6 @@ function excelTarih(v: any): string | null {
   return null;
 }
 
-// Gerçek dosyada başlıklar "Personel\nKodu" gibi kelimeler arası satır sonu (\n) içeriyor,
-// boşluk değil. Bu yüzden anahtarları normalize edip (her tür boşluk -> tek boşluk) öyle okuyoruz.
 function baslikNormallestir(s: string): string {
   return s.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -40,6 +36,12 @@ function turkceBuyut(s: string): string {
   return s.toLocaleUpperCase("tr-TR").trim();
 }
 
+function parcala<T>(dizi: T[], boyut: number): T[][] {
+  const parcalar: T[][] = [];
+  for (let i = 0; i < dizi.length; i += boyut) parcalar.push(dizi.slice(i, i + boyut));
+  return parcalar;
+}
+
 export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -48,31 +50,38 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
   if (!me || me.rol !== "YONETIM") return { basarili: 0, hatalar: [], yetkiHatasi: "Sadece Yönetim veri içe aktarabilir." };
 
-  // Ünvan -> kategori eşlemesini bir kere çekip cache'liyoruz. Gerçek dosyada ünvanlar
-  // BÜYÜK HARFLE geliyor ("SATIŞ DANIŞMANI") — bu yüzden Türkçe büyük harfe çevrilmiş anahtarla eşleştiriyoruz.
   const { data: unvanlarHam } = await supabase.from("unvan_kadro_kategorisi").select("unvan, kategori");
   const unvanMap: Record<string, string> = {};
   (unvanlarHam ?? []).forEach((u: any) => { unvanMap[turkceBuyut(u.unvan)] = u.kategori; });
 
-  // Mağaza Kodu -> mağaza id eşlemesini de bir kere çekiyoruz
   const { data: magazalarHam } = await supabase.from("magazalar").select("id, magaza_kodu");
   const magazaMap: Record<string, string> = {};
   (magazalarHam ?? []).forEach((m: any) => { magazaMap[m.magaza_kodu] = m.id; });
 
-  let basarili = 0;
   const hatalar: SatirHata[] = [];
+
+  type GecerliSatir = {
+    satirNo: number;
+    tc_kimlik_no: string;
+    personel_kodu: string | null;
+    ad_soyad: string;
+    dogum_tarihi: string | null;
+    cinsiyet: string | null;
+    guncel_magaza_id: string;
+    guncel_unvan: string;
+    kadro_kategorisi: string;
+    kidem_baslangic_tarihi: string | null;
+  };
+  const gecerliler: GecerliSatir[] = [];
+  const tcGorulen = new Set<string>();
 
   for (let i = 0; i < rowsHam.length; i++) {
     const satirNo = i + 2;
     const r = satirNormallestir(rowsHam[i]);
 
-    // Gerçek dosyada "İşten Ayrılma Tarihi" hiç boş gelmiyor — hâlâ çalışanlar için 1900-01-01
-    // placeholder tarih kullanılıyor. Sadece bunun DIŞINDA bir tarih varsa gerçekten ayrılmış sayılır.
     const ayrilmaTarihiParsed = excelTarih(r["İşten Ayrılma Tarihi"]);
     const gercektenAyrilmisMi = ayrilmaTarihiParsed !== null && ayrilmaTarihiParsed !== "1900-01-01";
-    if (gercektenAyrilmisMi) {
-      continue;
-    }
+    if (gercektenAyrilmisMi) continue;
 
     const tcKimlikNo = String(r["TC Kimlik No"] ?? "").trim();
     const personelKodu = String(r["Personel Kodu"] ?? "").trim();
@@ -87,66 +96,91 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
       hatalar.push({ satir: satirNo, hata: "TC Kimlik No, Adı-Soyadı, Departman Kodu veya İş Ünvanı Açıklaması eksik." });
       continue;
     }
-
     const magazaId = magazaMap[departmanKodu];
     if (!magazaId) {
-      hatalar.push({ satir: satirNo, hata: `Departman Kodu (${departmanKodu}) sistemde tanımlı bir mağaza koduna karşılık gelmiyor — önce Mağaza Bilgisi import edilmeli.` });
+      hatalar.push({ satir: satirNo, hata: `Departman Kodu (${departmanKodu}) sistemde tanımlı bir mağaza koduna karşılık gelmiyor.` });
       continue;
     }
-
     const kategori = unvanMap[turkceBuyut(unvanHam)];
     if (!kategori) {
       hatalar.push({ satir: satirNo, hata: `İş Ünvanı Açıklaması (${unvanHam}) tanınan ünvan listesinde yok.` });
       continue;
     }
-
-    const { data: personel, error: personelHata } = await supabase
-      .from("personel")
-      .upsert(
-        {
-          tc_kimlik_no: tcKimlikNo,
-          personel_kodu: personelKodu || null,
-          ad_soyad: adSoyad,
-          dogum_tarihi: dogumTarihi,
-          cinsiyet: cinsiyet,
-          guncel_magaza_id: magazaId,
-          guncel_unvan: unvanHam,
-          durum: "aktif",
-          kadro_kategorisi: kategori,
-          kidem_baslangic_tarihi: iseBaslamaTarihi,
-        },
-        { onConflict: "tc_kimlik_no" }
-      )
-      .select("id")
-      .single();
-
-    if (personelHata || !personel) {
-      hatalar.push({ satir: satirNo, hata: "Personel kaydedilemedi: " + personelHata?.message });
+    if (tcGorulen.has(tcKimlikNo)) {
+      hatalar.push({ satir: satirNo, hata: `TC Kimlik No (${tcKimlikNo}) dosyada birden fazla kez geçiyor, bu satır atlandı.` });
       continue;
     }
+    tcGorulen.add(tcKimlikNo);
 
-    // Atama geçmişi: aynı personel+mağaza+başlama tarihi ile daha önce kayıt açılmışsa tekrar eklenmez (re-import güvenliği)
-    if (iseBaslamaTarihi) {
-      const { data: mevcutAtama } = await supabase
-        .from("personel_atama_gecmisi")
-        .select("id")
-        .eq("personel_id", personel.id)
-        .eq("magaza_id", magazaId)
-        .eq("baslama_tarihi", iseBaslamaTarihi)
-        .maybeSingle();
+    gecerliler.push({
+      satirNo, tc_kimlik_no: tcKimlikNo, personel_kodu: personelKodu || null, ad_soyad: adSoyad,
+      dogum_tarihi: dogumTarihi, cinsiyet, guncel_magaza_id: magazaId, guncel_unvan: unvanHam,
+      kadro_kategorisi: kategori, kidem_baslangic_tarihi: iseBaslamaTarihi,
+    });
+  }
 
-      if (!mevcutAtama) {
-        await supabase.from("personel_atama_gecmisi").insert({
-          personel_id: personel.id,
-          magaza_id: magazaId,
-          unvan: unvanHam,
-          baslama_tarihi: iseBaslamaTarihi,
-          kaynak: "import",
-        });
-      }
+  if (gecerliler.length === 0) {
+    return { basarili: 0, hatalar };
+  }
+
+  const PARCA_BOYUTU = 500;
+  const tcToId = new Map<string, string>();
+
+  for (const parca of parcala(gecerliler, PARCA_BOYUTU)) {
+    const { data: eklenenler, error: upsertHata } = await supabase
+      .from("personel")
+      .upsert(
+        parca.map((p) => ({
+          tc_kimlik_no: p.tc_kimlik_no,
+          personel_kodu: p.personel_kodu,
+          ad_soyad: p.ad_soyad,
+          dogum_tarihi: p.dogum_tarihi,
+          cinsiyet: p.cinsiyet,
+          guncel_magaza_id: p.guncel_magaza_id,
+          guncel_unvan: p.guncel_unvan,
+          durum: "aktif",
+          kadro_kategorisi: p.kadro_kategorisi,
+          kidem_baslangic_tarihi: p.kidem_baslangic_tarihi,
+        })),
+        { onConflict: "tc_kimlik_no" }
+      )
+      .select("id, tc_kimlik_no");
+
+    if (upsertHata) {
+      parca.forEach((p) => hatalar.push({ satir: p.satirNo, hata: "Personel kaydedilemedi: " + upsertHata.message }));
+      continue;
     }
+    (eklenenler ?? []).forEach((e: any) => tcToId.set(e.tc_kimlik_no, e.id));
+  }
 
-    basarili++;
+  const basarili = tcToId.size;
+
+  const ilgiliPersonelIdleri = Array.from(tcToId.values());
+  const mevcutAtamaAnahtarlari = new Set<string>();
+
+  for (const parca of parcala(ilgiliPersonelIdleri, PARCA_BOYUTU)) {
+    const { data: mevcutlar } = await supabase
+      .from("personel_atama_gecmisi")
+      .select("personel_id, magaza_id, baslama_tarihi")
+      .in("personel_id", parca);
+    (mevcutlar ?? []).forEach((m: any) => {
+      mevcutAtamaAnahtarlari.add(`${m.personel_id}|${m.magaza_id}|${m.baslama_tarihi}`);
+    });
+  }
+
+  const yeniAtamalar = gecerliler
+    .filter((p) => p.kidem_baslangic_tarihi && tcToId.has(p.tc_kimlik_no))
+    .map((p) => ({
+      personel_id: tcToId.get(p.tc_kimlik_no)!,
+      magaza_id: p.guncel_magaza_id,
+      unvan: p.guncel_unvan,
+      baslama_tarihi: p.kidem_baslangic_tarihi,
+      kaynak: "import",
+    }))
+    .filter((a) => !mevcutAtamaAnahtarlari.has(`${a.personel_id}|${a.magaza_id}|${a.baslama_tarihi}`));
+
+  for (const parca of parcala(yeniAtamalar, PARCA_BOYUTU)) {
+    await supabase.from("personel_atama_gecmisi").insert(parca);
   }
 
   revalidatePath("/personel");
