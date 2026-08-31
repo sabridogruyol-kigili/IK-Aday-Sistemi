@@ -15,15 +15,19 @@ function sayi(v: any): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-// "A003 İstanbul Carousel" -> "A003"
 function magazaKoduAyikla(sube: string): string {
   const m = String(sube ?? "").trim().match(/^(\S+)/);
   return m ? m[1] : "";
 }
 
-// "7750-1" -> "7750" (aynı kişi, sonek temizlenir — tasarım notu 5.3 madde 3)
 function sicilNormalize(kod: string): string {
   return String(kod ?? "").trim().replace(/-\d+$/, "");
+}
+
+function parcala<T>(dizi: T[], boyut: number): T[][] {
+  const parcalar: T[][] = [];
+  for (let i = 0; i < dizi.length; i += boyut) parcalar.push(dizi.slice(i, i + boyut));
+  return parcalar;
 }
 
 export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
@@ -42,10 +46,14 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
   const personelMap: Record<string, string> = {};
   (personelHam ?? []).forEach((p: any) => { if (p.personel_kodu) personelMap[sicilNormalize(p.personel_kodu)] = p.id; });
 
-  let basarili = 0;
   const hatalar: SatirHata[] = [];
+  const magazaAylikSatirlari: { magaza_id: string; yil: number; ay: number; hgo: number }[] = [];
+  const kisiAylikSatirlari: { personel_id: string; yil: number; ay: number; hedef_ciro_kdv_dahil: number; gerceklesen_ciro_kdv_dahil: number; hgo: number | null }[] = [];
   const etkilenenPersonelIdleri = new Set<string>();
 
+  // -----------------------------------------------------------------
+  // 1) VALİDASYON — hiç DB yazma çağrısı yapmadan tüm satırları işleyip diziye topla.
+  // -----------------------------------------------------------------
   for (let i = 0; i < rows.length; i++) {
     const satirNo = i + 2;
     const r = rows[i];
@@ -69,39 +77,19 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
       hatalar.push({ satir: satirNo, hata: `Şubeler alanındaki mağaza kodu (${magazaKodu}) sistemde tanımlı değil.` });
       continue;
     }
-
-    if (HARIC_MAGAZA_KODLARI.has(magazaKodu)) {
-      // Tasarım notu: bu mağazalar performans hesabına hiç katılmaz — satır atlanır (hata değil, kasıtlı).
-      continue;
-    }
+    if (HARIC_MAGAZA_KODLARI.has(magazaKodu)) continue;
 
     const plasiyerAdi = String(r["Plasiyer Adı"] ?? "").trim();
     const plasiyerKoduHam = String(r["Plasiyer Kodu"] ?? "").trim();
     const isTotal = plasiyerAdi.toLocaleUpperCase("tr-TR") === "TOTAL" || plasiyerKoduHam.toLocaleUpperCase("tr-TR") === "TOTAL";
 
     if (isTotal) {
-      // Tasarım notu 5.3 madde 2: mağaza HGO, dosyadaki hazır Total satırından doğrudan alınır — sistem kendi hesaplamaz.
       const hazirHgo = sayi(r["Ciro Hedef Gerçekleştirme Oranı"]);
       if (hazirHgo === null) {
         hatalar.push({ satir: satirNo, hata: "Total satırında Ciro Hedef Gerçekleştirme Oranı okunamadı." });
         continue;
       }
-
-      // Not: sepet_ortalamasi/sepet_derinligi/donusum_orani/giren_musteri_sayisi alanları
-      // ayrı bir "Mağaza Bilgisi" importuyla doldurulur; burada sadece hgo yazılır,
-      // upsert diğer mevcut kolonlara dokunmaz.
-      const { error: magazaAylikHata } = await supabase
-        .from("performans_magaza_aylik")
-        .upsert(
-          { magaza_id: magazaId, yil, ay, hgo: hazirHgo },
-          { onConflict: "magaza_id,yil,ay" }
-        );
-      if (magazaAylikHata) {
-        hatalar.push({ satir: satirNo, hata: "Mağaza aylık HGO kaydedilemedi: " + magazaAylikHata.message });
-        continue;
-      }
-
-      basarili++;
+      magazaAylikSatirlari.push({ magaza_id: magazaId, yil, ay, hgo: hazirHgo });
       continue;
     }
 
@@ -117,67 +105,74 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
       continue;
     }
 
-    // Tasarım notu 5.3 madde 1: KDV Dahil sütunlar kullanılır, KDV Hariç hiç kullanılmaz.
     const hedefCiro = sayi(r["Plasiyer Hedef Ciro (Kdv Dahil)"]);
     const gerceklesenCiro = sayi(r["Toplam Ciro KDV Dahil"]);
-
     if (hedefCiro === null || gerceklesenCiro === null) {
       hatalar.push({ satir: satirNo, hata: "Hedef Ciro (KDV Dahil) veya Toplam Ciro (KDV Dahil) okunamadı." });
       continue;
     }
 
-    // Tasarım notu 5.3 madde 5: kişi bazlı aylık HGO = Toplam Ciro / Hedef Ciro
     const kisiHgo = hedefCiro > 0 ? (gerceklesenCiro / hedefCiro) * 100 : null;
-
-    const { error: kisiAylikHata } = await supabase
-      .from("performans_kisi_aylik")
-      .upsert(
-        {
-          personel_id: personelId,
-          yil,
-          ay,
-          hedef_ciro_kdv_dahil: hedefCiro,
-          gerceklesen_ciro_kdv_dahil: gerceklesenCiro,
-          hgo: kisiHgo,
-        },
-        { onConflict: "personel_id,yil,ay" }
-      );
-
-    if (kisiAylikHata) {
-      hatalar.push({ satir: satirNo, hata: "Kişi aylık performans kaydedilemedi: " + kisiAylikHata.message });
-      continue;
-    }
-
+    kisiAylikSatirlari.push({ personel_id: personelId, yil, ay, hedef_ciro_kdv_dahil: hedefCiro, gerceklesen_ciro_kdv_dahil: gerceklesenCiro, hgo: kisiHgo });
     etkilenenPersonelIdleri.add(personelId);
-    basarili++;
   }
 
-  // Tasarım notu 5.3 madde 6-7: kişi bazlı ORTALAMA HGO (basit aritmetik ortalama) ve kategori sayaçları,
-  // etkilenen her personel için TÜM aylık geçmişi baz alınarak yeniden hesaplanır.
-  for (const personelId of etkilenenPersonelIdleri) {
-    const { data: aylar } = await supabase
+  // -----------------------------------------------------------------
+  // 2) TOPLU UPSERT — 500'lük parçalar hâlinde (604 satır için tek tek değil ~2-3 istek)
+  // -----------------------------------------------------------------
+  const PARCA_BOYUTU = 500;
+  let basarili = 0;
+
+  for (const parca of parcala(magazaAylikSatirlari, PARCA_BOYUTU)) {
+    const { error } = await supabase.from("performans_magaza_aylik").upsert(parca, { onConflict: "magaza_id,yil,ay" });
+    if (error) hatalar.push({ satir: 0, hata: "Mağaza aylık HGO toplu kaydında hata: " + error.message });
+    else basarili += parca.length;
+  }
+
+  for (const parca of parcala(kisiAylikSatirlari, PARCA_BOYUTU)) {
+    const { error } = await supabase.from("performans_kisi_aylik").upsert(parca, { onConflict: "personel_id,yil,ay" });
+    if (error) hatalar.push({ satir: 0, hata: "Kişi aylık performans toplu kaydında hata: " + error.message });
+    else basarili += parca.length;
+  }
+
+  // -----------------------------------------------------------------
+  // 3) ORTALAMA HGO + KATEGORİ SAYAÇLARI — her personel için ayrı ayrı select+update yerine
+  //    TEK sorguda tüm etkilenen personelin tüm aylık verisini çekip JS'te gruplayıp
+  //    TEK toplu upsert ile personel tablosuna yazıyoruz.
+  // -----------------------------------------------------------------
+  const personelIdListesi = Array.from(etkilenenPersonelIdleri);
+  const tumAylar: { personel_id: string; hgo: number | null }[] = [];
+
+  for (const parca of parcala(personelIdListesi, PARCA_BOYUTU)) {
+    const { data } = await supabase
       .from("performans_kisi_aylik")
-      .select("hgo")
-      .eq("personel_id", personelId)
+      .select("personel_id, hgo")
+      .in("personel_id", parca)
       .not("hgo", "is", null);
+    if (data) tumAylar.push(...(data as any[]));
+  }
 
-    const degerler = (aylar ?? []).map((a: any) => a.hgo as number);
-    if (degerler.length === 0) continue;
+  const gruplanmis = new Map<string, number[]>();
+  tumAylar.forEach((a) => {
+    if (a.hgo === null) return;
+    if (!gruplanmis.has(a.personel_id)) gruplanmis.set(a.personel_id, []);
+    gruplanmis.get(a.personel_id)!.push(a.hgo);
+  });
 
+  const personelGuncellemeleri = Array.from(gruplanmis.entries()).map(([personelId, degerler]) => {
     const ortalama = degerler.reduce((s, v) => s + v, 0) / degerler.length;
-    const altiSayisi = degerler.filter((v) => v < 80).length;
-    const arasiSayisi = degerler.filter((v) => v >= 80 && v <= 100).length;
-    const ustuSayisi = degerler.filter((v) => v > 100).length;
+    return {
+      id: personelId,
+      performans_ortalama_hgo: ortalama,
+      performans_80_alti_sayisi: degerler.filter((v) => v < 80).length,
+      performans_80_100_arasi_sayisi: degerler.filter((v) => v >= 80 && v <= 100).length,
+      performans_100_ustu_sayisi: degerler.filter((v) => v > 100).length,
+    };
+  });
 
-    await supabase
-      .from("personel")
-      .update({
-        performans_ortalama_hgo: ortalama,
-        performans_80_alti_sayisi: altiSayisi,
-        performans_80_100_arasi_sayisi: arasiSayisi,
-        performans_100_ustu_sayisi: ustuSayisi,
-      })
-      .eq("id", personelId);
+  for (const parca of parcala(personelGuncellemeleri, PARCA_BOYUTU)) {
+    const { error } = await supabase.from("personel").upsert(parca, { onConflict: "id" });
+    if (error) hatalar.push({ satir: 0, hata: "Personel performans özeti güncellenemedi: " + error.message });
   }
 
   revalidatePath("/personel");
