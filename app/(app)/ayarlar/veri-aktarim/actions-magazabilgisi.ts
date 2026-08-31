@@ -61,6 +61,8 @@ export async function iceAktarMagazaBilgisi(rows: MagazaBilgisiSatiri[]): Promis
   let basarili = 0;
   const hatalar: SatirHata[] = [];
   const performansHaritasi = new Map<string, { magaza_id: string; yil: number; ay: number; [k: string]: any }>();
+  // Mevcut mağazalarda SUBETIPI/NETM2 güncellemesi artık satır satır değil, sona toplu yazılıyor.
+  const magazaGuncellemeleri = new Map<string, { id: string; subetipi?: string | null; net_m2?: number | null }>();
 
   for (let i = 0; i < rows.length; i++) {
     const satirNo = i + 4; // dosyada 3 başlık satırı var, veri 4. satırdan başlıyor
@@ -112,10 +114,10 @@ export async function iceAktarMagazaBilgisi(rows: MagazaBilgisiSatiri[]): Promis
       magaza = { id: yeniMagaza.id, bolge_id: yeniMagaza.bolge_id };
       magazaMap[magazaKodu] = magaza;
     } else if (subetipi !== null || netm2 !== null) {
-      const guncelleme: Record<string, any> = {};
+      const guncelleme: { id: string; subetipi?: string | null; net_m2?: number | null } = { id: magaza.id };
       if (subetipi !== null) guncelleme.subetipi = subetipi;
       if (netm2 !== null) guncelleme.net_m2 = netm2;
-      await supabase.from("magazalar").update(guncelleme).eq("id", magaza.id);
+      magazaGuncellemeleri.set(magaza.id, guncelleme);
     }
 
     let buSatirdaEnAzBirDeger = false;
@@ -134,6 +136,15 @@ export async function iceAktarMagazaBilgisi(rows: MagazaBilgisiSatiri[]): Promis
 
     if (buSatirdaEnAzBirDeger) basarili++;
     else hatalar.push({ satir: satirNo, hata: "Bu mağaza için okunabilir hiçbir aylık metrik değeri bulunamadı (yeni açılan mağazalarda normal olabilir)." });
+  }
+
+  if (magazaGuncellemeleri.size > 0) {
+    const { error: guncelleHata } = await supabase.rpc("magazalar_toplu_guncelle", {
+      p_guncellemeler: Array.from(magazaGuncellemeleri.values()),
+    });
+    if (guncelleHata) {
+      hatalar.push({ satir: 0, hata: "Mağaza bilgileri (SUBETIPI/NETM2) toplu güncellenemedi: " + guncelleHata.message });
+    }
   }
 
   if (performansHaritasi.size > 0) {
