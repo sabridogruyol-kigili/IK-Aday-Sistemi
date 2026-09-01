@@ -71,6 +71,16 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     guncel_unvan: string;
     kadro_kategorisi: string;
     kidem_baslangic_tarihi: string | null;
+    onceki_is_yeri: string | null;
+    ihtarname: string | null;
+    uyari_yazisi: string | null;
+    tutanak: string | null;
+    savunma: string | null;
+    kan_grubu_kodu: string | null;
+    uyruk: string | null;
+    ozel_mobil: string | null;
+    evli: string | null;
+    notlar: string | null;
   };
   const gecerliler: GecerliSatir[] = [];
   const tcGorulen = new Set<string>();
@@ -97,6 +107,16 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     const dogumTarihi = excelTarih(r["Doğum Tarihi"]);
     const cinsiyet = String(r["Cinsiyet Açıklaması"] ?? "").trim() || null;
     const iseBaslamaTarihi = excelTarih(r["İşyeri Başlama Tarihi"]);
+    const onceki_is_yeri = String(r["Önceki İş Yeri"] ?? "").trim() || null;
+    const ihtarname = String(r["İHTARNAME"] ?? "").trim() || null;
+    const uyari_yazisi = String(r["UYARI YAZISI"] ?? "").trim() || null;
+    const tutanak = String(r["Tutanak"] ?? "").trim() || null;
+    const savunma = String(r["Savunma"] ?? "").trim() || null;
+    const kan_grubu_kodu = String(r["Kan Grubu Kodu"] ?? "").trim() || null;
+    const uyruk = String(r["Uyruk"] ?? "").trim() || null;
+    const ozel_mobil = String(r["ÖzelMobil"] ?? "").trim() || null;
+    const evli = String(r["Evli"] ?? "").trim() || null;
+    const notlar = String(r["PlainText"] ?? "").trim() || null;
 
     if (!tcKimlikNo || !adSoyad || !departmanKodu || !unvanHam) {
       hatalar.push({ satir: satirNo, hata: "TC Kimlik No, Adı-Soyadı, Departman Kodu veya İş Ünvanı Açıklaması eksik." });
@@ -122,6 +142,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
       satirNo, tc_kimlik_no: tcKimlikNo, personel_kodu: personelKodu || null, ad_soyad: adSoyad,
       dogum_tarihi: dogumTarihi, cinsiyet, guncel_magaza_id: magazaId, guncel_unvan: unvanHam,
       kadro_kategorisi: kategori, kidem_baslangic_tarihi: iseBaslamaTarihi,
+      onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, kan_grubu_kodu, uyruk, ozel_mobil, evli, notlar,
     });
   }
 
@@ -156,6 +177,16 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
       guncel_unvan: p.guncel_unvan,
       kadro_kategorisi: p.kadro_kategorisi,
       kidem_baslangic_tarihi: p.kidem_baslangic_tarihi ?? "",
+      onceki_is_yeri: p.onceki_is_yeri,
+      ihtarname: p.ihtarname,
+      uyari_yazisi: p.uyari_yazisi,
+      tutanak: p.tutanak,
+      savunma: p.savunma,
+      kan_grubu_kodu: p.kan_grubu_kodu,
+      uyruk: p.uyruk,
+      ozel_mobil: p.ozel_mobil,
+      evli: p.evli,
+      notlar: p.notlar,
     }));
     for (const parca of parcala(guncellemeler, PARCA_BOYUTU)) {
       const { error } = await supabase.rpc("personel_placeholder_birlestir", { p_guncellemeler: parca });
@@ -182,6 +213,16 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
           durum: "aktif",
           kadro_kategorisi: p.kadro_kategorisi,
           kidem_baslangic_tarihi: p.kidem_baslangic_tarihi,
+          onceki_is_yeri: p.onceki_is_yeri,
+          ihtarname: p.ihtarname,
+          uyari_yazisi: p.uyari_yazisi,
+          tutanak: p.tutanak,
+          savunma: p.savunma,
+          kan_grubu_kodu: p.kan_grubu_kodu,
+          uyruk: p.uyruk,
+          ozel_mobil: p.ozel_mobil,
+          evli: p.evli,
+          notlar: p.notlar,
         })),
         { onConflict: "tc_kimlik_no" }
       )
