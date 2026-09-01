@@ -71,10 +71,6 @@ export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
     basarili++;
   }
 
-  await supabase.from("import_gecmisi").insert({
-    tip: "norm", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length,
-  });
-
   revalidatePath("/dashboard");
   revalidatePath("/norm");
   return { basarili, hatalar };
