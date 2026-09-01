@@ -59,7 +59,7 @@ export async function iceAktarMagazaBilgisi(rows: MagazaBilgisiSatiri[]): Promis
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { basarili: 0, hatalar: [], yetkiHatasi: "Giriş yapmalısınız." };
 
-  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  const { data: me } = await supabase.from("kullanicilar").select("id, ad_soyad, rol").eq("email", user.email).single();
   if (!me || me.rol !== "YONETIM") return { basarili: 0, hatalar: [], yetkiHatasi: "Sadece Yönetim veri içe aktarabilir." };
 
   if (rows.length === 0) return { basarili: 0, hatalar: [{ satir: 0, hata: "Dosyada okunabilir satır bulunamadı." }] };
@@ -175,6 +175,10 @@ export async function iceAktarMagazaBilgisi(rows: MagazaBilgisiSatiri[]): Promis
       }
     }
   }
+
+  await supabase.from("import_gecmisi").insert({
+    tip: "magazabilgisi", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length,
+  });
 
   revalidatePath("/norm");
   revalidatePath("/raporlar");
