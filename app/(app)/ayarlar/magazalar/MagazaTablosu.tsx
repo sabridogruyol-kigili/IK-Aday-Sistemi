@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { guncelleMagaza, ekleMagaza, magazayiPasifYap, type MagazaGuncelleGirdi } from "./actions";
 
 type Magaza = {
@@ -35,6 +35,25 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
   const [error, setError] = useState<string | null>(null);
   const [filtre, setFiltre] = useState("");
   const [sadeceAktif, setSadeceAktif] = useState(true);
+  const [secilenBolgeler, setSecilenBolgeler] = useState<Set<string>>(new Set());
+  const [bolgeFiltreAcik, setBolgeFiltreAcik] = useState(false);
+  const bolgeFiltreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function disaTikla(e: MouseEvent) {
+      if (bolgeFiltreRef.current && !bolgeFiltreRef.current.contains(e.target as Node)) setBolgeFiltreAcik(false);
+    }
+    document.addEventListener("mousedown", disaTikla);
+    return () => document.removeEventListener("mousedown", disaTikla);
+  }, []);
+
+  function bolgeFiltreDegistir(id: string) {
+    setSecilenBolgeler((prev) => {
+      const yeni = new Set(prev);
+      if (yeni.has(id)) yeni.delete(id); else yeni.add(id);
+      return yeni;
+    });
+  }
 
   function duzenlemeyeBasla(m: Magaza) {
     setDuzenlenenId(m.id);
@@ -100,15 +119,47 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
 
   const gorunenler = magazalar.filter((m) => {
     if (sadeceAktif && !m.aktif) return false;
+    if (secilenBolgeler.size > 0 && (!m.bolge_id || !secilenBolgeler.has(m.bolge_id))) return false;
     if (filtre && !`${m.magaza_kodu} ${m.magaza_adi}`.toLocaleLowerCase("tr-TR").includes(filtre.toLocaleLowerCase("tr-TR"))) return false;
     return true;
   });
+
+  const bolgeFiltreEtiket =
+    secilenBolgeler.size === 0 ? "Tüm Bölgeler"
+      : secilenBolgeler.size === 1 ? bolgeler.find((b) => secilenBolgeler.has(b.id))?.ad ?? "1 bölge"
+      : `${secilenBolgeler.size} bölge seçili`;
 
   return (
     <div>
       <div className="flex gap-2 mb-2 items-center">
         <input value={filtre} onChange={(e) => setFiltre(e.target.value)} placeholder="Mağaza kodu/adı ara..."
           className="border border-gray-300 rounded-md px-2 py-1.5 text-xs w-56" />
+
+        <div className="relative" ref={bolgeFiltreRef}>
+          <button
+            type="button"
+            onClick={() => setBolgeFiltreAcik((v) => !v)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white flex items-center gap-1.5 min-w-[140px] justify-between"
+          >
+            <span className={secilenBolgeler.size === 0 ? "text-gray-500" : "text-navy-3"}>{bolgeFiltreEtiket}</span>
+            <span className={`text-[8px] text-gray-400 transition-transform ${bolgeFiltreAcik ? "rotate-180" : ""}`}>▼</span>
+          </button>
+          <div className={`absolute z-20 mt-1 w-56 bg-white border border-gray-300 rounded-md shadow-lg max-h-56 overflow-y-auto divide-y divide-gray-100 ${bolgeFiltreAcik ? "block" : "hidden"}`}>
+            {secilenBolgeler.size > 0 && (
+              <button onClick={() => setSecilenBolgeler(new Set())} className="w-full text-left text-[11px] text-info px-2.5 py-1.5 hover:bg-gray-50">
+                Seçimi temizle
+              </button>
+            )}
+            {bolgeler.map((b) => (
+              <label key={b.id} className="flex items-center gap-2 text-xs text-gray-600 px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" checked={secilenBolgeler.has(b.id)} onChange={() => bolgeFiltreDegistir(b.id)} />
+                {b.ad}
+              </label>
+            ))}
+            {bolgeler.length === 0 && <div className="text-xs text-gray-400 px-2.5 py-2">Henüz bölge tanımlı değil.</div>}
+          </div>
+        </div>
+
         <label className="flex items-center gap-1.5 text-xs text-gray-500">
           <input type="checkbox" checked={sadeceAktif} onChange={(e) => setSadeceAktif(e.target.checked)} />
           Sadece aktif
