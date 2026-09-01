@@ -176,10 +176,6 @@ export async function iceAktarMagazaBilgisi(rows: MagazaBilgisiSatiri[]): Promis
     }
   }
 
-  await supabase.from("import_gecmisi").insert({
-    tip: "magazabilgisi", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length,
-  });
-
   revalidatePath("/norm");
   revalidatePath("/raporlar");
   revalidatePath("/dashboard");
