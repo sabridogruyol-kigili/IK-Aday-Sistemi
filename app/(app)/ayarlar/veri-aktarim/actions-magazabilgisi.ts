@@ -32,8 +32,22 @@ function magazaKoduAyikla(sube: string): { kod: string; ad: string } {
 
 function sayi(v: any): number | null {
   if (v === null || v === undefined || v === "") return null;
-  const n = Number(String(v).replace(/\./g, "").replace(",", "."));
-  return Number.isNaN(n) ? null : n;
+  let n: number;
+  if (typeof v === "number") {
+    // Excel'den doğrudan sayısal hücre olarak gelmiş — string'e çevirip nokta silme mantığı
+    // uygulanırsa (Türkçe binlik ayraç sanılıp) değer bozulur, o yüzden direkt kullanılır.
+    n = v;
+  } else {
+    const s = String(v).trim();
+    // Türkçe biçim: binlik ayraç nokta, ondalık virgül (örn. "1.234,56")
+    if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(s)) {
+      n = Number(s.replace(/\./g, "").replace(",", "."));
+    } else {
+      n = Number(s.replace(",", "."));
+    }
+  }
+  if (Number.isNaN(n)) return null;
+  return Math.round(n * 100) / 100;
 }
 
 function turkceBuyut(s: string): string {
