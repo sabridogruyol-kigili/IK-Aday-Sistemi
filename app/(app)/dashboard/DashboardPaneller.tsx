@@ -1,0 +1,331 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+
+type Magaza = {
+  id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string;
+  subetipi: string | null; net_m2: number | null;
+  ana_norm: number; ana_dolu: number; donemsel_norm: number; donemsel_dolu: number;
+  part_norm: number; part_dolu: number; toplamNorm: number; toplamDolu: number; oran: number;
+};
+type Bolge = { id: string; ad: string };
+type PerformansSatiri = {
+  magaza_id: string; yil: number; ay: number; hgo: number | null;
+  sepet_ortalamasi: number | null; sepet_derinligi: number | null; donusum_orani: number | null; giren_musteri_sayisi: number | null;
+};
+
+const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+type NormDurum = "EKSIK_ANA" | "EKSIK_DIGER" | "TAM" | "FAZLA";
+const DURUM_ETIKET: Record<NormDurum, string> = {
+  EKSIK_ANA: "Ana Kadro Eksik", EKSIK_DIGER: "Dönemsel/Part Eksik", TAM: "Norm Tam", FAZLA: "Norm Fazla",
+};
+const DURUM_BORDER: Record<NormDurum, string> = {
+  EKSIK_ANA: "border-l-4 border-l-danger", EKSIK_DIGER: "border-l-4 border-l-accent",
+  TAM: "border-l-4 border-l-success", FAZLA: "border-l-4 border-l-info",
+};
+const DURUM_NOKTA: Record<NormDurum, string> = {
+  EKSIK_ANA: "bg-danger", EKSIK_DIGER: "bg-accent", TAM: "bg-success", FAZLA: "bg-info",
+};
+
+function normDurumu(m: Magaza): NormDurum {
+  if (m.ana_dolu < m.ana_norm) return "EKSIK_ANA";
+  if (m.donemsel_dolu < m.donemsel_norm || m.part_dolu < m.part_norm) return "EKSIK_DIGER";
+  if (m.ana_dolu > m.ana_norm || m.donemsel_dolu > m.donemsel_norm || m.part_dolu > m.part_norm) return "FAZLA";
+  return "TAM";
+}
+
+function oranHesap(dolu: number, norm: number) {
+  return norm > 0 ? Math.min(Math.round((dolu / norm) * 100), 100) : 0;
+}
+
+function hgoRenk(hgo: number) {
+  if (hgo < 80) return { bar: "bg-danger", metin: "text-danger" };
+  if (hgo <= 100) return { bar: "bg-accent", metin: "text-accent" };
+  return { bar: "bg-success", metin: "text-success" };
+}
+
+// Mağaza adında genelde marka/kısaltma önekleri sonra il adı gelir (örn. "A.K. İstanbul Carousel").
+// Kesin bir "il" alanı DB'de tutulmadığı için en iyi tahminle çıkarım yapıyoruz.
+function ilTahminEt(magazaAdi: string): string {
+  const kelimeler = magazaAdi.trim().split(/\s+/);
+  for (const k of kelimeler) {
+    if (/^[A-ZÇĞİÖŞÜ.]+\.$/.test(k) || k.length <= 3) continue;
+    return k;
+  }
+  return kelimeler[0] ?? "";
+}
+
+function BolgeDropdownFiltre({ bolgeler, secilenler, setSecilenler }: { bolgeler: Bolge[]; secilenler: Set<string>; setSecilenler: (s: Set<string>) => void }) {
+  const [acik, setAcik] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function disaTikla(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setAcik(false); }
+    document.addEventListener("mousedown", disaTikla);
+    return () => document.removeEventListener("mousedown", disaTikla);
+  }, []);
+  function toggle(id: string) {
+    const yeni = new Set(secilenler);
+    if (yeni.has(id)) yeni.delete(id); else yeni.add(id);
+    setSecilenler(yeni);
+  }
+  const etiket = secilenler.size === 0 ? "Tüm Bölgeler" : secilenler.size === 1 ? bolgeler.find((b) => secilenler.has(b.id))?.ad ?? "1 bölge" : `${secilenler.size} bölge seçili`;
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setAcik((v) => !v)}
+        className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white flex items-center gap-1.5 min-w-[120px] justify-between">
+        <span className={secilenler.size === 0 ? "text-gray-500" : "text-navy-3"}>{etiket}</span>
+        <span className={`text-[8px] text-gray-400 transition-transform ${acik ? "rotate-180" : ""}`}>▼</span>
+      </button>
+      <div className={`absolute z-20 mt-1 w-52 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-y-auto divide-y divide-gray-100 ${acik ? "block" : "hidden"}`}>
+        {secilenler.size > 0 && (
+          <button onClick={() => setSecilenler(new Set())} className="w-full text-left text-[11px] text-info px-2.5 py-1.5 hover:bg-gray-50">Seçimi temizle</button>
+        )}
+        {bolgeler.map((b) => (
+          <label key={b.id} className="flex items-center gap-2 text-[11px] text-gray-600 px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" checked={secilenler.has(b.id)} onChange={() => toggle(b.id)} />
+            {b.ad}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPaneller({ magazalar, bolgeler, performansHam }: { magazalar: Magaza[]; bolgeler: Bolge[]; performansHam: PerformansSatiri[] }) {
+  // ---- Sol panel (Mağazalar) filtreleri ----
+  const [solBolgeler, setSolBolgeler] = useState<Set<string>>(new Set());
+  const [normMin, setNormMin] = useState("");
+  const [normMax, setNormMax] = useState("");
+  const [durumFiltre, setDurumFiltre] = useState<Set<NormDurum>>(new Set());
+
+  // ---- Sağ panel (Performans) filtreleri ----
+  const [sagBolgeler, setSagBolgeler] = useState<Set<string>>(new Set());
+  const [hgoMin, setHgoMin] = useState("");
+  const [hgoMax, setHgoMax] = useState("");
+  const [yilFiltre, setYilFiltre] = useState("");
+  const [ayFiltre, setAyFiltre] = useState("");
+
+  const [seciliMagazaId, setSeciliMagazaId] = useState<string | null>(null);
+
+  const magazaMap = useMemo(() => {
+    const m: Record<string, Magaza> = {};
+    magazalar.forEach((mag) => { m[mag.id] = mag; });
+    return m;
+  }, [magazalar]);
+
+  function durumToggle(d: NormDurum) {
+    const yeni = new Set(durumFiltre);
+    if (yeni.has(d)) yeni.delete(d); else yeni.add(d);
+    setDurumFiltre(yeni);
+  }
+
+  const solFiltrelenmis = magazalar.filter((m) => {
+    if (solBolgeler.size > 0 && (!m.bolge_id || !solBolgeler.has(m.bolge_id))) return false;
+    if (normMin !== "" && m.toplamNorm < Number(normMin)) return false;
+    if (normMax !== "" && m.toplamNorm > Number(normMax)) return false;
+    if (durumFiltre.size > 0 && !durumFiltre.has(normDurumu(m))) return false;
+    return true;
+  });
+
+  const yilSecenekleri = Array.from(new Set(performansHam.map((p) => p.yil))).sort((a, b) => b - a);
+  const aySecenekleri = Array.from(new Set(performansHam.map((p) => p.ay))).sort((a, b) => a - b);
+
+  const sagFiltrelenmisHam = performansHam.filter((p) => {
+    if (p.hgo === null) return false;
+    const magaza = magazaMap[p.magaza_id];
+    if (!magaza) return false;
+    if (sagBolgeler.size > 0 && (!magaza.bolge_id || !sagBolgeler.has(magaza.bolge_id))) return false;
+    if (hgoMin !== "" && p.hgo < Number(hgoMin)) return false;
+    if (hgoMax !== "" && p.hgo > Number(hgoMax)) return false;
+    if (yilFiltre !== "" && p.yil !== Number(yilFiltre)) return false;
+    if (ayFiltre !== "" && p.ay !== Number(ayFiltre)) return false;
+    return true;
+  });
+
+  // Seçili mağaza yoksa: her mağaza için (filtreye uyan aylar içinden) en güncel ay gösterilir.
+  const listeGorunumu = useMemo(() => {
+    const enSon: Record<string, PerformansSatiri> = {};
+    sagFiltrelenmisHam.forEach((p) => {
+      const mevcut = enSon[p.magaza_id];
+      if (!mevcut || p.yil > mevcut.yil || (p.yil === mevcut.yil && p.ay > mevcut.ay)) enSon[p.magaza_id] = p;
+    });
+    return Object.values(enSon).sort((a, b) => (b.hgo ?? 0) - (a.hgo ?? 0));
+  }, [sagFiltrelenmisHam]);
+
+  // Seçili mağaza varsa: o mağazanın (filtreye uyan) tüm ayları, en yeniden eskiye.
+  const detayGorunumu = useMemo(() => {
+    if (!seciliMagazaId) return [];
+    return sagFiltrelenmisHam
+      .filter((p) => p.magaza_id === seciliMagazaId)
+      .sort((a, b) => (b.yil - a.yil) || (b.ay - a.ay));
+  }, [sagFiltrelenmisHam, seciliMagazaId]);
+
+  const seciliMagaza = seciliMagazaId ? magazaMap[seciliMagazaId] : null;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* SOL PANEL — Mağazalar */}
+      <div className="bg-white border border-gray-200 rounded-card p-4">
+        <div className="text-sm font-semibold text-navy-3 mb-2">Mağazalar — Norm Doluluk</div>
+        <div className="text-[10px] text-gray-400 mb-2">Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür.</div>
+
+        <div className="flex flex-wrap gap-2 mb-2 items-center">
+          <BolgeDropdownFiltre bolgeler={bolgeler} secilenler={solBolgeler} setSecilenler={setSolBolgeler} />
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-gray-400">Norm</span>
+            <input type="number" value={normMin} onChange={(e) => setNormMin(e.target.value)} placeholder="min" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
+            <span className="text-gray-300 text-[10px]">–</span>
+            <input type="number" value={normMax} onChange={(e) => setNormMax(e.target.value)} placeholder="max" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {(Object.keys(DURUM_ETIKET) as NormDurum[]).map((d) => (
+            <button
+              key={d}
+              onClick={() => durumToggle(d)}
+              className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] border ${
+                durumFiltre.has(d) ? "border-navy bg-navy/5 text-navy-3 font-medium" : "border-gray-200 text-gray-500"
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${DURUM_NOKTA[d]}`} />
+              {DURUM_ETIKET[d]}
+            </button>
+          ))}
+        </div>
+
+        {solFiltrelenmis.length === 0 ? (
+          <div className="text-xs text-gray-400">Bu filtreye uyan mağaza yok.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[480px] overflow-y-auto pr-1">
+            {solFiltrelenmis.map((m) => {
+              const durum = normDurumu(m);
+              const secili = seciliMagazaId === m.id;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setSeciliMagazaId(secili ? null : m.id)}
+                  className={`text-left border border-gray-100 ${DURUM_BORDER[durum]} rounded-md p-2 transition-colors ${
+                    secili ? "bg-navy/5 ring-1 ring-navy" : "hover:bg-gray-50"
+                  }`}
+                  title={`${m.magaza_adi} — ${m.bolge_adi} (${DURUM_ETIKET[durum]})`}
+                >
+                  <div className="text-[11px] text-gray-700 truncate mb-0.5 font-medium">{m.magaza_adi}</div>
+                  <div className="text-[9px] text-gray-400 truncate mb-1.5">{m.bolge_adi || "—"}</div>
+                  <div className="space-y-1">
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-navy rounded-full" style={{ width: `${oranHesap(m.ana_dolu, m.ana_norm)}%` }} />
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-accent rounded-full" style={{ width: `${oranHesap(m.donemsel_dolu, m.donemsel_norm)}%` }} />
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-info rounded-full" style={{ width: `${oranHesap(m.part_dolu, m.part_norm)}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-[9px] text-gray-400 font-mono mt-1.5">{m.toplamDolu}/{m.toplamNorm} (%{m.oran})</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* SAĞ PANEL — Performans */}
+      <div className="bg-white border border-gray-200 rounded-card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-semibold text-navy-3">
+            {seciliMagaza ? `Performans — ${seciliMagaza.magaza_adi}` : "Mağazalar — Performans (HGO)"}
+          </div>
+          {seciliMagaza && (
+            <button onClick={() => setSeciliMagazaId(null)} className="text-[11px] text-info hover:underline">◀ Tüm Mağazalar</button>
+          )}
+        </div>
+
+        {seciliMagaza && (
+          <div className="grid grid-cols-3 gap-2 mb-3 bg-gray-50 rounded-md p-2.5 text-[11px]">
+            <div><div className="text-[9px] text-gray-400 uppercase">İl (tahmini)</div><div className="text-navy-3 font-medium">{ilTahminEt(seciliMagaza.magaza_adi)}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Bölge</div><div className="text-navy-3 font-medium">{seciliMagaza.bolge_adi || "—"}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Net m²</div><div className="text-navy-3 font-medium">{seciliMagaza.net_m2 ?? "—"}</div></div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mb-3 items-center">
+          {!seciliMagaza && <BolgeDropdownFiltre bolgeler={bolgeler} secilenler={sagBolgeler} setSecilenler={setSagBolgeler} />}
+          <select value={yilFiltre} onChange={(e) => setYilFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
+            <option value="">Tüm Yıllar</option>
+            {yilSecenekleri.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select value={ayFiltre} onChange={(e) => setAyFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
+            <option value="">Tüm Aylar</option>
+            {aySecenekleri.map((a) => <option key={a} value={a}>{AY_KISA[a]}</option>)}
+          </select>
+          {!seciliMagaza && (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-gray-400">HGO %</span>
+              <input type="number" value={hgoMin} onChange={(e) => setHgoMin(e.target.value)} placeholder="min" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
+              <span className="text-gray-300 text-[10px]">–</span>
+              <input type="number" value={hgoMax} onChange={(e) => setHgoMax(e.target.value)} placeholder="max" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
+            </div>
+          )}
+        </div>
+
+        {seciliMagaza ? (
+          detayGorunumu.length === 0 ? (
+            <div className="text-xs text-gray-400">Bu mağaza için (filtreye uyan) performans verisi yok.</div>
+          ) : (
+            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+              {detayGorunumu.map((p) => {
+                const renk = hgoRenk(p.hgo ?? 0);
+                return (
+                  <div key={`${p.yil}-${p.ay}`} className="border border-gray-100 rounded-md p-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-gray-600 font-medium">{AY_KISA[p.ay]} {p.yil}</span>
+                      <span className={`text-[11px] font-mono font-semibold ${renk.metin}`}>%{(p.hgo ?? 0).toFixed(1)}</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1.5">
+                      <div className={`h-full rounded-full ${renk.bar}`} style={{ width: `${Math.min(p.hgo ?? 0, 100)}%` }} />
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-gray-400">
+                      {p.sepet_ortalamasi != null && <span>Sepet Ort: {p.sepet_ortalamasi.toFixed(1)}</span>}
+                      {p.sepet_derinligi != null && <span>Sepet Der: {p.sepet_derinligi.toFixed(2)}</span>}
+                      {p.donusum_orani != null && <span>Dönüşüm: %{(p.donusum_orani * 100).toFixed(1)}</span>}
+                      {p.giren_musteri_sayisi != null && <span>Giren Müşteri: {p.giren_musteri_sayisi}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : listeGorunumu.length === 0 ? (
+          <div className="text-xs text-gray-400">
+            {performansHam.length === 0 ? "Henüz performans verisi içe aktarılmadı." : "Bu filtreye uyan mağaza yok."}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[480px] overflow-y-auto pr-1">
+            {listeGorunumu.map((p) => {
+              const magaza = magazaMap[p.magaza_id];
+              const renk = hgoRenk(p.hgo ?? 0);
+              return (
+                <button
+                  key={p.magaza_id}
+                  onClick={() => setSeciliMagazaId(p.magaza_id)}
+                  className="text-left border border-gray-100 rounded-md p-2 hover:bg-gray-50"
+                  title={`${magaza?.magaza_adi} — ${magaza?.bolge_adi}`}
+                >
+                  <div className="text-[11px] text-gray-700 truncate mb-0.5 font-medium">{magaza?.magaza_adi ?? "?"}</div>
+                  <div className="text-[9px] text-gray-400 truncate mb-1.5">{magaza?.bolge_adi || "—"} · {AY_KISA[p.ay]} {p.yil}</div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1">
+                    <div className={`h-full rounded-full ${renk.bar}`} style={{ width: `${Math.min(p.hgo ?? 0, 100)}%` }} />
+                  </div>
+                  <div className={`text-[10px] font-mono font-semibold ${renk.metin}`}>%{(p.hgo ?? 0).toFixed(1)}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
