@@ -86,21 +86,19 @@ export default async function DashboardPage() {
         {magazaDetay.length === 0 ? (
           <div className="text-xs text-gray-400">Görüntülenebilir mağaza bulunamadı.</div>
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
             {magazaDetay.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 text-xs">
-                <span className="w-32 flex-shrink-0 text-gray-600 text-right truncate">
-                  {m.magaza_adi}
-                </span>
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div key={m.id} className="border border-gray-100 rounded-md p-2" title={m.magaza_adi}>
+                <div className="text-[11px] text-gray-600 truncate mb-1">{m.magaza_adi}</div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1">
                   <div
                     className="h-full bg-navy rounded-full"
                     style={{ width: `${Math.min(m.oran, 100)}%` }}
                   />
                 </div>
-                <span className="w-20 text-gray-400 font-mono flex-shrink-0">
+                <div className="text-[10px] text-gray-400 font-mono">
                   {m.doluSayi}/{m.toplamNorm} (%{m.oran})
-                </span>
+                </div>
               </div>
             ))}
           </div>
