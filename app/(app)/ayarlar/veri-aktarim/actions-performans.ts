@@ -62,7 +62,7 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { basarili: 0, hatalar: [], yetkiHatasi: "Giriş yapmalısınız." };
 
-  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  const { data: me } = await supabase.from("kullanicilar").select("id, ad_soyad, rol").eq("email", user.email).single();
   if (!me || me.rol !== "YONETIM") return { basarili: 0, hatalar: [], yetkiHatasi: "Sadece Yönetim veri içe aktarabilir." };
 
   const { data: magazalarHam } = await supabase.from("magazalar").select("id, magaza_kodu");
@@ -256,6 +256,10 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
     const { error } = await supabase.from("personel").upsert(parca, { onConflict: "id" });
     if (error) hatalar.push({ satir: 0, hata: "Personel performans özeti güncellenemedi: " + error.message });
   }
+
+  await supabase.from("import_gecmisi").insert({
+    tip: "performans", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length,
+  });
 
   revalidatePath("/personel");
   revalidatePath("/raporlar");
