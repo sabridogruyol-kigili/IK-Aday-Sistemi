@@ -39,6 +39,35 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
   const [bolgeFiltreAcik, setBolgeFiltreAcik] = useState(false);
   const bolgeFiltreRef = useRef<HTMLDivElement>(null);
 
+  const [gelismisAcik, setGelismisAcik] = useState(false);
+  const [subetipiFiltre, setSubetipiFiltre] = useState("");
+  const [netm2Min, setNetm2Min] = useState("");
+  const [netm2Max, setNetm2Max] = useState("");
+  const [anaKadroMin, setAnaKadroMin] = useState("");
+  const [anaKadroMax, setAnaKadroMax] = useState("");
+  const [donemselMin, setDonemselMin] = useState("");
+  const [donemselMax, setDonemselMax] = useState("");
+  const [partTimeMin, setPartTimeMin] = useState("");
+  const [partTimeMax, setPartTimeMax] = useState("");
+
+  const subetipiSecenekleri = Array.from(new Set(magazalar.map((m) => m.subetipi).filter((s): s is string => !!s))).sort();
+
+  function sayiAraligindaMi(deger: number | null, min: string, max: string) {
+    if (min !== "" && (deger === null || deger < Number(min))) return false;
+    if (max !== "" && (deger === null || deger > Number(max))) return false;
+    return true;
+  }
+
+  const gelismisFiltreAktif =
+    subetipiFiltre !== "" || netm2Min !== "" || netm2Max !== "" || anaKadroMin !== "" || anaKadroMax !== ""
+    || donemselMin !== "" || donemselMax !== "" || partTimeMin !== "" || partTimeMax !== "";
+
+  function gelismisFiltreleriTemizle() {
+    setSubetipiFiltre(""); setNetm2Min(""); setNetm2Max("");
+    setAnaKadroMin(""); setAnaKadroMax(""); setDonemselMin(""); setDonemselMax("");
+    setPartTimeMin(""); setPartTimeMax("");
+  }
+
   useEffect(() => {
     function disaTikla(e: MouseEvent) {
       if (bolgeFiltreRef.current && !bolgeFiltreRef.current.contains(e.target as Node)) setBolgeFiltreAcik(false);
@@ -122,6 +151,11 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
     if (durumFiltre === "pasif" && m.aktif) return false;
     if (secilenBolgeler.size > 0 && (!m.bolge_id || !secilenBolgeler.has(m.bolge_id))) return false;
     if (filtre && !`${m.magaza_kodu} ${m.magaza_adi}`.toLocaleLowerCase("tr-TR").includes(filtre.toLocaleLowerCase("tr-TR"))) return false;
+    if (subetipiFiltre && m.subetipi !== subetipiFiltre) return false;
+    if (!sayiAraligindaMi(m.net_m2, netm2Min, netm2Max)) return false;
+    if (!sayiAraligindaMi(m.ana_kadro_norm, anaKadroMin, anaKadroMax)) return false;
+    if (!sayiAraligindaMi(m.donemsel_norm, donemselMin, donemselMax)) return false;
+    if (!sayiAraligindaMi(m.part_time_norm, partTimeMin, partTimeMax)) return false;
     return true;
   });
 
@@ -167,11 +201,85 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
           <option value="pasif">Pasif</option>
           <option value="hepsi">Hepsi</option>
         </select>
+
+        <button
+          onClick={() => setGelismisAcik((v) => !v)}
+          className={`border rounded-md px-2 py-1.5 text-xs flex items-center gap-1.5 ${
+            gelismisFiltreAktif ? "border-navy bg-navy/5 text-navy-3 font-medium" : "border-gray-300 bg-white text-gray-600"
+          }`}
+        >
+          Gelişmiş Filtreler {gelismisFiltreAktif && "●"}
+          <span className={`text-[8px] text-gray-400 transition-transform ${gelismisAcik ? "rotate-180" : ""}`}>▼</span>
+        </button>
+
         <div className="flex-1" />
         <button onClick={() => setYeniSatirAcik((v) => !v)} className="bg-navy text-white rounded-md px-3 py-1.5 text-xs font-medium">
           + Yeni Mağaza
         </button>
       </div>
+
+      {gelismisAcik && (
+        <div className="bg-white border border-gray-200 rounded-card p-3 mb-2 flex flex-wrap gap-4">
+          <div>
+            <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Şube Tipi</div>
+            <select value={subetipiFiltre} onChange={(e) => setSubetipiFiltre(e.target.value)}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white w-36">
+              <option value="">Tümü</option>
+              {subetipiSecenekleri.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Net m² (min–max)</div>
+            <div className="flex items-center gap-1">
+              <input type="number" value={netm2Min} onChange={(e) => setNetm2Min(e.target.value)} placeholder="min"
+                className="w-16 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+              <span className="text-gray-300">–</span>
+              <input type="number" value={netm2Max} onChange={(e) => setNetm2Max(e.target.value)} placeholder="max"
+                className="w-16 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Ana Kadro (min–max)</div>
+            <div className="flex items-center gap-1">
+              <input type="number" value={anaKadroMin} onChange={(e) => setAnaKadroMin(e.target.value)} placeholder="min"
+                className="w-14 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+              <span className="text-gray-300">–</span>
+              <input type="number" value={anaKadroMax} onChange={(e) => setAnaKadroMax(e.target.value)} placeholder="max"
+                className="w-14 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Dönemsel (min–max)</div>
+            <div className="flex items-center gap-1">
+              <input type="number" value={donemselMin} onChange={(e) => setDonemselMin(e.target.value)} placeholder="min"
+                className="w-14 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+              <span className="text-gray-300">–</span>
+              <input type="number" value={donemselMax} onChange={(e) => setDonemselMax(e.target.value)} placeholder="max"
+                className="w-14 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Part Time (min–max)</div>
+            <div className="flex items-center gap-1">
+              <input type="number" value={partTimeMin} onChange={(e) => setPartTimeMin(e.target.value)} placeholder="min"
+                className="w-14 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+              <span className="text-gray-300">–</span>
+              <input type="number" value={partTimeMax} onChange={(e) => setPartTimeMax(e.target.value)} placeholder="max"
+                className="w-14 border border-gray-300 rounded-md px-1.5 py-1.5 text-xs" />
+            </div>
+          </div>
+
+          {gelismisFiltreAktif && (
+            <div className="flex items-end">
+              <button onClick={gelismisFiltreleriTemizle} className="text-xs text-info underline">Temizle</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {error && <div className="text-[11px] text-danger mb-2">{error}</div>}
 
