@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import * as XLSX from "xlsx";
 import { iceAktarMagazaNorm } from "./actions";
 import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarPerformans } from "./actions-performans";
 import { iceAktarMagazaBilgisi } from "./actions-magazabilgisi";
+import { getSonImportlar, type SonImport } from "./actions-gecmis";
 
 type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string; eslenemeyenSutunlar?: string[] };
 
@@ -57,6 +58,11 @@ export default function ImportForm() {
   const [rows, setRows] = useState<any[]>([]);
   const [ilkSutunlar, setIlkSutunlar] = useState<string[]>([]);
   const [sonuc, setSonuc] = useState<Sonuc | null>(null);
+  const [sonImportlar, setSonImportlar] = useState<Record<string, SonImport>>({});
+
+  useEffect(() => {
+    getSonImportlar().then(setSonImportlar);
+  }, []);
   const [okumaHatasi, setOkumaHatasi] = useState<string | null>(null);
   const [surukleniyor, setSurukleniyor] = useState(false);
 
@@ -183,6 +189,7 @@ export default function ImportForm() {
     startTransition(async () => {
       const res = await sablon.action(rows);
       setSonuc(res);
+      getSonImportlar().then(setSonImportlar);
     });
   }
 
@@ -204,7 +211,16 @@ export default function ImportForm() {
 
       <div>
         <div className="text-sm font-semibold text-navy-3 mb-1">{sablon.label}</div>
-        <div className="text-xs text-gray-400 mb-3">{sablon.aciklama}</div>
+        <div className="text-xs text-gray-400 mb-2">{sablon.aciklama}</div>
+        {sonImportlar[sablon.key] && (
+          <div className="text-[11px] text-gray-500 bg-gray-50 rounded-md px-2.5 py-1.5 mb-3 inline-block">
+            Son içe aktarım: {new Date(sonImportlar[sablon.key].created_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}
+            {sonImportlar[sablon.key].kullanici_adi && ` — ${sonImportlar[sablon.key].kullanici_adi}`}
+            {" — "}
+            <span className="text-success font-medium">{sonImportlar[sablon.key].basarili} başarılı</span>
+            {sonImportlar[sablon.key].hatali > 0 && <span className="text-danger font-medium"> / {sonImportlar[sablon.key].hatali} hatalı</span>}
+          </div>
+        )}
 
         <div
           onClick={() => fileInputRef.current?.click()}
