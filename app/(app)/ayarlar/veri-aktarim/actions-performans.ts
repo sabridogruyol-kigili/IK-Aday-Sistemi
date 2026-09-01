@@ -11,8 +11,19 @@ const HARIC_MAGAZA_KODLARI = new Set(["A400", "A401", "A402", "A405", "C400"]);
 
 function sayi(v: any): number | null {
   if (v === null || v === undefined || v === "") return null;
-  const n = Number(String(v).replace(/\./g, "").replace(",", "."));
-  return Number.isNaN(n) ? null : n;
+  let n: number;
+  if (typeof v === "number") {
+    n = v;
+  } else {
+    const s = String(v).trim();
+    if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(s)) {
+      n = Number(s.replace(/\./g, "").replace(",", "."));
+    } else {
+      n = Number(s.replace(",", "."));
+    }
+  }
+  if (Number.isNaN(n)) return null;
+  return Math.round(n * 100) / 100;
 }
 
 function magazaKoduAyikla(sube: string): string {
