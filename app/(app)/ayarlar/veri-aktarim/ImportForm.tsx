@@ -77,6 +77,33 @@ export default function ImportForm() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // Gerçek Personel dosyası ~90 sütun içerebiliyor (Sicil Numarası, SGK bilgileri, adres vb.) —
+  // bunların hepsini sunucuya göndermek 413 (istek çok büyük) hatasına yol açıyor. Sadece
+  // gerçekten kullandığımız sütunları (başlık boşluk/satır sonu normalize edilmiş hâliyle) ayıklıyoruz.
+  const PERSONEL_GEREKLI_SUTUNLAR = [
+    "Personel Kodu", "TC Kimlik No", "Adı-Soyadı", "Departman Kodu", "Departman Açıklaması",
+    "İş Ünvanı Açıklaması", "İşyeri Başlama Tarihi", "İşten Ayrılma Tarihi", "Doğum Tarihi",
+    "Cinsiyet Açıklaması", "Bölge Açıklama", "Bölge Müdürü Açıklama", "İlk Başlama Tarihi",
+    "Önceki İş Yeri", "İHTARNAME Açıklama", "UYARI YAZISI Açıklama", "Tutanak Açıklama",
+    "Savunma Açıklama", "Kan Grubu Kodu", "Uyruk", "ÖzelMobil", "Evli", "PlainText",
+  ];
+
+  function baslikNormallestirClient(s: string): string {
+    return s.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  function personelSutunlariniAyikla(json: any[]): any[] {
+    const gerekliSet = new Set(PERSONEL_GEREKLI_SUTUNLAR);
+    return json.map((satir) => {
+      const yeni: Record<string, any> = {};
+      for (const kolonAdi of Object.keys(satir)) {
+        const normalize = baslikNormallestirClient(kolonAdi);
+        if (gerekliSet.has(normalize)) yeni[normalize] = satir[kolonAdi];
+      }
+      return yeni;
+    });
+  }
+
   function dosyaSec(file: File) {
     setOkumaHatasi(null);
     setSonuc(null);
@@ -94,6 +121,12 @@ export default function ImportForm() {
           setRows(satirlar);
           setSatirSayisi(satirlar.length);
           setIlkSutunlar(sutunOzeti);
+        } else if (sablonKey === "personel") {
+          const jsonHam = XLSX.utils.sheet_to_json(sheet);
+          const json = personelSutunlariniAyikla(jsonHam);
+          setRows(json);
+          setSatirSayisi(json.length);
+          setIlkSutunlar(jsonHam.length > 0 ? Object.keys(jsonHam[0] as object) : []);
         } else {
           const json = XLSX.utils.sheet_to_json(sheet);
           setRows(json);
