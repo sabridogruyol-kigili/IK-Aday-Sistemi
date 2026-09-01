@@ -36,10 +36,18 @@ export async function silBolge(formData: FormData) {
   const id = String(formData.get("id"));
   const supabase = createClient();
 
-  const { count } = await supabase.from("magazalar").select("*", { count: "exact", head: true }).eq("bolge_id", id);
-  if ((count ?? 0) > 0) {
-    return { error: `Bu bölgeye bağlı ${count} mağaza var — önce mağazaları başka bölgeye taşıyın veya pasif yapın.` };
+  const { count: aktifSayisi } = await supabase
+    .from("magazalar")
+    .select("*", { count: "exact", head: true })
+    .eq("bolge_id", id)
+    .eq("aktif", true);
+  if ((aktifSayisi ?? 0) > 0) {
+    return { error: `Bu bölgeye bağlı ${aktifSayisi} aktif mağaza var — önce mağazaları başka bölgeye taşıyın veya pasif yapın.` };
   }
+
+  // Pasif mağazalar bu bölgeye hâlâ bağlı olabilir (foreign key) — bölgeyi silebilmek için
+  // bunların bölge bağlantısını önce boşaltıyoruz (mağaza kaydı silinmiyor, sadece bolge_id null oluyor).
+  await supabase.from("magazalar").update({ bolge_id: null }).eq("bolge_id", id).eq("aktif", false);
 
   const { error } = await supabase.from("bolgeler").delete().eq("id", id);
   if (error) return { error: error.message };
