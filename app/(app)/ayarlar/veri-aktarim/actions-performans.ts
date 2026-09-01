@@ -257,10 +257,6 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
     if (error) hatalar.push({ satir: 0, hata: "Personel performans özeti güncellenemedi: " + error.message });
   }
 
-  await supabase.from("import_gecmisi").insert({
-    tip: "performans", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length,
-  });
-
   revalidatePath("/personel");
   revalidatePath("/raporlar");
   revalidatePath("/dashboard");
