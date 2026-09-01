@@ -34,7 +34,7 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
   const [yeniTaslak, setYeniTaslak] = useState<typeof BOS_SATIR>(BOS_SATIR);
   const [error, setError] = useState<string | null>(null);
   const [filtre, setFiltre] = useState("");
-  const [sadeceAktif, setSadeceAktif] = useState(true);
+  const [durumFiltre, setDurumFiltre] = useState<"aktif" | "pasif" | "hepsi">("aktif");
   const [secilenBolgeler, setSecilenBolgeler] = useState<Set<string>>(new Set());
   const [bolgeFiltreAcik, setBolgeFiltreAcik] = useState(false);
   const bolgeFiltreRef = useRef<HTMLDivElement>(null);
@@ -118,7 +118,8 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
   }
 
   const gorunenler = magazalar.filter((m) => {
-    if (sadeceAktif && !m.aktif) return false;
+    if (durumFiltre === "aktif" && !m.aktif) return false;
+    if (durumFiltre === "pasif" && m.aktif) return false;
     if (secilenBolgeler.size > 0 && (!m.bolge_id || !secilenBolgeler.has(m.bolge_id))) return false;
     if (filtre && !`${m.magaza_kodu} ${m.magaza_adi}`.toLocaleLowerCase("tr-TR").includes(filtre.toLocaleLowerCase("tr-TR"))) return false;
     return true;
@@ -160,10 +161,12 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
           </div>
         </div>
 
-        <label className="flex items-center gap-1.5 text-xs text-gray-500">
-          <input type="checkbox" checked={sadeceAktif} onChange={(e) => setSadeceAktif(e.target.checked)} />
-          Sadece aktif
-        </label>
+        <select value={durumFiltre} onChange={(e) => setDurumFiltre(e.target.value as "aktif" | "pasif" | "hepsi")}
+          className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
+          <option value="aktif">Aktif</option>
+          <option value="pasif">Pasif</option>
+          <option value="hepsi">Hepsi</option>
+        </select>
         <div className="flex-1" />
         <button onClick={() => setYeniSatirAcik((v) => !v)} className="bg-navy text-white rounded-md px-3 py-1.5 text-xs font-medium">
           + Yeni Mağaza
