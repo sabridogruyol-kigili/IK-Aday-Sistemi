@@ -75,7 +75,8 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
     const magazaKodu = magazaKoduAyikla(subeHam);
 
     if (!yil || !ay || !magazaKodu) {
-      hatalar.push({ satir: satirNo, hata: "YIL, AY veya Şubeler alanı eksik/okunamadı." });
+      const teshis = satirNo === 2 ? ` [TEŞHİS: yil=${JSON.stringify(r["YIL"])}, ay=${JSON.stringify(r["AY"])}, sube=${JSON.stringify(r["Şubeler"])}, tüm_anahtarlar=${JSON.stringify(Object.keys(r))}]` : "";
+      hatalar.push({ satir: satirNo, hata: "YIL, AY veya Şubeler alanı eksik/okunamadı." + teshis });
       continue;
     }
     if (ay < 1 || ay > 12) {
