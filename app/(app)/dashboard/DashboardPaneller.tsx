@@ -95,6 +95,7 @@ function BolgeDropdownFiltre({ bolgeler, secilenler, setSecilenler }: { bolgeler
 export default function DashboardPaneller({ magazalar, bolgeler, performansHam }: { magazalar: Magaza[]; bolgeler: Bolge[]; performansHam: PerformansSatiri[] }) {
   // ---- Sol panel (Mağazalar) filtreleri ----
   const [solBolgeler, setSolBolgeler] = useState<Set<string>>(new Set());
+  const [solArama, setSolArama] = useState("");
   const [normMin, setNormMin] = useState("");
   const [normMax, setNormMax] = useState("");
   const [durumFiltre, setDurumFiltre] = useState<Set<NormDurum>>(new Set());
@@ -122,6 +123,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
 
   const solFiltrelenmis = magazalar.filter((m) => {
     if (solBolgeler.size > 0 && (!m.bolge_id || !solBolgeler.has(m.bolge_id))) return false;
+    if (solArama && !`${m.magaza_kodu} ${m.magaza_adi}`.toLocaleLowerCase("tr-TR").includes(solArama.toLocaleLowerCase("tr-TR"))) return false;
     if (normMin !== "" && m.toplamNorm < Number(normMin)) return false;
     if (normMax !== "" && m.toplamNorm > Number(normMax)) return false;
     if (durumFiltre.size > 0 && !durumFiltre.has(normDurumu(m))) return false;
@@ -171,6 +173,8 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
         <div className="text-[10px] text-gray-400 mb-2">Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür.</div>
 
         <div className="flex flex-wrap gap-2 mb-2 items-center">
+          <input value={solArama} onChange={(e) => setSolArama(e.target.value)} placeholder="Mağaza kodu/adı ara..."
+            className="border border-gray-300 rounded-md px-2 py-1 text-[11px] w-40" />
           <BolgeDropdownFiltre bolgeler={bolgeler} secilenler={solBolgeler} setSecilenler={setSolBolgeler} />
           <div className="flex items-center gap-1">
             <span className="text-[10px] text-gray-400">Norm</span>
