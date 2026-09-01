@@ -11,7 +11,7 @@ export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { basarili: 0, hatalar: [], yetkiHatasi: "Giriş yapmalısınız." };
 
-  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  const { data: me } = await supabase.from("kullanicilar").select("id, ad_soyad, rol").eq("email", user.email).single();
   if (!me || me.rol !== "YONETIM") return { basarili: 0, hatalar: [], yetkiHatasi: "Sadece Yönetim veri içe aktarabilir." };
 
   let basarili = 0;
@@ -70,6 +70,10 @@ export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
 
     basarili++;
   }
+
+  await supabase.from("import_gecmisi").insert({
+    tip: "norm", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length,
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/norm");
