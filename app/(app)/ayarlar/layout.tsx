@@ -5,6 +5,7 @@ import Link from "next/link";
 const SEKMELER = [
   { href: "/ayarlar/kullanicilar", label: "Kullanıcılar" },
   { href: "/ayarlar/veri-aktarim", label: "Veri İçe Aktar" },
+  { href: "/ayarlar/magazalar", label: "Mağazalar / Bölgeler / Normlar" },
 ];
 
 export default async function AyarlarLayout({ children }: { children: React.ReactNode }) {
