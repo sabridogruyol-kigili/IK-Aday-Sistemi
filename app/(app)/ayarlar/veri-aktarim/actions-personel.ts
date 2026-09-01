@@ -132,7 +132,42 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   const PARCA_BOYUTU = 500;
   const tcToId = new Map<string, string>();
 
-  for (const parca of parcala(gecerliler, PARCA_BOYUTU)) {
+  // Performans importunun otomatik oluşturduğu "PLASIYER-<sicil>" yer tutucu kayıtlarını bul.
+  // Bu Personel importunda aynı personel_kodu ile karşılaşırsak, YENİ kayıt açmak yerine
+  // o kaydı gerçek bilgilerle güncelleyip id'sini koruyacağız (performans geçmişi kopmasın diye).
+  const { data: placeholderlarHam } = await supabase
+    .from("personel")
+    .select("id, personel_kodu")
+    .like("tc_kimlik_no", "PLASIYER-%");
+  const placeholderMap: Record<string, string> = {};
+  (placeholderlarHam ?? []).forEach((p: any) => { if (p.personel_kodu) placeholderMap[p.personel_kodu] = p.id; });
+
+  const birlestirilecekler = gecerliler.filter((p) => p.personel_kodu && placeholderMap[p.personel_kodu]);
+  const normalSatirlar = gecerliler.filter((p) => !(p.personel_kodu && placeholderMap[p.personel_kodu]));
+
+  if (birlestirilecekler.length > 0) {
+    const guncellemeler = birlestirilecekler.map((p) => ({
+      id: placeholderMap[p.personel_kodu!],
+      tc_kimlik_no: p.tc_kimlik_no,
+      ad_soyad: p.ad_soyad,
+      dogum_tarihi: p.dogum_tarihi ?? "",
+      cinsiyet: p.cinsiyet,
+      guncel_magaza_id: p.guncel_magaza_id,
+      guncel_unvan: p.guncel_unvan,
+      kadro_kategorisi: p.kadro_kategorisi,
+      kidem_baslangic_tarihi: p.kidem_baslangic_tarihi ?? "",
+    }));
+    for (const parca of parcala(guncellemeler, PARCA_BOYUTU)) {
+      const { error } = await supabase.rpc("personel_placeholder_birlestir", { p_guncellemeler: parca });
+      if (error) {
+        birlestirilecekler.forEach((p) => hatalar.push({ satir: p.satirNo, hata: "Yer tutucu kayıtla birleştirilemedi: " + error.message }));
+      } else {
+        parca.forEach((g) => tcToId.set(g.tc_kimlik_no, g.id));
+      }
+    }
+  }
+
+  for (const parca of parcala(normalSatirlar, PARCA_BOYUTU)) {
     const { data: eklenenler, error: upsertHata } = await supabase
       .from("personel")
       .upsert(
