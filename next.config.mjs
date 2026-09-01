@@ -1,2 +1,9 @@
-Application error: a server-side exception has occurred (see the server logs for more information).
-Digest: 2185197388
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "15mb",
+    },
+  },
+};
+export default nextConfig;
