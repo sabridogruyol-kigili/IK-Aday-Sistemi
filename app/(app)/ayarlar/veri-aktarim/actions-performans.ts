@@ -78,7 +78,11 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
   (unvanlarHam ?? []).forEach((u: any) => { unvanMap[u.unvan.toLocaleUpperCase("tr-TR")] = u.kategori; });
 
   const hatalar: SatirHata[] = [];
-  const magazaAylikSatirlari: { magaza_id: string; yil: number; ay: number; hgo: number }[] = [];
+  const magazaAylikSatirlari: {
+    magaza_id: string; yil: number; ay: number; hgo: number;
+    adet_hgo: number | null; satis_adeti: number | null; toplam_ciro_kdv_dahil: number | null;
+    omnichannel_ciro: number | null; omnichannel_haric_ciro: number | null;
+  }[] = [];
   const etkilenenPersonelIdleri = new Set<string>();
 
   // Personel tabloda hiç yoksa (Personel importundan bağımsız olarak) Performans dosyasındaki
@@ -125,7 +129,17 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
         hatalar.push({ satir: satirNo, hata: "Total satırında Ciro Hedef Gerçekleştirme Oranı okunamadı." });
         continue;
       }
-      magazaAylikSatirlari.push({ magaza_id: magazaId, yil, ay, hgo: hazirHgo });
+      const adetHgo = sayi(r["Adet Hedef Gerçekleştirme Oranı"]);
+      const satisAdeti = sayi(r["Satış Miktarı(Toplam Adet)"]);
+      const toplamCiro = sayi(r["Toplam Ciro KDV Dahil"]);
+      const omnichannelCiro = sayi(r["OMS KDV Dahil Ciro"]);
+      const omnichannelHaricCiro = sayi(r["Satış Tutarı KDV Dahil(OMS Hariç)"]);
+
+      magazaAylikSatirlari.push({
+        magaza_id: magazaId, yil, ay, hgo: hazirHgo,
+        adet_hgo: adetHgo, satis_adeti: satisAdeti, toplam_ciro_kdv_dahil: toplamCiro,
+        omnichannel_ciro: omnichannelCiro, omnichannel_haric_ciro: omnichannelHaricCiro,
+      });
       continue;
     }
 
