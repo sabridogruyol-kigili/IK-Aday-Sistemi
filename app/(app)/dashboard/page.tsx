@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import DashboardPaneller from "./DashboardPaneller";
+import DashboardZamanGrafigi from "./DashboardZamanGrafigi";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -98,6 +99,7 @@ export default async function DashboardPage() {
       </div>
 
       <DashboardPaneller magazalar={magazaDetay} bolgeler={bolgeler ?? []} performansHam={performansHam ?? []} />
+      <DashboardZamanGrafigi performansHam={performansHam ?? []} />
     </div>
   );
 }
