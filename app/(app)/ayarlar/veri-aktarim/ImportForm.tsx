@@ -6,6 +6,7 @@ import { iceAktarMagazaNorm } from "./actions";
 import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarPerformans } from "./actions-performans";
 import { iceAktarMagazaBilgisi } from "./actions-magazabilgisi";
+import { iceAktarTurnover } from "./actions-turnover";
 import { getSonImportlar, kaydetImportGecmisi, type SonImport } from "./actions-gecmis";
 import PerformansAylikDurum from "./PerformansAylikDurum";
 
@@ -53,6 +54,14 @@ const SABLONLAR: Sablon[] = [
       "Gerçek dosya 3 başlık satırından oluşuyor: 1. satır YIL, 2. satır AY (Oca/Şub/Mar...), 3. satır alan adı (Şube Listesi, Bölge Listesi, SUBETIPI, NETM2, SEPET ORTALAMASI, SEPET DERINLIGI, DONUSUMORANI, GIRENMUSTERISAYISI). Veri 4. satırdan başlar. Mağaza sistemde yoksa otomatik oluşturulur.",
     action: iceAktarMagazaBilgisi,
     parcaBoyutu: 100,
+  },
+  {
+    key: "turnover",
+    label: "Turnover",
+    aciklama:
+      "Şablon sütunları: Mağaza Kodu, İstifa Turnover, Fesih Turnover, Toplam Turnover. Kümülatif bir bilgidir (aylık değil) — her mağaza için tek bir değer olarak üzerine yazılır. Mağaza sistemde önceden kayıtlı olmalı.",
+    action: iceAktarTurnover,
+    parcaBoyutu: 2000,
   },
 ];
 
