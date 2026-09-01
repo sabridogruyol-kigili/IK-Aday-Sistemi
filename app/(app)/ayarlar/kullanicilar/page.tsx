@@ -95,13 +95,16 @@ export default async function KullanicilarPage() {
             <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
               Sorumlu Bölge(ler) — BM/İK için, Yönetim tümünü zaten görür
             </label>
-            <div className="flex flex-wrap gap-3">
+            <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto divide-y divide-gray-100 max-w-xs">
               {(bolgeler ?? []).map((b) => (
-                <label key={b.id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                <label key={b.id} className="flex items-center gap-2 text-xs text-gray-600 px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer">
                   <input type="checkbox" name="bolge_ids" value={b.id} />
                   {b.ad}
                 </label>
               ))}
+              {(bolgeler ?? []).length === 0 && (
+                <div className="text-xs text-gray-400 px-2.5 py-2">Henüz bölge tanımlı değil.</div>
+              )}
             </div>
           </div>
         </form>
