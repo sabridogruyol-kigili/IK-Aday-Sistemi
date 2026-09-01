@@ -233,12 +233,15 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
   }, [performansHam, zamanDegisken, etkinBaslangic, etkinBitis, seciliMagazaId]);
 
   const enSonAyOzeti = useMemo(() => {
-    if (performansHam.length === 0) return null;
+    // Mağaza seçiliyse: o mağazanın kendi en güncel ayı. Seçili değilse: tüm mağazaların ortalaması.
+    const kaynakVeri = seciliMagazaId ? performansHam.filter((p) => p.magaza_id === seciliMagazaId) : performansHam;
+    if (kaynakVeri.length === 0) return null;
+
     let enSonYil = 0, enSonAy = 0;
-    performansHam.forEach((p) => {
+    kaynakVeri.forEach((p) => {
       if (p.yil > enSonYil || (p.yil === enSonYil && p.ay > enSonAy)) { enSonYil = p.yil; enSonAy = p.ay; }
     });
-    const buAyVerisi = performansHam.filter((p) => p.yil === enSonYil && p.ay === enSonAy);
+    const buAyVerisi = kaynakVeri.filter((p) => p.yil === enSonYil && p.ay === enSonAy);
     const sonuc: Record<string, { toplam: number; sayi: number }> = {};
     ZAMAN_DEGISKENLERI.forEach((d) => { sonuc[d.key] = { toplam: 0, sayi: 0 }; });
     buAyVerisi.forEach((p) => {
@@ -254,7 +257,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
       magazaSayisi: buAyVerisi.length,
       degerler: ZAMAN_DEGISKENLERI.map((d) => ({ ...d, ortalama: sonuc[d.key].sayi > 0 ? sonuc[d.key].toplam / sonuc[d.key].sayi : null })),
     };
-  }, [performansHam]);
+  }, [performansHam, seciliMagazaId]);
 
   return (
     <>
@@ -338,6 +341,23 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
             <button onClick={() => setSeciliMagazaId(null)} className="text-[11px] text-info hover:underline">◀ Tüm Mağazalar</button>
           )}
         </div>
+
+        {enSonAyOzeti && (
+          <div className="mb-3 pb-3 border-b border-gray-100">
+            <div className="text-[10px] text-gray-400 mb-1.5">
+              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı — {enSonAyOzeti.etiket}
+              {!seciliMagaza && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+              {enSonAyOzeti.degerler.map((d) => (
+                <div key={d.key} className="bg-gray-50 rounded-md px-1.5 py-1.5">
+                  <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">{d.label}</div>
+                  <div className="text-[11px] font-mono font-semibold text-navy-3">{d.ortalama !== null ? d.format(d.ortalama) : "—"}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {seciliMagaza && (
           <div className="grid grid-cols-3 gap-2 mb-3 bg-gray-50 rounded-md p-2.5 text-[11px]">
@@ -472,22 +492,6 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
           ? "Gri çizgi tüm mağazaların ortalaması, lacivert çizgi seçili mağaza — üstünde/altında olması karşılaştırma sağlar."
           : "Soldaki listeden bir mağaza seçerseniz, o mağazanın çizgisi tüm mağaza ortalamasıyla birlikte gösterilir."}
       </div>
-
-      {enSonAyOzeti && (
-        <div className="mt-5 pt-4 border-t border-gray-100">
-          <div className="text-[11px] text-gray-400 mb-2">
-            En güncel ay özeti — {enSonAyOzeti.etiket} ({enSonAyOzeti.magazaSayisi} mağaza verisi)
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {enSonAyOzeti.degerler.map((d) => (
-              <div key={d.key} className="border border-gray-100 rounded-md p-3">
-                <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">{d.label}</div>
-                <div className="text-lg font-mono font-semibold text-navy">{d.ortalama !== null ? d.format(d.ortalama) : "—"}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
     </>
   );
