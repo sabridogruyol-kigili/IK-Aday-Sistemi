@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import DashboardMagazaPaneli from "./DashboardMagazaPaneli";
-import DashboardPerformansPaneli from "./DashboardPerformansPaneli";
+import DashboardPaneller from "./DashboardPaneller";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -21,11 +20,13 @@ export default async function DashboardPage() {
     supabase.from("talepler").select("*", { count: "exact", head: true }).eq("durum", "KABUL_EDILDI"),
     supabase
       .from("magazalar")
-      .select("id, magaza_kodu, magaza_adi, bolge_id, aktif, norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
+      .select("id, magaza_kodu, magaza_adi, bolge_id, subetipi, net_m2, aktif, norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
       .eq("aktif", true),
     supabase.from("personel").select("id, guncel_magaza_id, kadro_kategorisi").eq("durum", "aktif"),
     supabase.from("bolgeler").select("id, ad").order("ad"),
-    supabase.from("performans_magaza_aylik").select("magaza_id, yil, ay, hgo").not("hgo", "is", null),
+    supabase
+      .from("performans_magaza_aylik")
+      .select("magaza_id, yil, ay, hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi"),
   ]);
 
   // Mağaza başına, kadro kategorisine göre ayrı ayrı aktif personel sayısı
@@ -55,6 +56,8 @@ export default async function DashboardPage() {
       magaza_adi: m.magaza_adi,
       bolge_id: m.bolge_id,
       bolge_adi: m.bolge_id ? bolgeMap[m.bolge_id] ?? "" : "",
+      subetipi: m.subetipi,
+      net_m2: m.net_m2,
       ana_norm: anaNorm, ana_dolu: dolu.ANA_KADRO,
       donemsel_norm: donemselNorm, donemsel_dolu: dolu.DONEMSEL,
       part_norm: partNorm, part_dolu: dolu.PART_TIME,
@@ -73,28 +76,6 @@ export default async function DashboardPage() {
     { label: "Onaylanan Talep", value: String(onaylananTalep ?? 0) },
     { label: "Norm Doluluk Oranı", value: `%${normDolulukOraniGenel}` },
   ];
-
-  // Performans: her mağaza için en son (yıl,ay) HGO değeri
-  const magazaIdBolgeMap: Record<string, { ad: string; bolge_id: string | null; bolge_adi: string }> = {};
-  magazaDetay.forEach((m) => { magazaIdBolgeMap[m.id] = { ad: m.magaza_adi, bolge_id: m.bolge_id, bolge_adi: m.bolge_adi }; });
-
-  const enSonPerformans: Record<string, { yil: number; ay: number; hgo: number }> = {};
-  (performansHam ?? []).forEach((p: any) => {
-    const mevcut = enSonPerformans[p.magaza_id];
-    if (!mevcut || p.yil > mevcut.yil || (p.yil === mevcut.yil && p.ay > mevcut.ay)) {
-      enSonPerformans[p.magaza_id] = { yil: p.yil, ay: p.ay, hgo: p.hgo };
-    }
-  });
-
-  const performansDetay = Object.entries(enSonPerformans)
-    .filter(([magazaId]) => magazaIdBolgeMap[magazaId])
-    .map(([magazaId, veri]) => ({
-      id: magazaId,
-      magaza_adi: magazaIdBolgeMap[magazaId].ad,
-      bolge_id: magazaIdBolgeMap[magazaId].bolge_id,
-      bolge_adi: magazaIdBolgeMap[magazaId].bolge_adi,
-      ...veri,
-    }));
 
   return (
     <div>
@@ -116,10 +97,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardMagazaPaneli magazalar={magazaDetay} bolgeler={bolgeler ?? []} />
-        <DashboardPerformansPaneli performanslar={performansDetay} bolgeler={bolgeler ?? []} />
-      </div>
+      <DashboardPaneller magazalar={magazaDetay} bolgeler={bolgeler ?? []} performansHam={performansHam ?? []} />
     </div>
   );
 }
