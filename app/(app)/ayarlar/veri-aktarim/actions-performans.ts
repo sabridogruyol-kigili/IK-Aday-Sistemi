@@ -7,6 +7,22 @@ type SatirHata = { satir: number; hata: string };
 type Sonuc = { basarili: number; hatalar: SatirHata[]; yetkiHatasi?: string };
 
 // Tasarım notu 5.3 madde 4: bu mağazalar online satış kanalları, kişi performansına hiç katılmaz.
+// Tasarım notu 5.2'de AY sütununun sayı olduğu varsayılmıştı, ama gerçek dosyada
+// "Oca", "Tem" gibi Türkçe kısaltmalar var — Mağaza Bilgisi importundaki aynı haritayı kullanıyoruz.
+const AY_KISA_MAP: Record<string, number> = {
+  "oca": 1, "şub": 2, "sub": 2, "mar": 3, "nis": 4, "may": 5, "haz": 6,
+  "tem": 7, "ağu": 8, "agu": 8, "eyl": 9, "eki": 10, "kas": 11, "ara": 12,
+};
+
+function ayCoz(v: any): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return v >= 1 && v <= 12 ? v : null;
+  const s = String(v).trim().toLocaleLowerCase("tr-TR");
+  if (AY_KISA_MAP[s]) return AY_KISA_MAP[s];
+  const n = Number(s);
+  return !Number.isNaN(n) && n >= 1 && n <= 12 ? n : null;
+}
+
 const HARIC_MAGAZA_KODLARI = new Set(["A400", "A401", "A402", "A405", "C400"]);
 
 function sayi(v: any): number | null {
@@ -70,7 +86,7 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
     const r = rows[i];
 
     const yil = sayi(r["YIL"]);
-    const ay = sayi(r["AY"]);
+    const ay = ayCoz(r["AY"]);
     const subeHam = String(r["Şubeler"] ?? "").trim();
     const magazaKodu = magazaKoduAyikla(subeHam);
 
