@@ -6,7 +6,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 type Magaza = {
   id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string;
   subetipi: string | null; net_m2: number | null;
-  istifa_turnover: number | null; fesih_turnover: number | null; toplam_turnover: number | null;
   ana_norm: number; ana_dolu: number; donemsel_norm: number; donemsel_dolu: number;
   part_norm: number; part_dolu: number; toplamNorm: number; toplamDolu: number; oran: number;
 };
@@ -260,22 +259,6 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
     };
   }, [performansHam, seciliMagazaId]);
 
-  // Turnover kümülatif bir bilgi (aylık değil, mağaza başına tek değer) — Magaza listesinden hesaplanır.
-  const turnoverOzet = useMemo(() => {
-    if (seciliMagaza) {
-      return {
-        istifa: seciliMagaza.istifa_turnover, fesih: seciliMagaza.fesih_turnover, toplam: seciliMagaza.toplam_turnover,
-      };
-    }
-    const gecerliler = magazalar.filter((m) => m.toplam_turnover !== null || m.istifa_turnover !== null || m.fesih_turnover !== null);
-    if (gecerliler.length === 0) return null;
-    const ortalama = (alan: "istifa_turnover" | "fesih_turnover" | "toplam_turnover") => {
-      const degerler = gecerliler.map((m) => m[alan]).filter((v): v is number => v !== null);
-      return degerler.length > 0 ? degerler.reduce((s, v) => s + v, 0) / degerler.length : null;
-    };
-    return { istifa: ortalama("istifa_turnover"), fesih: ortalama("fesih_turnover"), toplam: ortalama("toplam_turnover") };
-  }, [magazalar, seciliMagaza]);
-
   return (
     <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -359,35 +342,19 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
           )}
         </div>
 
-        {(enSonAyOzeti || turnoverOzet) && (
+        {enSonAyOzeti && (
           <div className="mb-3 pb-3 border-b border-gray-100">
             <div className="text-[10px] text-gray-400 mb-1.5">
-              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı{enSonAyOzeti && ` — ${enSonAyOzeti.etiket}`}
-              {!seciliMagaza && enSonAyOzeti && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
+              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı — {enSonAyOzeti.etiket}
+              {!seciliMagaza && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-              {enSonAyOzeti?.degerler.map((d) => (
+              {enSonAyOzeti.degerler.map((d) => (
                 <div key={d.key} className="bg-gray-50 rounded-md px-1.5 py-1.5">
                   <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">{d.label}</div>
                   <div className="text-[11px] font-mono font-semibold text-navy-3">{d.ortalama !== null ? d.format(d.ortalama) : "—"}</div>
                 </div>
               ))}
-              {turnoverOzet && (
-                <>
-                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
-                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">İstifa Turnover</div>
-                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.istifa !== null ? `%${turnoverOzet.istifa.toFixed(1)}` : "—"}</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
-                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">Fesih Turnover</div>
-                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.fesih !== null ? `%${turnoverOzet.fesih.toFixed(1)}` : "—"}</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
-                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">Toplam Turnover</div>
-                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.toplam !== null ? `%${turnoverOzet.toplam.toFixed(1)}` : "—"}</div>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         )}
@@ -400,25 +367,18 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2 mb-3 items-center">
-          {!seciliMagaza && <BolgeDropdownFiltre bolgeler={bolgeler} secilenler={sagBolgeler} setSecilenler={setSagBolgeler} />}
-          <select value={yilFiltre} onChange={(e) => setYilFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
-            <option value="">Tüm Yıllar</option>
-            {yilSecenekleri.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <select value={ayFiltre} onChange={(e) => setAyFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
-            <option value="">Tüm Aylar</option>
-            {aySecenekleri.map((a) => <option key={a} value={a}>{AY_KISA[a]}</option>)}
-          </select>
-          {!seciliMagaza && (
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-gray-400">HGO %</span>
-              <input type="number" value={hgoMin} onChange={(e) => setHgoMin(e.target.value)} placeholder="min" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
-              <span className="text-gray-300 text-[10px]">–</span>
-              <input type="number" value={hgoMax} onChange={(e) => setHgoMax(e.target.value)} placeholder="max" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
-            </div>
-          )}
-        </div>
+        {seciliMagaza && (
+          <div className="flex flex-wrap gap-2 mb-3 items-center">
+            <select value={yilFiltre} onChange={(e) => setYilFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
+              <option value="">Tüm Yıllar</option>
+              {yilSecenekleri.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select value={ayFiltre} onChange={(e) => setAyFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
+              <option value="">Tüm Aylar</option>
+              {aySecenekleri.map((a) => <option key={a} value={a}>{AY_KISA[a]}</option>)}
+            </select>
+          </div>
+        )}
 
         {seciliMagaza ? (
           detayGorunumu.length === 0 ? (
@@ -447,31 +407,9 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
               })}
             </div>
           )
-        ) : listeGorunumu.length === 0 ? (
-          <div className="text-xs text-gray-400">
-            {performansHam.length === 0 ? "Henüz performans verisi içe aktarılmadı." : "Bu filtreye uyan mağaza yok."}
-          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[480px] overflow-y-auto pr-1">
-            {listeGorunumu.map((p) => {
-              const magaza = magazaMap[p.magaza_id];
-              const renk = hgoRenk(p.hgo ?? 0);
-              return (
-                <button
-                  key={p.magaza_id}
-                  onClick={() => setSeciliMagazaId(p.magaza_id)}
-                  className="text-left border border-gray-100 rounded-md p-2 hover:bg-gray-50"
-                  title={`${magaza?.magaza_adi} — ${magaza?.bolge_adi}`}
-                >
-                  <div className="text-[11px] text-gray-700 truncate mb-0.5 font-medium">{magaza?.magaza_adi ?? "?"}</div>
-                  <div className="text-[9px] text-gray-400 truncate mb-1.5">{magaza?.bolge_adi || "—"} · {AY_KISA[p.ay]} {p.yil}</div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1">
-                    <div className={`h-full rounded-full ${renk.bar}`} style={{ width: `${Math.min(p.hgo ?? 0, 100)}%` }} />
-                  </div>
-                  <div className={`text-[10px] font-mono font-semibold ${renk.metin}`}>%{(p.hgo ?? 0).toFixed(1)}</div>
-                </button>
-              );
-            })}
+          <div className="text-xs text-gray-400 text-center py-10">
+            Soldaki listeden bir mağaza seçin — performans geçmişi burada görünecek.
           </div>
         )}
       </div>
