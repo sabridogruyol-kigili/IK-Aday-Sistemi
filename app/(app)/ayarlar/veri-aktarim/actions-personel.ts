@@ -265,10 +265,6 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     await supabase.from("personel_atama_gecmisi").insert(parca);
   }
 
-  await supabase.from("import_gecmisi").insert({
-    tip: "personel", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length,
-  });
-
   revalidatePath("/personel");
   revalidatePath("/norm");
   revalidatePath("/dashboard");
