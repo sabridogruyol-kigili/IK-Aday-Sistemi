@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 
 type Magaza = {
   id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string;
@@ -12,9 +13,28 @@ type Bolge = { id: string; ad: string };
 type PerformansSatiri = {
   magaza_id: string; yil: number; ay: number; hgo: number | null;
   sepet_ortalamasi: number | null; sepet_derinligi: number | null; donusum_orani: number | null; giren_musteri_sayisi: number | null;
+  adet_hgo: number | null; satis_adeti: number | null; toplam_ciro_kdv_dahil: number | null;
+  omnichannel_ciro: number | null; omnichannel_haric_ciro: number | null;
 };
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+const ZAMAN_DEGISKENLERI: { key: keyof PerformansSatiri; label: string; format: (v: number) => string }[] = [
+  { key: "hgo", label: "HGO (Ciro)", format: (v) => `%${v.toFixed(1)}` },
+  { key: "adet_hgo", label: "HGO (Adet)", format: (v) => `%${v.toFixed(1)}` },
+  { key: "sepet_ortalamasi", label: "Sepet Ortalaması", format: (v) => v.toFixed(2) },
+  { key: "sepet_derinligi", label: "Sepet Derinliği", format: (v) => v.toFixed(2) },
+  { key: "donusum_orani", label: "Dönüşüm Oranı", format: (v) => `%${(v * 100).toFixed(1)}` },
+  { key: "giren_musteri_sayisi", label: "Giren Müşteri Sayısı", format: (v) => v.toLocaleString("tr-TR") },
+  { key: "satis_adeti", label: "Satış Adeti", format: (v) => v.toLocaleString("tr-TR") },
+  { key: "toplam_ciro_kdv_dahil", label: "Toplam Ciro (KDV Dahil)", format: (v) => v.toLocaleString("tr-TR", { maximumFractionDigits: 0 }) },
+  { key: "omnichannel_ciro", label: "Omnichannel Cirosu", format: (v) => v.toLocaleString("tr-TR", { maximumFractionDigits: 0 }) },
+  { key: "omnichannel_haric_ciro", label: "Omnichannel Hariç Ciro", format: (v) => v.toLocaleString("tr-TR", { maximumFractionDigits: 0 }) },
+];
+
+function zamanAnahtarUret(yil: number, ay: number) {
+  return yil * 100 + ay;
+}
 
 type NormDurum = "EKSIK_ANA" | "EKSIK_DIGER" | "TAM" | "FAZLA";
 const DURUM_ETIKET: Record<NormDurum, string> = {
@@ -165,7 +185,79 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
 
   const seciliMagaza = seciliMagazaId ? magazaMap[seciliMagazaId] : null;
 
+  // ---- Zaman İçinde Performans grafiği ----
+  const [zamanDegisken, setZamanDegisken] = useState<keyof PerformansSatiri>("hgo");
+  const zamanTanim = ZAMAN_DEGISKENLERI.find((d) => d.key === zamanDegisken)!;
+
+  const tumDonemler = useMemo(() => {
+    const set = new Set<number>();
+    performansHam.forEach((p) => set.add(zamanAnahtarUret(p.yil, p.ay)));
+    return Array.from(set).sort((a, b) => a - b);
+  }, [performansHam]);
+
+  const [zamanBaslangic, setZamanBaslangic] = useState<number | null>(null);
+  const [zamanBitis, setZamanBitis] = useState<number | null>(null);
+  const etkinBaslangic = zamanBaslangic ?? (tumDonemler[0] ?? 0);
+  const etkinBitis = zamanBitis ?? (tumDonemler[tumDonemler.length - 1] ?? 999999);
+
+  function donemEtiket(anahtar: number) {
+    return `${AY_KISA[anahtar % 100]} ${Math.floor(anahtar / 100)}`;
+  }
+
+  const zamanVeri = useMemo(() => {
+    const ortalamaMap = new Map<string, { yil: number; ay: number; toplam: number; sayi: number }>();
+    const seciliMap = new Map<string, number>();
+
+    performansHam.forEach((p) => {
+      const anahtar = zamanAnahtarUret(p.yil, p.ay);
+      if (anahtar < etkinBaslangic || anahtar > etkinBitis) return;
+      const deger = p[zamanDegisken];
+      if (deger === null || deger === undefined) return;
+      const grupAnahtari = `${p.yil}-${String(p.ay).padStart(2, "0")}`;
+
+      if (!ortalamaMap.has(grupAnahtari)) ortalamaMap.set(grupAnahtari, { yil: p.yil, ay: p.ay, toplam: 0, sayi: 0 });
+      const g = ortalamaMap.get(grupAnahtari)!;
+      g.toplam += deger as number;
+      g.sayi += 1;
+
+      if (seciliMagazaId && p.magaza_id === seciliMagazaId) seciliMap.set(grupAnahtari, deger as number);
+    });
+
+    return Array.from(ortalamaMap.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([grupAnahtari, g]) => ({
+        etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`,
+        ortalama: g.sayi > 0 ? g.toplam / g.sayi : null,
+        secili: seciliMap.has(grupAnahtari) ? seciliMap.get(grupAnahtari)! : null,
+      }));
+  }, [performansHam, zamanDegisken, etkinBaslangic, etkinBitis, seciliMagazaId]);
+
+  const enSonAyOzeti = useMemo(() => {
+    if (performansHam.length === 0) return null;
+    let enSonYil = 0, enSonAy = 0;
+    performansHam.forEach((p) => {
+      if (p.yil > enSonYil || (p.yil === enSonYil && p.ay > enSonAy)) { enSonYil = p.yil; enSonAy = p.ay; }
+    });
+    const buAyVerisi = performansHam.filter((p) => p.yil === enSonYil && p.ay === enSonAy);
+    const sonuc: Record<string, { toplam: number; sayi: number }> = {};
+    ZAMAN_DEGISKENLERI.forEach((d) => { sonuc[d.key] = { toplam: 0, sayi: 0 }; });
+    buAyVerisi.forEach((p) => {
+      ZAMAN_DEGISKENLERI.forEach((d) => {
+        const deger = p[d.key];
+        if (deger === null || deger === undefined) return;
+        sonuc[d.key].toplam += deger as number;
+        sonuc[d.key].sayi += 1;
+      });
+    });
+    return {
+      etiket: `${AY_KISA[enSonAy]} ${enSonYil}`,
+      magazaSayisi: buAyVerisi.length,
+      degerler: ZAMAN_DEGISKENLERI.map((d) => ({ ...d, ortalama: sonuc[d.key].sayi > 0 ? sonuc[d.key].toplam / sonuc[d.key].sayi : null })),
+    };
+  }, [performansHam]);
+
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* SOL PANEL — Mağazalar */}
       <div className="bg-white border border-gray-200 rounded-card p-4">
@@ -331,5 +423,72 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
         )}
       </div>
     </div>
+
+    <div className="bg-white border border-gray-200 rounded-card p-4 mt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="text-sm font-semibold text-navy-3">
+          Zaman İçinde Performans
+          {seciliMagaza && <span className="text-gray-400 font-normal"> — {seciliMagaza.magaza_adi} vs. Tüm Mağaza Ortalaması</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={etkinBaslangic} onChange={(e) => setZamanBaslangic(Number(e.target.value))} className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
+            {tumDonemler.map((d) => <option key={d} value={d}>{donemEtiket(d)}</option>)}
+          </select>
+          <span className="text-gray-300 text-xs">–</span>
+          <select value={etkinBitis} onChange={(e) => setZamanBitis(Number(e.target.value))} className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
+            {tumDonemler.map((d) => <option key={d} value={d}>{donemEtiket(d)}</option>)}
+          </select>
+          <select value={zamanDegisken} onChange={(e) => setZamanDegisken(e.target.value as keyof PerformansSatiri)} className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
+            {ZAMAN_DEGISKENLERI.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {zamanVeri.length === 0 ? (
+        <div className="text-xs text-gray-400 py-8 text-center">Bu aralıkta performans verisi yok.</div>
+      ) : (
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={zamanVeri} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <XAxis dataKey="etiket" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip formatter={(v: number) => zamanTanim.format(v)} labelStyle={{ fontSize: 12 }} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Line type="monotone" dataKey="ortalama" stroke="#9ca3af" strokeWidth={2} dot={{ r: 2 }} name="Tüm Mağaza Ortalaması" connectNulls>
+              {!seciliMagaza && (
+                <LabelList dataKey="ortalama" position="top" style={{ fontSize: 10, fill: "#6b7280" }} formatter={(v: number) => zamanTanim.format(v)} />
+              )}
+            </Line>
+            {seciliMagaza && (
+              <Line type="monotone" dataKey="secili" stroke="#00365a" strokeWidth={2.5} dot={{ r: 3 }} name={seciliMagaza.magaza_adi} connectNulls>
+                <LabelList dataKey="secili" position="top" style={{ fontSize: 10, fill: "#00365a" }} formatter={(v: number) => zamanTanim.format(v)} />
+              </Line>
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+      <div className="text-[10px] text-gray-400 mt-1">
+        {seciliMagaza
+          ? "Gri çizgi tüm mağazaların ortalaması, lacivert çizgi seçili mağaza — üstünde/altında olması karşılaştırma sağlar."
+          : "Soldaki listeden bir mağaza seçerseniz, o mağazanın çizgisi tüm mağaza ortalamasıyla birlikte gösterilir."}
+      </div>
+
+      {enSonAyOzeti && (
+        <div className="mt-5 pt-4 border-t border-gray-100">
+          <div className="text-[11px] text-gray-400 mb-2">
+            En güncel ay özeti — {enSonAyOzeti.etiket} ({enSonAyOzeti.magazaSayisi} mağaza verisi)
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {enSonAyOzeti.degerler.map((d) => (
+              <div key={d.key} className="border border-gray-100 rounded-md p-3">
+                <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">{d.label}</div>
+                <div className="text-lg font-mono font-semibold text-navy">{d.ortalama !== null ? d.format(d.ortalama) : "—"}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+    </>
   );
 }
