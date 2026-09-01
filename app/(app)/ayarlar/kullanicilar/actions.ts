@@ -31,7 +31,7 @@ export async function createKullanici(formData: FormData) {
     await supabase.from("kullanici_bolge_atama").insert(rows);
   }
 
-  revalidatePath("/kullanicilar");
+  revalidatePath("/ayarlar/kullanicilar");
 }
 
 export async function toggleAktif(formData: FormData) {
@@ -40,5 +40,5 @@ export async function toggleAktif(formData: FormData) {
   const aktif = formData.get("aktif") === "true";
 
   await supabase.from("kullanicilar").update({ aktif }).eq("id", id);
-  revalidatePath("/kullanicilar");
+  revalidatePath("/ayarlar/kullanicilar");
 }
