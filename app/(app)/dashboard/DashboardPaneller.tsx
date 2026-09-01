@@ -366,52 +366,6 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
             <div><div className="text-[9px] text-gray-400 uppercase">Net m²</div><div className="text-navy-3 font-medium">{seciliMagaza.net_m2 ?? "—"}</div></div>
           </div>
         )}
-
-        {seciliMagaza && (
-          <div className="flex flex-wrap gap-2 mb-3 items-center">
-            <select value={yilFiltre} onChange={(e) => setYilFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
-              <option value="">Tüm Yıllar</option>
-              {yilSecenekleri.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-            <select value={ayFiltre} onChange={(e) => setAyFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
-              <option value="">Tüm Aylar</option>
-              {aySecenekleri.map((a) => <option key={a} value={a}>{AY_KISA[a]}</option>)}
-            </select>
-          </div>
-        )}
-
-        {seciliMagaza ? (
-          detayGorunumu.length === 0 ? (
-            <div className="text-xs text-gray-400">Bu mağaza için (filtreye uyan) performans verisi yok.</div>
-          ) : (
-            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-              {detayGorunumu.map((p) => {
-                const renk = hgoRenk(p.hgo ?? 0);
-                return (
-                  <div key={`${p.yil}-${p.ay}`} className="border border-gray-100 rounded-md p-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-gray-600 font-medium">{AY_KISA[p.ay]} {p.yil}</span>
-                      <span className={`text-[11px] font-mono font-semibold ${renk.metin}`}>%{(p.hgo ?? 0).toFixed(1)}</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1.5">
-                      <div className={`h-full rounded-full ${renk.bar}`} style={{ width: `${Math.min(p.hgo ?? 0, 100)}%` }} />
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-gray-400">
-                      {p.sepet_ortalamasi != null && <span>Sepet Ort: {p.sepet_ortalamasi.toFixed(1)}</span>}
-                      {p.sepet_derinligi != null && <span>Sepet Der: {p.sepet_derinligi.toFixed(2)}</span>}
-                      {p.donusum_orani != null && <span>Dönüşüm: %{(p.donusum_orani * 100).toFixed(1)}</span>}
-                      {p.giren_musteri_sayisi != null && <span>Giren Müşteri: {p.giren_musteri_sayisi}</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )
-        ) : (
-          <div className="text-xs text-gray-400 text-center py-10">
-            Soldaki listeden bir mağaza seçin — performans geçmişi burada görünecek.
-          </div>
-        )}
       </div>
     </div>
 
