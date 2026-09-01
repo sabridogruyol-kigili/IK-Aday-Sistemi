@@ -20,7 +20,7 @@ export default async function DashboardPage() {
     supabase.from("talepler").select("*", { count: "exact", head: true }).eq("durum", "KABUL_EDILDI"),
     supabase
       .from("magazalar")
-      .select("id, magaza_kodu, magaza_adi, bolge_id, subetipi, net_m2, aktif, norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
+      .select("id, magaza_kodu, magaza_adi, bolge_id, subetipi, net_m2, aktif, istifa_turnover, fesih_turnover, toplam_turnover, norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
       .eq("aktif", true),
     supabase.from("personel").select("id, guncel_magaza_id, kadro_kategorisi").eq("durum", "aktif"),
     supabase.from("bolgeler").select("id, ad").order("ad"),
@@ -58,6 +58,9 @@ export default async function DashboardPage() {
       bolge_adi: m.bolge_id ? bolgeMap[m.bolge_id] ?? "" : "",
       subetipi: m.subetipi,
       net_m2: m.net_m2,
+      istifa_turnover: m.istifa_turnover,
+      fesih_turnover: m.fesih_turnover,
+      toplam_turnover: m.toplam_turnover,
       ana_norm: anaNorm, ana_dolu: dolu.ANA_KADRO,
       donemsel_norm: donemselNorm, donemsel_dolu: dolu.DONEMSEL,
       part_norm: partNorm, part_dolu: dolu.PART_TIME,
