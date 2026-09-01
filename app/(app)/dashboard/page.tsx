@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import DashboardPaneller from "./DashboardPaneller";
-import DashboardZamanGrafigi from "./DashboardZamanGrafigi";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -27,7 +26,7 @@ export default async function DashboardPage() {
     supabase.from("bolgeler").select("id, ad").order("ad"),
     supabase
       .from("performans_magaza_aylik")
-      .select("magaza_id, yil, ay, hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi"),
+      .select("magaza_id, yil, ay, hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, adet_hgo, satis_adeti, toplam_ciro_kdv_dahil, omnichannel_ciro, omnichannel_haric_ciro"),
   ]);
 
   // Mağaza başına, kadro kategorisine göre ayrı ayrı aktif personel sayısı
@@ -99,7 +98,6 @@ export default async function DashboardPage() {
       </div>
 
       <DashboardPaneller magazalar={magazaDetay} bolgeler={bolgeler ?? []} performansHam={performansHam ?? []} />
-      <DashboardZamanGrafigi performansHam={performansHam ?? []} />
     </div>
   );
 }
