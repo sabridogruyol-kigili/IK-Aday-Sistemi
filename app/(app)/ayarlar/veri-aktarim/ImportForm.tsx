@@ -6,7 +6,7 @@ import { iceAktarMagazaNorm } from "./actions";
 import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarPerformans } from "./actions-performans";
 import { iceAktarMagazaBilgisi } from "./actions-magazabilgisi";
-import { getSonImportlar, type SonImport } from "./actions-gecmis";
+import { getSonImportlar, kaydetImportGecmisi, type SonImport } from "./actions-gecmis";
 
 type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string; eslenemeyenSutunlar?: string[] };
 
@@ -15,6 +15,7 @@ type Sablon = {
   label: string;
   aciklama: string;
   action: (rows: any[]) => Promise<Sonuc>;
+  parcaBoyutu: number;
 };
 
 const SABLONLAR: Sablon[] = [
@@ -23,6 +24,7 @@ const SABLONLAR: Sablon[] = [
     label: "Mağaza / Bölge / Norm",
     aciklama: "Şablon sütunları: Mağaza Kodu, Mağaza Adı, Bölge Adı, Ana Kadro Norm, Dönemsel Norm, Part-Time Norm",
     action: iceAktarMagazaNorm,
+    parcaBoyutu: 2000,
   },
   {
     key: "personel",
@@ -30,6 +32,7 @@ const SABLONLAR: Sablon[] = [
     aciklama:
       "Şablon sütunları: Personel Kodu, TC Kimlik No, Adı-Soyadı, Departman Kodu, Departman Açıklaması, İş Ünvanı Açıklaması, İşyeri Başlama Tarihi, İşten Ayrılma Tarihi, Doğum Tarihi, Cinsiyet Açıklaması, Bölge Açıklama, Bölge Müdürü Açıklama, İlk Başlama Tarihi. Not: İşten Ayrılma Tarihi dolu olan satırlar otomatik atlanır. Mağaza (Departman Kodu) sistemde önceden kayıtlı olmalı.",
     action: iceAktarPersonel,
+    parcaBoyutu: 800,
   },
   {
     key: "performans",
@@ -37,6 +40,7 @@ const SABLONLAR: Sablon[] = [
     aciklama:
       "Şablon sütunları: YIL, AY, Şubeler, Plasiyer Adı, Plasiyer Kodu, Title, Plasiyer Hedef Ciro (Kdv Dahil), Toplam Ciro KDV Dahil, ... Not: Personel önceden içe aktarılmış olmalı (Plasiyer Kodu, Personel Kodu ile eşleştirilir). 'Total' satırları mağaza aylık HGO'ya, kişi satırları kişi aylık HGO'ya yazılır.",
     action: iceAktarPerformans,
+    parcaBoyutu: 4000,
   },
   {
     key: "magazabilgisi",
@@ -44,6 +48,7 @@ const SABLONLAR: Sablon[] = [
     aciklama:
       "Gerçek dosya 3 başlık satırından oluşuyor: 1. satır YIL, 2. satır AY (Oca/Şub/Mar...), 3. satır alan adı (Şube Listesi, Bölge Listesi, SUBETIPI, NETM2, SEPET ORTALAMASI, SEPET DERINLIGI, DONUSUMORANI, GIRENMUSTERISAYISI). Veri 4. satırdan başlar. Mağaza sistemde yoksa otomatik oluşturulur.",
     action: iceAktarMagazaBilgisi,
+    parcaBoyutu: 100,
   },
 ];
 
@@ -216,13 +221,42 @@ export default function ImportForm() {
     dosyaSec(dosya);
   }
 
+  const [ilerleme, setIlerleme] = useState<{ mevcut: number; toplam: number } | null>(null);
+
+  function parcala<T>(dizi: T[], boyut: number): T[][] {
+    const parcalar: T[][] = [];
+    for (let i = 0; i < dizi.length; i += boyut) parcalar.push(dizi.slice(i, i + boyut));
+    return parcalar;
+  }
+
   function yukle() {
     if (rows.length === 0) return;
     setSonuc(null);
+    const parcalar = parcala(rows, sablon.parcaBoyutu);
+    setIlerleme({ mevcut: 0, toplam: parcalar.length });
+
     startTransition(async () => {
-      const res = await sablon.action(rows);
-      setSonuc(res);
-      getSonImportlar().then(setSonImportlar);
+      let toplamBasarili = 0;
+      const tumHatalar: { satir: number; hata: string }[] = [];
+      let tumEslenemeyenSutunlar: string[] | undefined;
+      let yetkiHatasi: string | undefined;
+
+      for (let i = 0; i < parcalar.length; i++) {
+        const res = await sablon.action(parcalar[i]);
+        if (res.yetkiHatasi) { yetkiHatasi = res.yetkiHatasi; break; }
+        toplamBasarili += res.basarili;
+        tumHatalar.push(...res.hatalar);
+        if (res.eslenemeyenSutunlar) tumEslenemeyenSutunlar = res.eslenemeyenSutunlar;
+        setIlerleme({ mevcut: i + 1, toplam: parcalar.length });
+      }
+
+      setIlerleme(null);
+      setSonuc({ basarili: toplamBasarili, hatalar: tumHatalar, yetkiHatasi, eslenemeyenSutunlar: tumEslenemeyenSutunlar });
+      if (!yetkiHatasi) {
+        kaydetImportGecmisi(sablon.key, toplamBasarili, tumHatalar.length).then(() => {
+          getSonImportlar().then(setSonImportlar);
+        });
+      }
     });
   }
 
@@ -297,6 +331,16 @@ export default function ImportForm() {
         >
           {pending ? "Yükleniyor..." : `${satirSayisi} Satırı İçe Aktar`}
         </button>
+        {ilerleme && (
+          <div className="mt-2">
+            <div className="text-[11px] text-gray-400 mb-1">
+              Parça {ilerleme.mevcut} / {ilerleme.toplam} işleniyor — büyük dosyalar birkaç dakika sürebilir, sayfayı kapatmayın.
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden w-full max-w-xs">
+              <div className="h-full bg-navy rounded-full transition-all" style={{ width: `${(ilerleme.mevcut / ilerleme.toplam) * 100}%` }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {sonuc?.yetkiHatasi && (
