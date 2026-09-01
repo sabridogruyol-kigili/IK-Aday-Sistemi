@@ -6,6 +6,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 type Magaza = {
   id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string;
   subetipi: string | null; net_m2: number | null;
+  istifa_turnover: number | null; fesih_turnover: number | null; toplam_turnover: number | null;
+  magaza_muduru: string | null;
   ana_norm: number; ana_dolu: number; donemsel_norm: number; donemsel_dolu: number;
   part_norm: number; part_dolu: number; toplamNorm: number; toplamDolu: number; oran: number;
 };
@@ -259,6 +261,20 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
     };
   }, [performansHam, seciliMagazaId]);
 
+  // Turnover kümülatif bir bilgi (aylık değil, mağaza başına tek değer) — Magaza listesinden hesaplanır.
+  const turnoverOzet = useMemo(() => {
+    if (seciliMagaza) {
+      return { istifa: seciliMagaza.istifa_turnover, fesih: seciliMagaza.fesih_turnover, toplam: seciliMagaza.toplam_turnover };
+    }
+    const gecerliler = magazalar.filter((m) => m.toplam_turnover !== null || m.istifa_turnover !== null || m.fesih_turnover !== null);
+    if (gecerliler.length === 0) return null;
+    const ortalama = (alan: "istifa_turnover" | "fesih_turnover" | "toplam_turnover") => {
+      const degerler = gecerliler.map((m) => m[alan]).filter((v): v is number => v !== null);
+      return degerler.length > 0 ? degerler.reduce((s, v) => s + v, 0) / degerler.length : null;
+    };
+    return { istifa: ortalama("istifa_turnover"), fesih: ortalama("fesih_turnover"), toplam: ortalama("toplam_turnover") };
+  }, [magazalar, seciliMagaza]);
+
   return (
     <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -342,28 +358,45 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
           )}
         </div>
 
-        {enSonAyOzeti && (
-          <div className="mb-3 pb-3 border-b border-gray-100">
+        {seciliMagaza && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 bg-gray-50 rounded-md p-2.5 text-[11px]">
+            <div><div className="text-[9px] text-gray-400 uppercase">İl (tahmini)</div><div className="text-navy-3 font-medium">{ilTahminEt(seciliMagaza.magaza_adi)}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Bölge</div><div className="text-navy-3 font-medium">{seciliMagaza.bolge_adi || "—"}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Net m²</div><div className="text-navy-3 font-medium">{seciliMagaza.net_m2 ?? "—"}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Mağaza Müdürü</div><div className="text-navy-3 font-medium">{seciliMagaza.magaza_muduru ?? "—"}</div></div>
+          </div>
+        )}
+
+        {(enSonAyOzeti || turnoverOzet) && (
+          <div className="mb-1">
             <div className="text-[10px] text-gray-400 mb-1.5">
-              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı — {enSonAyOzeti.etiket}
-              {!seciliMagaza && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
+              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı{enSonAyOzeti && ` — ${enSonAyOzeti.etiket}`}
+              {!seciliMagaza && enSonAyOzeti && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-              {enSonAyOzeti.degerler.map((d) => (
+              {enSonAyOzeti?.degerler.map((d) => (
                 <div key={d.key} className="bg-gray-50 rounded-md px-1.5 py-1.5">
                   <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">{d.label}</div>
                   <div className="text-[11px] font-mono font-semibold text-navy-3">{d.ortalama !== null ? d.format(d.ortalama) : "—"}</div>
                 </div>
               ))}
+              {turnoverOzet && (
+                <>
+                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
+                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">İstifa Turnover</div>
+                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.istifa !== null ? `%${turnoverOzet.istifa.toFixed(1)}` : "—"}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
+                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">Fesih Turnover</div>
+                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.fesih !== null ? `%${turnoverOzet.fesih.toFixed(1)}` : "—"}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
+                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">Toplam Turnover</div>
+                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.toplam !== null ? `%${turnoverOzet.toplam.toFixed(1)}` : "—"}</div>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        )}
-
-        {seciliMagaza && (
-          <div className="grid grid-cols-3 gap-2 mb-3 bg-gray-50 rounded-md p-2.5 text-[11px]">
-            <div><div className="text-[9px] text-gray-400 uppercase">İl (tahmini)</div><div className="text-navy-3 font-medium">{ilTahminEt(seciliMagaza.magaza_adi)}</div></div>
-            <div><div className="text-[9px] text-gray-400 uppercase">Bölge</div><div className="text-navy-3 font-medium">{seciliMagaza.bolge_adi || "—"}</div></div>
-            <div><div className="text-[9px] text-gray-400 uppercase">Net m²</div><div className="text-navy-3 font-medium">{seciliMagaza.net_m2 ?? "—"}</div></div>
           </div>
         )}
       </div>
