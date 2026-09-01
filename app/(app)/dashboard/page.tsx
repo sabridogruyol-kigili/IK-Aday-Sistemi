@@ -22,7 +22,7 @@ export default async function DashboardPage() {
       .from("magazalar")
       .select("id, magaza_kodu, magaza_adi, bolge_id, subetipi, net_m2, aktif, istifa_turnover, fesih_turnover, toplam_turnover, norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
       .eq("aktif", true),
-    supabase.from("personel").select("id, guncel_magaza_id, kadro_kategorisi").eq("durum", "aktif"),
+    supabase.from("personel").select("id, guncel_magaza_id, kadro_kategorisi, guncel_unvan, ad_soyad").eq("durum", "aktif"),
     supabase.from("bolgeler").select("id, ad").order("ad"),
     supabase
       .from("performans_magaza_aylik")
@@ -41,6 +41,16 @@ export default async function DashboardPage() {
 
   const bolgeMap: Record<string, string> = {};
   (bolgeler ?? []).forEach((b: any) => { bolgeMap[b.id] = b.ad; });
+
+  // Mağaza başına Mağaza Müdürü — "Müdür Yardımcısı" ile karışmasın diye tam ünvan eşleşmesi kullanılıyor.
+  const MUDUR_UNVANLARI = ["mağaza müdürü", "havalimanı mağaza müdürü"];
+  const magazaMuduruMap: Record<string, string> = {};
+  (personelList ?? []).forEach((p: any) => {
+    if (!p.guncel_magaza_id || !p.guncel_unvan) return;
+    if (MUDUR_UNVANLARI.includes(String(p.guncel_unvan).trim().toLocaleLowerCase("tr-TR"))) {
+      magazaMuduruMap[p.guncel_magaza_id] = p.ad_soyad;
+    }
+  });
 
   const magazaDetay = (magazalarHam ?? []).map((m: any) => {
     const normRow = Array.isArray(m.norm) ? m.norm[0] : m.norm;
@@ -61,6 +71,7 @@ export default async function DashboardPage() {
       istifa_turnover: m.istifa_turnover,
       fesih_turnover: m.fesih_turnover,
       toplam_turnover: m.toplam_turnover,
+      magaza_muduru: magazaMuduruMap[m.id] ?? null,
       ana_norm: anaNorm, ana_dolu: dolu.ANA_KADRO,
       donemsel_norm: donemselNorm, donemsel_dolu: dolu.DONEMSEL,
       part_norm: partNorm, part_dolu: dolu.PART_TIME,
