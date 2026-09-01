@@ -108,10 +108,10 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     const cinsiyet = String(r["Cinsiyet Açıklaması"] ?? "").trim() || null;
     const iseBaslamaTarihi = excelTarih(r["İşyeri Başlama Tarihi"]);
     const onceki_is_yeri = String(r["Önceki İş Yeri"] ?? "").trim() || null;
-    const ihtarname = String(r["İHTARNAME"] ?? "").trim() || null;
-    const uyari_yazisi = String(r["UYARI YAZISI"] ?? "").trim() || null;
-    const tutanak = String(r["Tutanak"] ?? "").trim() || null;
-    const savunma = String(r["Savunma"] ?? "").trim() || null;
+    const ihtarname = String(r["İHTARNAME Açıklama"] ?? "").trim() || null;
+    const uyari_yazisi = String(r["UYARI YAZISI Açıklama"] ?? "").trim() || null;
+    const tutanak = String(r["Tutanak Açıklama"] ?? "").trim() || null;
+    const savunma = String(r["Savunma Açıklama"] ?? "").trim() || null;
     const kan_grubu_kodu = String(r["Kan Grubu Kodu"] ?? "").trim() || null;
     const uyruk = String(r["Uyruk"] ?? "").trim() || null;
     const ozel_mobil = String(r["ÖzelMobil"] ?? "").trim() || null;
