@@ -7,6 +7,7 @@ import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarPerformans } from "./actions-performans";
 import { iceAktarMagazaBilgisi } from "./actions-magazabilgisi";
 import { getSonImportlar, kaydetImportGecmisi, type SonImport } from "./actions-gecmis";
+import PerformansAylikDurum from "./PerformansAylikDurum";
 
 type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string; eslenemeyenSutunlar?: string[] };
 
@@ -17,6 +18,9 @@ type Sablon = {
   action: (rows: any[]) => Promise<Sonuc>;
   parcaBoyutu: number;
 };
+
+const AY_KISA_UYARI = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const SU_ANKI_YIL_SABIT = new Date().getFullYear();
 
 const SABLONLAR: Sablon[] = [
   {
@@ -70,6 +74,10 @@ export default function ImportForm() {
   }, []);
   const [okumaHatasi, setOkumaHatasi] = useState<string | null>(null);
   const [surukleniyor, setSurukleniyor] = useState(false);
+  const su_anki_tarih = new Date();
+  const [yukumYil, setYukumYil] = useState(su_anki_tarih.getFullYear());
+  const [yukumAy, setYukumAy] = useState(su_anki_tarih.getMonth() + 1);
+  const [ayUyusmazlikUyarisi, setAyUyusmazlikUyarisi] = useState<string | null>(null);
 
   function sablonDegistir(key: string) {
     setSablonKey(key);
@@ -95,6 +103,43 @@ export default function ImportForm() {
 
   function baslikNormallestirClient(s: string): string {
     return s.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  const AY_KISA_MAP_KONTROL: Record<string, number> = {
+    "oca": 1, "şub": 2, "sub": 2, "mar": 3, "nis": 4, "may": 5, "haz": 6,
+    "tem": 7, "ağu": 8, "agu": 8, "eyl": 9, "eki": 10, "kas": 11, "ara": 12,
+  };
+
+  function ayCozClient(v: any): number | null {
+    if (v === null || v === undefined || v === "") return null;
+    if (typeof v === "number") return v >= 1 && v <= 12 ? v : null;
+    const s = String(v).trim().toLocaleLowerCase("tr-TR");
+    if (AY_KISA_MAP_KONTROL[s]) return AY_KISA_MAP_KONTROL[s];
+    const n = Number(s);
+    return !Number.isNaN(n) && n >= 1 && n <= 12 ? n : null;
+  }
+
+  // Dosyadaki en sık geçen YIL/AY ile kullanıcının seçtiği ay uyuşmuyorsa, yanlış dosya
+  // yüklenmiş olabileceğine dair (engelleyici olmayan) bir uyarı üretir.
+  function performansAyUyusmazliginiKontrolEt(rows: any[], seciliYil: number, seciliAy: number): string | null {
+    if (rows.length === 0) return null;
+    const sayaç: Record<string, number> = {};
+    for (const r of rows.slice(0, 200)) {
+      const yil = Number(r["YIL"]);
+      const ay = ayCozClient(r["AY"]);
+      if (!yil || !ay) continue;
+      const anahtar = `${yil}-${ay}`;
+      sayaç[anahtar] = (sayaç[anahtar] ?? 0) + 1;
+    }
+    const girdiler = Object.entries(sayaç);
+    if (girdiler.length === 0) return null;
+    girdiler.sort((a, b) => b[1] - a[1]);
+    const [enSikAnahtar] = girdiler[0];
+    const [dosyaYil, dosyaAy] = enSikAnahtar.split("-").map(Number);
+    if (dosyaYil !== seciliYil || dosyaAy !== seciliAy) {
+      return `Seçtiğiniz ay ${AY_KISA_UYARI[seciliAy]} ${seciliYil}, ama dosyada çoğunlukla ${AY_KISA_UYARI[dosyaAy]} ${dosyaYil} verisi var gibi görünüyor. Yanlış dosya seçmiş olabilir misiniz? (Yine de devam edebilirsiniz.)`;
+    }
+    return null;
   }
 
   function personelSutunlariniAyikla(json: any[]): any[] {
@@ -137,6 +182,10 @@ export default function ImportForm() {
           setRows(json);
           setSatirSayisi(json.length);
           setIlkSutunlar(json.length > 0 ? Object.keys(json[0] as object) : []);
+
+          if (sablonKey === "performans") {
+            setAyUyusmazlikUyarisi(performansAyUyusmazliginiKontrolEt(json, yukumYil, yukumAy));
+          }
         }
       } catch (err: any) {
         setOkumaHatasi("Dosya okunamadı: " + err.message);
@@ -287,6 +336,34 @@ export default function ImportForm() {
             <span className="text-success font-medium">{sonImportlar[sablon.key].basarili} başarılı</span>
             {sonImportlar[sablon.key].hatali > 0 && <span className="text-danger font-medium"> / {sonImportlar[sablon.key].hatali} hatalı</span>}
           </div>
+        )}
+
+        {sablonKey === "performans" && (
+          <>
+            <PerformansAylikDurum />
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] text-gray-500">Bu dosya hangi ay için?</span>
+              <select
+                value={yukumAy}
+                onChange={(e) => { const v = Number(e.target.value); setYukumAy(v); setAyUyusmazlikUyarisi(rows.length > 0 ? performansAyUyusmazliginiKontrolEt(rows, yukumYil, v) : null); }}
+                className="border border-gray-300 rounded-md px-2 py-1 text-xs bg-white"
+              >
+                {AY_KISA_UYARI.slice(1).map((ad, i) => <option key={i + 1} value={i + 1}>{ad}</option>)}
+              </select>
+              <select
+                value={yukumYil}
+                onChange={(e) => { const v = Number(e.target.value); setYukumYil(v); setAyUyusmazlikUyarisi(rows.length > 0 ? performansAyUyusmazliginiKontrolEt(rows, v, yukumAy) : null); }}
+                className="border border-gray-300 rounded-md px-2 py-1 text-xs bg-white"
+              >
+                {[SU_ANKI_YIL_SABIT - 1, SU_ANKI_YIL_SABIT, SU_ANKI_YIL_SABIT + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            {ayUyusmazlikUyarisi && (
+              <div className="text-[11px] text-accent bg-accent/10 border border-accent/30 rounded-md px-2.5 py-1.5 mb-3">
+                ⚠ {ayUyusmazlikUyarisi}
+              </div>
+            )}
+          </>
         )}
 
         <div
