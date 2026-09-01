@@ -80,7 +80,13 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     const r = satirNormallestir(rowsHam[i]);
 
     const ayrilmaTarihiParsed = excelTarih(r["İşten Ayrılma Tarihi"]);
-    const gercektenAyrilmisMi = ayrilmaTarihiParsed !== null && ayrilmaTarihiParsed !== "1900-01-01";
+    // Excel'in ünlü "1900 sahte artık yılı" hatası yüzünden serial 1 ("1900-01-01" placeholder'ı
+    // temsil etmesi gereken değer), standart dönüşüm formülüyle "1899-12-31" çıkıyor — birebir
+    // string karşılaştırması bu yüzden hep başarısız oluyordu. Bunun yerine yıl bazlı, 1901 ve
+    // öncesini "henüz ayrılmamış" sayan daha sağlam bir kontrol kullanıyoruz (gerçek ayrılma
+    // tarihleri her zaman 1901'den çok sonra olacaktır).
+    const ayrilmaYili = ayrilmaTarihiParsed ? parseInt(ayrilmaTarihiParsed.slice(0, 4), 10) : null;
+    const gercektenAyrilmisMi = ayrilmaYili !== null && ayrilmaYili > 1901;
     if (gercektenAyrilmisMi) continue;
 
     const tcKimlikNo = String(r["TC Kimlik No"] ?? "").trim();
