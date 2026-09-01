@@ -73,10 +73,19 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
   const personelMap: Record<string, string> = {};
   (personelHam ?? []).forEach((p: any) => { if (p.personel_kodu) personelMap[sicilNormalize(p.personel_kodu)] = p.id; });
 
+  const { data: unvanlarHam } = await supabase.from("unvan_kadro_kategorisi").select("unvan, kategori");
+  const unvanMap: Record<string, string> = {};
+  (unvanlarHam ?? []).forEach((u: any) => { unvanMap[u.unvan.toLocaleUpperCase("tr-TR")] = u.kategori; });
+
   const hatalar: SatirHata[] = [];
   const magazaAylikSatirlari: { magaza_id: string; yil: number; ay: number; hgo: number }[] = [];
-  const kisiAylikSatirlari: { personel_id: string; yil: number; ay: number; hedef_ciro_kdv_dahil: number; gerceklesen_ciro_kdv_dahil: number; hgo: number | null }[] = [];
   const etkilenenPersonelIdleri = new Set<string>();
+
+  // Personel tabloda hiç yoksa (Personel importundan bağımsız olarak) Performans dosyasındaki
+  // bilgilerle otomatik oluşturuluyor — TC eşleştirmesi veya başka bir ön koşul aranmıyor.
+  type KisiSatirHam = { sicil: string; yil: number; ay: number; hedefCiro: number; gerceklesenCiro: number };
+  const kisiSatirlarHam: KisiSatirHam[] = [];
+  const eksikPersonel = new Map<string, { ad: string; unvan: string; magazaId: string }>();
 
   // -----------------------------------------------------------------
   // 1) VALİDASYON — hiç DB yazma çağrısı yapmadan tüm satırları işleyip diziye topla.
@@ -91,8 +100,7 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
     const magazaKodu = magazaKoduAyikla(subeHam);
 
     if (!yil || !ay || !magazaKodu) {
-      const teshis = satirNo === 2 ? ` [TEŞHİS: yil=${JSON.stringify(r["YIL"])}, ay=${JSON.stringify(r["AY"])}, sube=${JSON.stringify(r["Şubeler"])}, tüm_anahtarlar=${JSON.stringify(Object.keys(r))}]` : "";
-      hatalar.push({ satir: satirNo, hata: "YIL, AY veya Şubeler alanı eksik/okunamadı." + teshis });
+      hatalar.push({ satir: satirNo, hata: "YIL, AY veya Şubeler alanı eksik/okunamadı." });
       continue;
     }
     if (ay < 1 || ay > 12) {
@@ -126,13 +134,6 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
       continue;
     }
 
-    const sicil = sicilNormalize(plasiyerKoduHam);
-    const personelId = personelMap[sicil];
-    if (!personelId) {
-      hatalar.push({ satir: satirNo, hata: `Plasiyer Kodu (${plasiyerKoduHam} -> ${sicil}) sistemde kayıtlı bir personele karşılık gelmiyor.` });
-      continue;
-    }
-
     const hedefCiro = sayi(r["Plasiyer Hedef Ciro (Kdv Dahil)"]);
     const gerceklesenCiro = sayi(r["Toplam Ciro KDV Dahil"]);
     if (hedefCiro === null || gerceklesenCiro === null) {
@@ -140,13 +141,66 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
       continue;
     }
 
-    const kisiHgo = hedefCiro > 0 ? (gerceklesenCiro / hedefCiro) * 100 : null;
-    kisiAylikSatirlari.push({ personel_id: personelId, yil, ay, hedef_ciro_kdv_dahil: hedefCiro, gerceklesen_ciro_kdv_dahil: gerceklesenCiro, hgo: kisiHgo });
+    const sicil = sicilNormalize(plasiyerKoduHam);
+    if (!personelMap[sicil] && !eksikPersonel.has(sicil)) {
+      const unvan = String(r["Title"] ?? "").trim();
+      eksikPersonel.set(sicil, { ad: plasiyerAdi || sicil, unvan, magazaId });
+    }
+
+    kisiSatirlarHam.push({ sicil, yil, ay, hedefCiro, gerceklesenCiro });
+  }
+
+  // -----------------------------------------------------------------
+  // 1.5) Eksik personeli, Performans dosyasındaki bilgilerle otomatik oluştur
+  //      (Personel importuna veya TC eşleştirmesine bağlı değil).
+  // -----------------------------------------------------------------
+  if (eksikPersonel.size > 0) {
+    const yeniPersonelSatirlari = Array.from(eksikPersonel.entries()).map(([sicil, bilgi]) => {
+      const kategori = bilgi.unvan ? unvanMap[bilgi.unvan.toLocaleUpperCase("tr-TR")] ?? null : null;
+      return {
+        tc_kimlik_no: `PLASIYER-${sicil}`,
+        personel_kodu: sicil,
+        ad_soyad: bilgi.ad,
+        guncel_unvan: bilgi.unvan || null,
+        guncel_magaza_id: bilgi.magazaId,
+        durum: "aktif",
+        kadro_kategorisi: kategori,
+      };
+    });
+
+    for (const parca of parcala(yeniPersonelSatirlari, 500)) {
+      const { data: eklenenler, error } = await supabase
+        .from("personel")
+        .upsert(parca, { onConflict: "tc_kimlik_no" })
+        .select("id, personel_kodu");
+      if (error) {
+        hatalar.push({ satir: 0, hata: "Eksik personel otomatik oluşturulamadı: " + error.message });
+      } else {
+        (eklenenler ?? []).forEach((p: any) => { if (p.personel_kodu) personelMap[p.personel_kodu] = p.id; });
+      }
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // 2) Kişi aylık satırlarını (artık tüm personelMap eşleşmeleri hazır) oluştur.
+  // -----------------------------------------------------------------
+  const kisiAylikSatirlari: { personel_id: string; yil: number; ay: number; hedef_ciro_kdv_dahil: number; gerceklesen_ciro_kdv_dahil: number; hgo: number | null }[] = [];
+  for (const satir of kisiSatirlarHam) {
+    const personelId = personelMap[satir.sicil];
+    if (!personelId) {
+      hatalar.push({ satir: 0, hata: `Sicil (${satir.sicil}) için personel oluşturulamadı, atlandı.` });
+      continue;
+    }
+    const kisiHgo = satir.hedefCiro > 0 ? (satir.gerceklesenCiro / satir.hedefCiro) * 100 : null;
+    kisiAylikSatirlari.push({
+      personel_id: personelId, yil: satir.yil, ay: satir.ay,
+      hedef_ciro_kdv_dahil: satir.hedefCiro, gerceklesen_ciro_kdv_dahil: satir.gerceklesenCiro, hgo: kisiHgo,
+    });
     etkilenenPersonelIdleri.add(personelId);
   }
 
   // -----------------------------------------------------------------
-  // 2) TOPLU UPSERT — 500'lük parçalar hâlinde (604 satır için tek tek değil ~2-3 istek)
+  // 3) TOPLU UPSERT — 500'lük parçalar hâlinde (604 satır için tek tek değil ~2-3 istek)
   // -----------------------------------------------------------------
   const PARCA_BOYUTU = 500;
   let basarili = 0;
@@ -164,7 +218,7 @@ export async function iceAktarPerformans(rows: any[]): Promise<Sonuc> {
   }
 
   // -----------------------------------------------------------------
-  // 3) ORTALAMA HGO + KATEGORİ SAYAÇLARI — her personel için ayrı ayrı select+update yerine
+  // 4) ORTALAMA HGO + KATEGORİ SAYAÇLARI — her personel için ayrı ayrı select+update yerine
   //    TEK sorguda tüm etkilenen personelin tüm aylık verisini çekip JS'te gruplayıp
   //    TEK toplu upsert ile personel tablosuna yazıyoruz.
   // -----------------------------------------------------------------
