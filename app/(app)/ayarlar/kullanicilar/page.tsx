@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createKullanici, toggleAktif } from "./actions";
+import BolgeDropdown from "./BolgeDropdown";
 
 export default async function KullanicilarPage() {
   const supabase = createClient();
@@ -49,8 +50,8 @@ export default async function KullanicilarPage() {
       {/* Yeni kullanıcı formu */}
       <div className="bg-white border border-gray-200 rounded-card p-4 mb-5">
         <div className="text-sm font-semibold text-navy-3 mb-3">Yeni Kullanıcı</div>
-        <form action={createKullanici} className="grid grid-cols-4 gap-3 items-end">
-          <div>
+        <form action={createKullanici} className="grid grid-cols-12 gap-3 items-end">
+          <div className="col-span-3">
             <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
               E-posta *
             </label>
@@ -61,7 +62,7 @@ export default async function KullanicilarPage() {
               className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
             />
           </div>
-          <div>
+          <div className="col-span-3">
             <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
               Ad Soyad *
             </label>
@@ -71,7 +72,7 @@ export default async function KullanicilarPage() {
               className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
             />
           </div>
-          <div>
+          <div className="col-span-2">
             <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
               Rol *
             </label>
@@ -85,27 +86,16 @@ export default async function KullanicilarPage() {
               <option value="YONETIM">Yönetim</option>
             </select>
           </div>
-          <button
-            type="submit"
-            className="bg-navy text-white rounded-md py-1.5 text-sm font-medium"
-          >
-            Ekle
-          </button>
-          <div className="col-span-4">
-            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
-              Sorumlu Bölge(ler) — BM/İK için, Yönetim tümünü zaten görür
-            </label>
-            <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto divide-y divide-gray-100 max-w-xs">
-              {(bolgeler ?? []).map((b) => (
-                <label key={b.id} className="flex items-center gap-2 text-xs text-gray-600 px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer">
-                  <input type="checkbox" name="bolge_ids" value={b.id} />
-                  {b.ad}
-                </label>
-              ))}
-              {(bolgeler ?? []).length === 0 && (
-                <div className="text-xs text-gray-400 px-2.5 py-2">Henüz bölge tanımlı değil.</div>
-              )}
-            </div>
+          <div className="col-span-3">
+            <BolgeDropdown bolgeler={bolgeler ?? []} />
+          </div>
+          <div className="col-span-1">
+            <button
+              type="submit"
+              className="w-full bg-navy text-white rounded-md py-1.5 text-sm font-medium"
+            >
+              Ekle
+            </button>
           </div>
         </form>
       </div>
