@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { getPersonelSayfa, getPerformansKisiSayfa, getPerformansMagazaSayfa } from "./actions";
+import { personelTumunuSil, performansKisiTumunuSil, performansMagazaTumunuSil } from "../veri-aktarim/actions-silme";
 
 type Sekme = "personel" | "performans_kisi" | "performans_magaza";
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 const SAYFA_BOYUTU = 50;
 
-const SEKMELER: { key: Sekme; label: string }[] = [
-  { key: "personel", label: "Personel" },
-  { key: "performans_kisi", label: "Performans — Kişi Bazlı" },
-  { key: "performans_magaza", label: "Performans — Mağaza Bazlı" },
+const SEKMELER: { key: Sekme; label: string; silFn: () => Promise<{ basarili: boolean; silinen: number; hata?: string }> }[] = [
+  { key: "personel", label: "Personel", silFn: personelTumunuSil },
+  { key: "performans_kisi", label: "Performans — Kişi Bazlı", silFn: performansKisiTumunuSil },
+  { key: "performans_magaza", label: "Performans — Mağaza Bazlı", silFn: performansMagazaTumunuSil },
 ];
 
 export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: number } = {}) {
@@ -32,6 +33,8 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
     setSayfa(0);
   }, [sekme, aramaGecikmeli]);
 
+  const [silmeTetik, setSilmeTetik] = useState(0);
+
   useEffect(() => {
     setYukleniyor(true);
     const fn = sekme === "personel" ? getPersonelSayfa : sekme === "performans_kisi" ? getPerformansKisiSayfa : getPerformansMagazaSayfa;
@@ -40,13 +43,42 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
       setToplam(res.toplam);
       setYukleniyor(false);
     });
-  }, [sekme, sayfa, aramaGecikmeli, yenilemeTetik]);
+  }, [sekme, sayfa, aramaGecikmeli, yenilemeTetik, silmeTetik]);
 
   const toplamSayfa = Math.max(1, Math.ceil(toplam / SAYFA_BOYUTU));
+  const aktifSekme = SEKMELER.find((s) => s.key === sekme)!;
+
+  const [onayAcik, setOnayAcik] = useState(false);
+  const [onayMetni, setOnayMetni] = useState("");
+  const [siliniyor, setSiliniyor] = useState(false);
+  const [silmeHata, setSilmeHata] = useState<string | null>(null);
+
+  function silmeyiBaslat() {
+    setOnayAcik(true);
+    setOnayMetni("");
+    setSilmeHata(null);
+  }
+
+  function silmeyiOnayla() {
+    if (onayMetni.trim().toLocaleUpperCase("tr-TR") !== "SİL") return;
+    setSiliniyor(true);
+    aktifSekme.silFn().then((res) => {
+      setSiliniyor(false);
+      setOnayAcik(false);
+      if (!res.basarili) {
+        setSilmeHata(res.hata ?? "Silinemedi.");
+        return;
+      }
+      setSayfa(0);
+      setToplam(0);
+      setSatirlar([]);
+      setSilmeTetik((t) => t + 1);
+    });
+  }
 
   return (
     <div>
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-3 items-center">
         {SEKMELER.map((s) => (
           <button
             key={s.key}
@@ -56,7 +88,41 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
             {s.label}
           </button>
         ))}
+        <div className="flex-1" />
+        <button
+          onClick={silmeyiBaslat}
+          className="px-3 py-1.5 rounded-md text-xs font-medium text-danger border border-danger/30 hover:bg-danger-bg"
+        >
+          Bu Verinin Tümünü Sil
+        </button>
       </div>
+
+      {silmeHata && <div className="text-[11px] text-danger mb-2">{silmeHata}</div>}
+
+      {onayAcik && (
+        <div className="bg-danger-bg border border-danger/30 rounded-md p-3 mb-3">
+          <div className="text-xs text-danger font-medium mb-1">
+            "{aktifSekme.label}" verisinin TAMAMINI ({toplam} kayıt) kalıcı olarak silmek üzeresiniz. Bu işlem geri alınamaz.
+          </div>
+          <div className="text-[11px] text-gray-600 mb-2">Onaylamak için kutuya <b>SİL</b> yazın:</div>
+          <div className="flex items-center gap-2">
+            <input
+              value={onayMetni}
+              onChange={(e) => setOnayMetni(e.target.value)}
+              placeholder="SİL"
+              className="border border-danger/40 rounded-md px-2 py-1 text-xs w-32"
+            />
+            <button
+              onClick={silmeyiOnayla}
+              disabled={onayMetni.trim().toLocaleUpperCase("tr-TR") !== "SİL" || siliniyor}
+              className="bg-danger text-white rounded-md px-3 py-1 text-xs font-medium disabled:opacity-40"
+            >
+              {siliniyor ? "Siliniyor..." : "Kalıcı Olarak Sil"}
+            </button>
+            <button onClick={() => setOnayAcik(false)} className="text-xs text-gray-400">Vazgeç</button>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 mb-2">
         <input
