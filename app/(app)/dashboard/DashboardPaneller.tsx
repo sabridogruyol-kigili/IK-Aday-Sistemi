@@ -78,6 +78,36 @@ function ilTahminEt(magazaAdi: string): string {
   return kelimeler[0] ?? "";
 }
 
+// Tek bir KPI kutusu: mağaza seçiliyse kendi değeri (büyük), altında genel ortalama ve
+// aradaki fark (yöne göre yeşil/kırmızı — Turnover gibi "düşük iyi" metriklerde ters renklenir).
+function KpiKart({
+  label, kendi, ortalama, format, seciliVar, tersYon = false,
+}: {
+  label: string; kendi: number | null; ortalama: number | null; format: (v: number) => string; seciliVar: boolean; tersYon?: boolean;
+}) {
+  const anaDeger = seciliVar ? kendi : ortalama;
+  const farkGoster = seciliVar && kendi !== null && ortalama !== null;
+  const fark = farkGoster ? kendi! - ortalama! : null;
+  const iyiMi = fark !== null ? (tersYon ? fark <= 0 : fark >= 0) : null;
+
+  return (
+    <div className="bg-gray-50 rounded-lg px-3 py-3">
+      <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">{label}</div>
+      <div className="text-xl font-mono font-semibold text-navy-3 mb-1.5">{anaDeger !== null ? format(anaDeger) : "—"}</div>
+      {farkGoster ? (
+        <div className="space-y-0.5">
+          <div className="text-[10px] text-gray-400">Ortalama: {format(ortalama!)}</div>
+          <div className={`text-[11px] font-mono font-semibold ${iyiMi ? "text-success" : "text-danger"}`}>
+            {fark! >= 0 ? "▲" : "▼"} {fark! >= 0 ? "+" : ""}{fark!.toFixed(2)}
+          </div>
+        </div>
+      ) : (
+        !seciliVar && <div className="text-[10px] text-gray-300">Genel ortalama</div>
+      )}
+    </div>
+  );
+}
+
 function BolgeDropdownFiltre({ bolgeler, secilenler, setSecilenler }: { bolgeler: Bolge[]; secilenler: Set<string>; setSecilenler: (s: Set<string>) => void }) {
   const [acik, setAcik] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -235,44 +265,54 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
   }, [performansHam, zamanDegisken, etkinBaslangic, etkinBitis, seciliMagazaId]);
 
   const enSonAyOzeti = useMemo(() => {
-    // Mağaza seçiliyse: o mağazanın kendi en güncel ayı. Seçili değilse: tüm mağazaların ortalaması.
-    const kaynakVeri = seciliMagazaId ? performansHam.filter((p) => p.magaza_id === seciliMagazaId) : performansHam;
-    if (kaynakVeri.length === 0) return null;
+    if (performansHam.length === 0) return null;
 
+    // Referans dönem her zaman TÜM verideki en güncel ay (mağaza seçili olsa da olmasa da aynı dönemle karşılaştırma yapılır).
     let enSonYil = 0, enSonAy = 0;
-    kaynakVeri.forEach((p) => {
+    performansHam.forEach((p) => {
       if (p.yil > enSonYil || (p.yil === enSonYil && p.ay > enSonAy)) { enSonYil = p.yil; enSonAy = p.ay; }
     });
-    const buAyVerisi = kaynakVeri.filter((p) => p.yil === enSonYil && p.ay === enSonAy);
-    const sonuc: Record<string, { toplam: number; sayi: number }> = {};
-    ZAMAN_DEGISKENLERI.forEach((d) => { sonuc[d.key] = { toplam: 0, sayi: 0 }; });
+    const buAyVerisi = performansHam.filter((p) => p.yil === enSonYil && p.ay === enSonAy);
+    if (buAyVerisi.length === 0) return null;
+
+    const toplamlar: Record<string, { toplam: number; sayi: number }> = {};
+    ZAMAN_DEGISKENLERI.forEach((d) => { toplamlar[d.key] = { toplam: 0, sayi: 0 }; });
     buAyVerisi.forEach((p) => {
       ZAMAN_DEGISKENLERI.forEach((d) => {
         const deger = p[d.key];
         if (deger === null || deger === undefined) return;
-        sonuc[d.key].toplam += deger as number;
-        sonuc[d.key].sayi += 1;
+        toplamlar[d.key].toplam += deger as number;
+        toplamlar[d.key].sayi += 1;
       });
     });
+
+    const kendiSatir = seciliMagazaId ? buAyVerisi.find((p) => p.magaza_id === seciliMagazaId) ?? null : null;
+
     return {
       etiket: `${AY_KISA[enSonAy]} ${enSonYil}`,
       magazaSayisi: buAyVerisi.length,
-      degerler: ZAMAN_DEGISKENLERI.map((d) => ({ ...d, ortalama: sonuc[d.key].sayi > 0 ? sonuc[d.key].toplam / sonuc[d.key].sayi : null })),
+      degerler: ZAMAN_DEGISKENLERI.map((d) => {
+        const ortalama = toplamlar[d.key].sayi > 0 ? toplamlar[d.key].toplam / toplamlar[d.key].sayi : null;
+        const kendi = kendiSatir ? (kendiSatir[d.key] as number | null) : null;
+        return { ...d, ortalama, kendi };
+      }),
     };
   }, [performansHam, seciliMagazaId]);
 
-  // Turnover kümülatif bir bilgi (aylık değil, mağaza başına tek değer) — Magaza listesinden hesaplanır.
+  // Turnover kümülatif bir bilgi (aylık değil, mağaza başına tek değer) — düşük olması iyi, o yüzden
+  // fark renklendirmesi diğer metriklerin tersi (fark pozitifse kırmızı, negatifse yeşil).
   const turnoverOzet = useMemo(() => {
-    if (seciliMagaza) {
-      return { istifa: seciliMagaza.istifa_turnover, fesih: seciliMagaza.fesih_turnover, toplam: seciliMagaza.toplam_turnover };
-    }
     const gecerliler = magazalar.filter((m) => m.toplam_turnover !== null || m.istifa_turnover !== null || m.fesih_turnover !== null);
     if (gecerliler.length === 0) return null;
     const ortalama = (alan: "istifa_turnover" | "fesih_turnover" | "toplam_turnover") => {
       const degerler = gecerliler.map((m) => m[alan]).filter((v): v is number => v !== null);
       return degerler.length > 0 ? degerler.reduce((s, v) => s + v, 0) / degerler.length : null;
     };
-    return { istifa: ortalama("istifa_turnover"), fesih: ortalama("fesih_turnover"), toplam: ortalama("toplam_turnover") };
+    return {
+      istifa: { ortalama: ortalama("istifa_turnover"), kendi: seciliMagaza?.istifa_turnover ?? null },
+      fesih: { ortalama: ortalama("fesih_turnover"), kendi: seciliMagaza?.fesih_turnover ?? null },
+      toplam: { ortalama: ortalama("toplam_turnover"), kendi: seciliMagaza?.toplam_turnover ?? null },
+    };
   }, [magazalar, seciliMagaza]);
 
   return (
@@ -369,31 +409,26 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
 
         {(enSonAyOzeti || turnoverOzet) && (
           <div className="mb-1">
-            <div className="text-[10px] text-gray-400 mb-1.5">
+            <div className="text-[11px] text-gray-400 mb-2">
               {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı{enSonAyOzeti && ` — ${enSonAyOzeti.etiket}`}
               {!seciliMagaza && enSonAyOzeti && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {enSonAyOzeti?.degerler.map((d) => (
-                <div key={d.key} className="bg-gray-50 rounded-md px-1.5 py-1.5">
-                  <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">{d.label}</div>
-                  <div className="text-[11px] font-mono font-semibold text-navy-3">{d.ortalama !== null ? d.format(d.ortalama) : "—"}</div>
-                </div>
+                <KpiKart
+                  key={d.key}
+                  label={d.label}
+                  kendi={d.kendi}
+                  ortalama={d.ortalama}
+                  format={d.format}
+                  seciliVar={!!seciliMagaza}
+                />
               ))}
               {turnoverOzet && (
                 <>
-                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
-                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">İstifa Turnover</div>
-                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.istifa !== null ? `%${turnoverOzet.istifa.toFixed(1)}` : "—"}</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
-                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">Fesih Turnover</div>
-                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.fesih !== null ? `%${turnoverOzet.fesih.toFixed(1)}` : "—"}</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-md px-1.5 py-1.5">
-                    <div className="text-[8px] text-gray-400 uppercase leading-tight mb-0.5">Toplam Turnover</div>
-                    <div className="text-[11px] font-mono font-semibold text-navy-3">{turnoverOzet.toplam !== null ? `%${turnoverOzet.toplam.toFixed(1)}` : "—"}</div>
-                  </div>
+                  <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
                 </>
               )}
             </div>
