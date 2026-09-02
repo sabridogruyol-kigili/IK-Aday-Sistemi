@@ -7,6 +7,7 @@ import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarPerformans } from "./actions-performans";
 import { iceAktarMagazaBilgisi } from "./actions-magazabilgisi";
 import { iceAktarTurnover } from "./actions-turnover";
+import { iceAktarMagazaPerformans } from "./actions-magaza-performans";
 import { getSonImportlar, kaydetImportGecmisi, type SonImport } from "./actions-gecmis";
 import PerformansAylikDurum from "./PerformansAylikDurum";
 
@@ -62,6 +63,14 @@ const SABLONLAR: Sablon[] = [
       "Şablon sütunları: Mağaza Kodu, İstifa Turnover, Fesih Turnover, Toplam Turnover. Kümülatif bir bilgidir (aylık değil) — her mağaza için tek bir değer olarak üzerine yazılır. Mağaza sistemde önceden kayıtlı olmalı.",
     action: iceAktarTurnover,
     parcaBoyutu: 2000,
+  },
+  {
+    key: "magaza_performans",
+    label: "Mağaza + Performans (Birleşik)",
+    aciklama:
+      "Mağaza Bilgisi ve Performans'ın birleştiği tek dosya. Her mağaza+ay için önce kişi satırları, en altta mağaza toplamını temsil eden bir 'Total' satırı gelir (Total satırında mağaza kodu yazmaz, bir önceki satırlardan otomatik takip edilir). HGO (hem Ciro hem Adet) dosyada hazır gelmiyor, gerçekleşen/hedef oranından hesaplanır. Sicili sistemde olmayan kişiler otomatik oluşturulur, ünvan kısaltmaları (MAĞAZA MD. vb.) tam ünvana çevrilip kategoriye bağlanır.",
+    action: iceAktarMagazaPerformans,
+    parcaBoyutu: 1500,
   },
 ];
 
