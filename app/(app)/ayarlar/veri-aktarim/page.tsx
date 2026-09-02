@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import ImportForm from "./ImportForm";
+import VeriYonetimi from "./VeriYonetimi";
 
 export default async function VeriAktarimPage() {
   const supabase = createClient();
@@ -10,5 +10,5 @@ export default async function VeriAktarimPage() {
   const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
   if (me?.rol !== "YONETIM") redirect("/dashboard");
 
-  return <ImportForm />;
+  return <VeriYonetimi />;
 }
