@@ -4,9 +4,8 @@ import Link from "next/link";
 
 const SEKMELER = [
   { href: "/ayarlar/kullanicilar", label: "Kullanıcılar" },
-  { href: "/ayarlar/veri-aktarim", label: "Veri İçe Aktar" },
+  { href: "/ayarlar/veri-aktarim", label: "Veri Yönetimi" },
   { href: "/ayarlar/magazalar", label: "Mağazalar / Bölgeler / Normlar" },
-  { href: "/ayarlar/veriler", label: "İçe Aktarılan Veriler" },
 ];
 
 export default async function AyarlarLayout({ children }: { children: React.ReactNode }) {
