@@ -13,7 +13,7 @@ const SEKMELER: { key: Sekme; label: string }[] = [
   { key: "performans_magaza", label: "Performans — Mağaza Bazlı" },
 ];
 
-export default function VerilerTablosu() {
+export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: number } = {}) {
   const [sekme, setSekme] = useState<Sekme>("personel");
   const [arama, setArama] = useState("");
   const [aramaGecikmeli, setAramaGecikmeli] = useState("");
@@ -40,7 +40,7 @@ export default function VerilerTablosu() {
       setToplam(res.toplam);
       setYukleniyor(false);
     });
-  }, [sekme, sayfa, aramaGecikmeli]);
+  }, [sekme, sayfa, aramaGecikmeli, yenilemeTetik]);
 
   const toplamSayfa = Math.max(1, Math.ceil(toplam / SAYFA_BOYUTU));
 
