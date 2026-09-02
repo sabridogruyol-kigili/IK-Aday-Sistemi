@@ -74,7 +74,7 @@ const SABLONLAR: Sablon[] = [
   },
 ];
 
-export default function ImportForm() {
+export default function ImportForm({ onBasarili }: { onBasarili?: () => void } = {}) {
   const [sablonKey, setSablonKey] = useState(SABLONLAR[0].key);
   const sablon = SABLONLAR.find((s) => s.key === sablonKey)!;
 
@@ -323,6 +323,7 @@ export default function ImportForm() {
         kaydetImportGecmisi(sablon.key, toplamBasarili, tumHatalar.length).then(() => {
           getSonImportlar().then(setSonImportlar);
         });
+        if (toplamBasarili > 0) onBasarili?.();
       }
     });
   }
