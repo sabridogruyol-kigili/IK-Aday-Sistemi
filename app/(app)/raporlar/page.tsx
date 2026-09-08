@@ -2,6 +2,24 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RaporlarClient from "./RaporlarClient";
 
+// Supabase tek sorguda en fazla 1000 satır döndürür — personel ve aylık
+// performans satır sayımız bunu kolayca aşabildiği için sayfalayarak
+// (1000'erlik parçalar hâlinde) çekiyoruz.
+async function tumSatirlariGetir<T>(sorguOlustur: (bas: number, bitis: number) => any): Promise<T[]> {
+  const PARCA = 1000;
+  let tumSatirlar: T[] = [];
+  let sayfa = 0;
+  while (true) {
+    const bas = sayfa * PARCA;
+    const { data, error } = await sorguOlustur(bas, bas + PARCA - 1);
+    if (error || !data) break;
+    tumSatirlar = tumSatirlar.concat(data as T[]);
+    if (data.length < PARCA) break;
+    sayfa++;
+  }
+  return tumSatirlar;
+}
+
 export default async function RaporlarPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -16,17 +34,33 @@ export default async function RaporlarPage() {
     .eq("aktif", true);
   const magazaIdleri = (magazalarHam ?? []).map((m: any) => m.id);
 
-  const [normRes, personelRes, talepRes, performansMagazaRes] = await Promise.all([
+  const [normRes, personelListesi, talepRes, performansMagazaListesi] = await Promise.all([
     magazaIdleri.length > 0
       ? supabase.from("norm").select("magaza_id, ana_kadro_norm, donemsel_norm, part_time_norm").in("magaza_id", magazaIdleri)
       : Promise.resolve({ data: [] as any[] }),
     magazaIdleri.length > 0
-      ? supabase.from("personel").select("guncel_magaza_id, kadro_kategorisi, durum, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi").in("guncel_magaza_id", magazaIdleri)
-      : Promise.resolve({ data: [] as any[] }),
+      ? tumSatirlariGetir<any>((bas, bitis) =>
+          supabase
+            .from("personel")
+            .select("guncel_magaza_id, kadro_kategorisi, durum, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi")
+            .eq("durum", "aktif")
+            .not("tc_kimlik_no", "like", "PLASIYER-%")
+            .in("guncel_magaza_id", magazaIdleri)
+            .range(bas, bitis)
+        )
+      : Promise.resolve([]),
     supabase.from("talepler").select("talep_turu, durum"),
     magazaIdleri.length > 0
-      ? supabase.from("performans_magaza_aylik").select("magaza_id, yil, ay, hgo").in("magaza_id", magazaIdleri).order("yil").order("ay")
-      : Promise.resolve({ data: [] as any[] }),
+      ? tumSatirlariGetir<any>((bas, bitis) =>
+          supabase
+            .from("performans_magaza_aylik")
+            .select("magaza_id, yil, ay, hgo")
+            .in("magaza_id", magazaIdleri)
+            .order("yil")
+            .order("ay")
+            .range(bas, bitis)
+        )
+      : Promise.resolve([]),
   ]);
 
   const normMap: Record<string, { ana: number; don: number; pt: number }> = {};
@@ -35,7 +69,7 @@ export default async function RaporlarPage() {
   });
 
   const doluMap: Record<string, number> = {};
-  const aktifPersonel = (personelRes.data ?? []).filter((p: any) => p.durum === "aktif");
+  const aktifPersonel = personelListesi ?? [];
   aktifPersonel.forEach((p: any) => {
     if (["ANA_KADRO", "DONEMSEL", "PART_TIME"].includes(p.kadro_kategorisi)) {
       doluMap[p.guncel_magaza_id] = (doluMap[p.guncel_magaza_id] ?? 0) + 1;
@@ -97,7 +131,7 @@ export default async function RaporlarPage() {
   (magazalarHam ?? []).forEach((m: any) => { magazaBolgeMap[m.id] = m.bolgeler?.ad ?? "Tanımsız"; });
 
   const aySayac: Record<string, { toplam: number; adet: number }> = {};
-  (performansMagazaRes.data ?? []).forEach((p: any) => {
+  (performansMagazaListesi ?? []).forEach((p: any) => {
     if (p.hgo == null) return;
     const key = `${p.yil}-${String(p.ay).padStart(2, "0")}`;
     if (!aySayac[key]) aySayac[key] = { toplam: 0, adet: 0 };
