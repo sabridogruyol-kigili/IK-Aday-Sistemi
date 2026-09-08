@@ -3,6 +3,23 @@ import { createClient } from "@/lib/supabase/server";
 import TalepForm from "./TalepForm";
 import CikarmaForm from "./CikarmaForm";
 
+// Supabase tek sorguda en fazla 1000 satır döndürür — personel sayımız bunu
+// aşabileceği için sayfalayarak (1000'erlik parçalar hâlinde) çekiyoruz.
+async function tumSatirlariGetir<T>(sorguOlustur: (bas: number, bitis: number) => any): Promise<T[]> {
+  const PARCA = 1000;
+  let tumSatirlar: T[] = [];
+  let sayfa = 0;
+  while (true) {
+    const bas = sayfa * PARCA;
+    const { data, error } = await sorguOlustur(bas, bas + PARCA - 1);
+    if (error || !data) break;
+    tumSatirlar = tumSatirlar.concat(data as T[]);
+    if (data.length < PARCA) break;
+    sayfa++;
+  }
+  return tumSatirlar;
+}
+
 export default async function YeniTalepPage({ searchParams }: { searchParams: { tur?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,12 +41,15 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
     .order("unvan");
   const pozisyonlar = pozisyonlarHam ?? [];
 
-  const { data: personelHam } = await supabase
-    .from("personel")
-    .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar!inner(magaza_adi, bolge_id, aktif, bolgeler(ad))")
-    .eq("durum", "aktif")
-    .eq("magazalar.aktif", true)
-    .order("ad_soyad");
+  const personelHam = await tumSatirlariGetir<any>((bas, bitis) =>
+    supabase
+      .from("personel")
+      .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar!inner(magaza_adi, bolge_id, aktif, bolgeler(ad))")
+      .eq("durum", "aktif")
+      .eq("magazalar.aktif", true)
+      .order("ad_soyad")
+      .range(bas, bitis)
+  );
 
   const personelListesi = (personelHam ?? []).map((p: any) => ({
     id: p.id,
