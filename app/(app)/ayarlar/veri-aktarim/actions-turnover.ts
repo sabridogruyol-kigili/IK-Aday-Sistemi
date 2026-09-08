@@ -84,5 +84,6 @@ export async function iceAktarTurnover(rows: any[]): Promise<Sonuc> {
 
   revalidatePath("/dashboard");
   revalidatePath("/norm");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili, hatalar };
 }
