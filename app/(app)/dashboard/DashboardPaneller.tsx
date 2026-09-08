@@ -18,6 +18,11 @@ type PerformansSatiri = {
   adet_hgo: number | null; satis_adeti: number | null; toplam_ciro_kdv_dahil: number | null;
   omnichannel_ciro: number | null; omnichannel_haric_ciro: number | null;
 };
+type PerformansKisiSatiri = {
+  personel_id: string; yil: number; ay: number; hgo: number | null; adet_hgo: number | null;
+  gerceklesen_ciro_kdv_dahil: number | null;
+  personel: { ad_soyad: string; guncel_unvan: string | null; guncel_magaza_id: string | null; durum: string } | null;
+};
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -108,117 +113,14 @@ function KpiKart({
   );
 }
 
-function BolgeDropdownFiltre({ bolgeler, secilenler, setSecilenler }: { bolgeler: Bolge[]; secilenler: Set<string>; setSecilenler: (s: Set<string>) => void }) {
-  const [acik, setAcik] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function disaTikla(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setAcik(false); }
-    document.addEventListener("mousedown", disaTikla);
-    return () => document.removeEventListener("mousedown", disaTikla);
-  }, []);
-  function toggle(id: string) {
-    const yeni = new Set(secilenler);
-    if (yeni.has(id)) yeni.delete(id); else yeni.add(id);
-    setSecilenler(yeni);
-  }
-  const etiket = secilenler.size === 0 ? "Tüm Bölgeler" : secilenler.size === 1 ? bolgeler.find((b) => secilenler.has(b.id))?.ad ?? "1 bölge" : `${secilenler.size} bölge seçili`;
-  return (
-    <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setAcik((v) => !v)}
-        className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white flex items-center gap-1.5 min-w-[120px] justify-between">
-        <span className={secilenler.size === 0 ? "text-gray-500" : "text-navy-3"}>{etiket}</span>
-        <span className={`text-[8px] text-gray-400 transition-transform ${acik ? "rotate-180" : ""}`}>▼</span>
-      </button>
-      <div className={`absolute z-20 mt-1 w-52 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-y-auto divide-y divide-gray-100 ${acik ? "block" : "hidden"}`}>
-        {secilenler.size > 0 && (
-          <button onClick={() => setSecilenler(new Set())} className="w-full text-left text-[11px] text-info px-2.5 py-1.5 hover:bg-gray-50">Seçimi temizle</button>
-        )}
-        {bolgeler.map((b) => (
-          <label key={b.id} className="flex items-center gap-2 text-[11px] text-gray-600 px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer">
-            <input type="checkbox" checked={secilenler.has(b.id)} onChange={() => toggle(b.id)} />
-            {b.ad}
-          </label>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export default function DashboardPaneller({ magazalar, bolgeler, performansHam }: { magazalar: Magaza[]; bolgeler: Bolge[]; performansHam: PerformansSatiri[] }) {
-  // ---- Sol panel (Mağazalar) filtreleri ----
-  const [solBolgeler, setSolBolgeler] = useState<Set<string>>(new Set());
-  const [solArama, setSolArama] = useState("");
-  const [normMin, setNormMin] = useState("");
-  const [normMax, setNormMax] = useState("");
-  const [durumFiltre, setDurumFiltre] = useState<Set<NormDurum>>(new Set());
-
-  // ---- Sağ panel (Performans) filtreleri ----
-  const [sagBolgeler, setSagBolgeler] = useState<Set<string>>(new Set());
-  const [hgoMin, setHgoMin] = useState("");
-  const [hgoMax, setHgoMax] = useState("");
-  const [yilFiltre, setYilFiltre] = useState("");
-  const [ayFiltre, setAyFiltre] = useState("");
-
-  const [seciliMagazaId, setSeciliMagazaId] = useState<string | null>(null);
-
-  const magazaMap = useMemo(() => {
-    const m: Record<string, Magaza> = {};
-    magazalar.forEach((mag) => { m[mag.id] = mag; });
-    return m;
-  }, [magazalar]);
-
-  function durumToggle(d: NormDurum) {
-    const yeni = new Set(durumFiltre);
-    if (yeni.has(d)) yeni.delete(d); else yeni.add(d);
-    setDurumFiltre(yeni);
-  }
-
-  const solFiltrelenmis = magazalar.filter((m) => {
-    if (solBolgeler.size > 0 && (!m.bolge_id || !solBolgeler.has(m.bolge_id))) return false;
-    if (solArama && !`${m.magaza_kodu} ${m.magaza_adi}`.toLocaleLowerCase("tr-TR").includes(solArama.toLocaleLowerCase("tr-TR"))) return false;
-    if (normMin !== "" && m.toplamNorm < Number(normMin)) return false;
-    if (normMax !== "" && m.toplamNorm > Number(normMax)) return false;
-    if (durumFiltre.size > 0 && !durumFiltre.has(normDurumu(m))) return false;
-    return true;
-  });
-
-  const yilSecenekleri = Array.from(new Set(performansHam.map((p) => p.yil))).sort((a, b) => b - a);
-  const aySecenekleri = Array.from(new Set(performansHam.map((p) => p.ay))).sort((a, b) => a - b);
-
-  const sagFiltrelenmisHam = performansHam.filter((p) => {
-    if (p.hgo === null) return false;
-    const magaza = magazaMap[p.magaza_id];
-    if (!magaza) return false;
-    if (sagBolgeler.size > 0 && (!magaza.bolge_id || !sagBolgeler.has(magaza.bolge_id))) return false;
-    if (hgoMin !== "" && p.hgo < Number(hgoMin)) return false;
-    if (hgoMax !== "" && p.hgo > Number(hgoMax)) return false;
-    if (yilFiltre !== "" && p.yil !== Number(yilFiltre)) return false;
-    if (ayFiltre !== "" && p.ay !== Number(ayFiltre)) return false;
-    return true;
-  });
-
-  // Seçili mağaza yoksa: her mağaza için (filtreye uyan aylar içinden) en güncel ay gösterilir.
-  const listeGorunumu = useMemo(() => {
-    const enSon: Record<string, PerformansSatiri> = {};
-    sagFiltrelenmisHam.forEach((p) => {
-      const mevcut = enSon[p.magaza_id];
-      if (!mevcut || p.yil > mevcut.yil || (p.yil === mevcut.yil && p.ay > mevcut.ay)) enSon[p.magaza_id] = p;
-    });
-    return Object.values(enSon).sort((a, b) => (b.hgo ?? 0) - (a.hgo ?? 0));
-  }, [sagFiltrelenmisHam]);
-
-  // Seçili mağaza varsa: o mağazanın (filtreye uyan) tüm ayları, en yeniden eskiye.
-  const detayGorunumu = useMemo(() => {
-    if (!seciliMagazaId) return [];
-    return sagFiltrelenmisHam
-      .filter((p) => p.magaza_id === seciliMagazaId)
-      .sort((a, b) => (b.yil - a.yil) || (b.ay - a.ay));
-  }, [sagFiltrelenmisHam, seciliMagazaId]);
-
-  const seciliMagaza = seciliMagazaId ? magazaMap[seciliMagazaId] : null;
-
-  // ---- Zaman İçinde Performans grafiği ----
-  const [zamanDegisken, setZamanDegisken] = useState<keyof PerformansSatiri>("hgo");
+// "Zaman İçinde Performans" grafiği — kendi değişken/dönem seçimini kendi içinde
+// tutar, böylece aynı sayfada birbirinden bağımsız birden fazla örneği kullanılabilir.
+function ZamanGrafigi({
+  performansHam, seciliMagaza, seciliMagazaId, varsayilanDegisken,
+}: {
+  performansHam: PerformansSatiri[]; seciliMagaza: Magaza | null; seciliMagazaId: string | null; varsayilanDegisken: keyof PerformansSatiri;
+}) {
+  const [zamanDegisken, setZamanDegisken] = useState<keyof PerformansSatiri>(varsayilanDegisken);
   const zamanTanim = ZAMAN_DEGISKENLERI.find((d) => d.key === zamanDegisken)!;
 
   const tumDonemler = useMemo(() => {
@@ -264,179 +166,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
       }));
   }, [performansHam, zamanDegisken, etkinBaslangic, etkinBitis, seciliMagazaId]);
 
-  const enSonAyOzeti = useMemo(() => {
-    if (performansHam.length === 0) return null;
-
-    // Referans dönem her zaman TÜM verideki en güncel ay (mağaza seçili olsa da olmasa da aynı dönemle karşılaştırma yapılır).
-    let enSonYil = 0, enSonAy = 0;
-    performansHam.forEach((p) => {
-      if (p.yil > enSonYil || (p.yil === enSonYil && p.ay > enSonAy)) { enSonYil = p.yil; enSonAy = p.ay; }
-    });
-    const buAyVerisi = performansHam.filter((p) => p.yil === enSonYil && p.ay === enSonAy);
-    if (buAyVerisi.length === 0) return null;
-
-    const toplamlar: Record<string, { toplam: number; sayi: number }> = {};
-    ZAMAN_DEGISKENLERI.forEach((d) => { toplamlar[d.key] = { toplam: 0, sayi: 0 }; });
-    buAyVerisi.forEach((p) => {
-      ZAMAN_DEGISKENLERI.forEach((d) => {
-        const deger = p[d.key];
-        if (deger === null || deger === undefined) return;
-        toplamlar[d.key].toplam += deger as number;
-        toplamlar[d.key].sayi += 1;
-      });
-    });
-
-    const kendiSatir = seciliMagazaId ? buAyVerisi.find((p) => p.magaza_id === seciliMagazaId) ?? null : null;
-
-    return {
-      etiket: `${AY_KISA[enSonAy]} ${enSonYil}`,
-      magazaSayisi: buAyVerisi.length,
-      degerler: ZAMAN_DEGISKENLERI.map((d) => {
-        const ortalama = toplamlar[d.key].sayi > 0 ? toplamlar[d.key].toplam / toplamlar[d.key].sayi : null;
-        const kendi = kendiSatir ? (kendiSatir[d.key] as number | null) : null;
-        return { ...d, ortalama, kendi };
-      }),
-    };
-  }, [performansHam, seciliMagazaId]);
-
-  // Turnover kümülatif bir bilgi (aylık değil, mağaza başına tek değer) — düşük olması iyi, o yüzden
-  // fark renklendirmesi diğer metriklerin tersi (fark pozitifse kırmızı, negatifse yeşil).
-  const turnoverOzet = useMemo(() => {
-    const gecerliler = magazalar.filter((m) => m.toplam_turnover !== null || m.istifa_turnover !== null || m.fesih_turnover !== null);
-    if (gecerliler.length === 0) return null;
-    const ortalama = (alan: "istifa_turnover" | "fesih_turnover" | "toplam_turnover") => {
-      const degerler = gecerliler.map((m) => m[alan]).filter((v): v is number => v !== null);
-      return degerler.length > 0 ? degerler.reduce((s, v) => s + v, 0) / degerler.length : null;
-    };
-    return {
-      istifa: { ortalama: ortalama("istifa_turnover"), kendi: seciliMagaza?.istifa_turnover ?? null },
-      fesih: { ortalama: ortalama("fesih_turnover"), kendi: seciliMagaza?.fesih_turnover ?? null },
-      toplam: { ortalama: ortalama("toplam_turnover"), kendi: seciliMagaza?.toplam_turnover ?? null },
-    };
-  }, [magazalar, seciliMagaza]);
-
   return (
-    <>
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* SOL PANEL — Mağazalar */}
-      <div className="bg-white border border-gray-200 rounded-card p-4">
-        <div className="text-sm font-semibold text-navy-3 mb-2">Mağazalar — Norm Doluluk</div>
-        <div className="text-[10px] text-gray-400 mb-2">Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür.</div>
-
-        <div className="flex flex-wrap gap-2 mb-2 items-center">
-          <input value={solArama} onChange={(e) => setSolArama(e.target.value)} placeholder="Mağaza kodu/adı ara..."
-            className="border border-gray-300 rounded-md px-2 py-1 text-[11px] w-40" />
-          <BolgeDropdownFiltre bolgeler={bolgeler} secilenler={solBolgeler} setSecilenler={setSolBolgeler} />
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-gray-400">Norm</span>
-            <input type="number" value={normMin} onChange={(e) => setNormMin(e.target.value)} placeholder="min" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
-            <span className="text-gray-300 text-[10px]">–</span>
-            <input type="number" value={normMax} onChange={(e) => setNormMax(e.target.value)} placeholder="max" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {(Object.keys(DURUM_ETIKET) as NormDurum[]).map((d) => (
-            <button
-              key={d}
-              onClick={() => durumToggle(d)}
-              className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] border ${
-                durumFiltre.has(d) ? "border-navy bg-navy/5 text-navy-3 font-medium" : "border-gray-200 text-gray-500"
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${DURUM_NOKTA[d]}`} />
-              {DURUM_ETIKET[d]}
-            </button>
-          ))}
-        </div>
-
-        {solFiltrelenmis.length === 0 ? (
-          <div className="text-xs text-gray-400">Bu filtreye uyan mağaza yok.</div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[480px] overflow-y-auto pr-1">
-            {solFiltrelenmis.map((m) => {
-              const durum = normDurumu(m);
-              const secili = seciliMagazaId === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => setSeciliMagazaId(secili ? null : m.id)}
-                  className={`text-left border border-gray-100 ${DURUM_BORDER[durum]} rounded-md p-2 transition-colors ${
-                    secili ? "bg-navy/5 ring-1 ring-navy" : "hover:bg-gray-50"
-                  }`}
-                  title={`${m.magaza_adi} — ${m.bolge_adi} (${DURUM_ETIKET[durum]})`}
-                >
-                  <div className="text-[11px] text-gray-700 truncate mb-0.5 font-medium">{m.magaza_adi}</div>
-                  <div className="text-[9px] text-gray-400 truncate mb-1.5">{m.bolge_adi || "—"}</div>
-                  <div className="space-y-1">
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-navy rounded-full" style={{ width: `${oranHesap(m.ana_dolu, m.ana_norm)}%` }} />
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-accent rounded-full" style={{ width: `${oranHesap(m.donemsel_dolu, m.donemsel_norm)}%` }} />
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-info rounded-full" style={{ width: `${oranHesap(m.part_dolu, m.part_norm)}%` }} />
-                    </div>
-                  </div>
-                  <div className="text-[9px] text-gray-400 font-mono mt-1.5">{m.toplamDolu}/{m.toplamNorm} (%{m.oran})</div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* SAĞ PANEL — Performans */}
-      <div className="bg-white border border-gray-200 rounded-card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-semibold text-navy-3">
-            {seciliMagaza ? `Performans — ${seciliMagaza.magaza_adi}` : "Mağazalar — Performans (HGO)"}
-          </div>
-          {seciliMagaza && (
-            <button onClick={() => setSeciliMagazaId(null)} className="text-[11px] text-info hover:underline">◀ Tüm Mağazalar</button>
-          )}
-        </div>
-
-        {seciliMagaza && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 bg-gray-50 rounded-md p-2.5 text-[11px]">
-            <div><div className="text-[9px] text-gray-400 uppercase">İl (tahmini)</div><div className="text-navy-3 font-medium">{ilTahminEt(seciliMagaza.magaza_adi)}</div></div>
-            <div><div className="text-[9px] text-gray-400 uppercase">Bölge</div><div className="text-navy-3 font-medium">{seciliMagaza.bolge_adi || "—"}</div></div>
-            <div><div className="text-[9px] text-gray-400 uppercase">Net m²</div><div className="text-navy-3 font-medium">{seciliMagaza.net_m2 ?? "—"}</div></div>
-            <div><div className="text-[9px] text-gray-400 uppercase">Mağaza Müdürü</div><div className="text-navy-3 font-medium">{seciliMagaza.magaza_muduru ?? "—"}</div></div>
-          </div>
-        )}
-
-        {(enSonAyOzeti || turnoverOzet) && (
-          <div className="mb-1">
-            <div className="text-[11px] text-gray-400 mb-2">
-              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı{enSonAyOzeti && ` — ${enSonAyOzeti.etiket}`}
-              {!seciliMagaza && enSonAyOzeti && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {enSonAyOzeti?.degerler.map((d) => (
-                <KpiKart
-                  key={d.key}
-                  label={d.label}
-                  kendi={d.kendi}
-                  ortalama={d.ortalama}
-                  format={d.format}
-                  seciliVar={!!seciliMagaza}
-                />
-              ))}
-              {turnoverOzet && (
-                <>
-                  <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                  <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                  <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-
     <div className="bg-white border border-gray-200 rounded-card p-4 mt-4">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="text-sm font-semibold text-navy-3">
@@ -486,6 +216,468 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam }
           : "Soldaki listeden bir mağaza seçerseniz, o mağazanın çizgisi tüm mağaza ortalamasıyla birlikte gösterilir."}
       </div>
     </div>
+  );
+}
+
+function BolgeDropdownFiltre({ bolgeler, secilenler, setSecilenler }: { bolgeler: Bolge[]; secilenler: Set<string>; setSecilenler: (s: Set<string>) => void }) {
+  const [acik, setAcik] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function disaTikla(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setAcik(false); }
+    document.addEventListener("mousedown", disaTikla);
+    return () => document.removeEventListener("mousedown", disaTikla);
+  }, []);
+  function toggle(id: string) {
+    const yeni = new Set(secilenler);
+    if (yeni.has(id)) yeni.delete(id); else yeni.add(id);
+    setSecilenler(yeni);
+  }
+  const etiket = secilenler.size === 0 ? "Tüm Bölgeler" : secilenler.size === 1 ? bolgeler.find((b) => secilenler.has(b.id))?.ad ?? "1 bölge" : `${secilenler.size} bölge seçili`;
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setAcik((v) => !v)}
+        className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white flex items-center gap-1.5 min-w-[120px] justify-between">
+        <span className={secilenler.size === 0 ? "text-gray-500" : "text-navy-3"}>{etiket}</span>
+        <span className={`text-[8px] text-gray-400 transition-transform ${acik ? "rotate-180" : ""}`}>▼</span>
+      </button>
+      <div className={`absolute z-20 mt-1 w-52 bg-white border border-gray-300 rounded-md shadow-lg max-h-52 overflow-y-auto divide-y divide-gray-100 ${acik ? "block" : "hidden"}`}>
+        {secilenler.size > 0 && (
+          <button onClick={() => setSecilenler(new Set())} className="w-full text-left text-[11px] text-info px-2.5 py-1.5 hover:bg-gray-50">Seçimi temizle</button>
+        )}
+        {bolgeler.map((b) => (
+          <label key={b.id} className="flex items-center gap-2 text-[11px] text-gray-600 px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" checked={secilenler.has(b.id)} onChange={() => toggle(b.id)} />
+            {b.ad}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPaneller({ magazalar, bolgeler, performansHam, performansKisiHam }: { magazalar: Magaza[]; bolgeler: Bolge[]; performansHam: PerformansSatiri[]; performansKisiHam: PerformansKisiSatiri[] }) {
+  // ---- Sol panel (Mağazalar) filtreleri ----
+  const [solBolgeler, setSolBolgeler] = useState<Set<string>>(new Set());
+  const [solArama, setSolArama] = useState("");
+  const [normMin, setNormMin] = useState("");
+  const [normMax, setNormMax] = useState("");
+  const [durumFiltre, setDurumFiltre] = useState<Set<NormDurum>>(new Set());
+  const [sadeceKapaliGoster, setSadeceKapaliGoster] = useState(false);
+
+  // Bir mağaza, sistemdeki EN GÜNCEL dönemde (tüm veri setindeki en son yıl-ay)
+  // Mağaza Performans verisi yoksa "Kapalı" sayılır — mağazanın kendisi aktif/pasif
+  // olarak işaretli olsa bile, bu sadece görsel bir uyarıdır, veritabanına dokunmaz.
+  const kapaliMagazaIdSet = useMemo(() => {
+    let enSonYil = 0, enSonAy = 0;
+    performansHam.forEach((p) => {
+      if (p.yil > enSonYil || (p.yil === enSonYil && p.ay > enSonAy)) { enSonYil = p.yil; enSonAy = p.ay; }
+    });
+    if (enSonYil === 0) return new Set<string>();
+    const veriOlanlar = new Set(performansHam.filter((p) => p.yil === enSonYil && p.ay === enSonAy).map((p) => p.magaza_id));
+    return new Set(magazalar.filter((m) => !veriOlanlar.has(m.id)).map((m) => m.id));
+  }, [performansHam, magazalar]);
+
+  // ---- Sağ panel (Performans) filtreleri ----
+  const [sagBolgeler, setSagBolgeler] = useState<Set<string>>(new Set());
+  const [hgoMin, setHgoMin] = useState("");
+  const [hgoMax, setHgoMax] = useState("");
+  const [yilFiltre, setYilFiltre] = useState("");
+  const [ayFiltre, setAyFiltre] = useState("");
+
+  const [seciliMagazaId, setSeciliMagazaId] = useState<string | null>(null);
+
+  const magazaMap = useMemo(() => {
+    const m: Record<string, Magaza> = {};
+    magazalar.forEach((mag) => { m[mag.id] = mag; });
+    return m;
+  }, [magazalar]);
+
+  function durumToggle(d: NormDurum) {
+    const yeni = new Set(durumFiltre);
+    if (yeni.has(d)) yeni.delete(d); else yeni.add(d);
+    setDurumFiltre(yeni);
+  }
+
+  const solFiltrelenmis = magazalar.filter((m) => {
+    if (solBolgeler.size > 0 && (!m.bolge_id || !solBolgeler.has(m.bolge_id))) return false;
+    if (solArama && !`${m.magaza_kodu} ${m.magaza_adi}`.toLocaleLowerCase("tr-TR").includes(solArama.toLocaleLowerCase("tr-TR"))) return false;
+    if (normMin !== "" && m.toplamNorm < Number(normMin)) return false;
+    if (normMax !== "" && m.toplamNorm > Number(normMax)) return false;
+    if (durumFiltre.size > 0 && !durumFiltre.has(normDurumu(m))) return false;
+    if (sadeceKapaliGoster && !kapaliMagazaIdSet.has(m.id)) return false;
+    return true;
+  });
+
+  const yilSecenekleri = Array.from(new Set(performansHam.map((p) => p.yil))).sort((a, b) => b - a);
+  const aySecenekleri = Array.from(new Set(performansHam.map((p) => p.ay))).sort((a, b) => a - b);
+
+  const sagFiltrelenmisHam = performansHam.filter((p) => {
+    if (p.hgo === null) return false;
+    const magaza = magazaMap[p.magaza_id];
+    if (!magaza) return false;
+    if (sagBolgeler.size > 0 && (!magaza.bolge_id || !sagBolgeler.has(magaza.bolge_id))) return false;
+    if (hgoMin !== "" && p.hgo < Number(hgoMin)) return false;
+    if (hgoMax !== "" && p.hgo > Number(hgoMax)) return false;
+    if (yilFiltre !== "" && p.yil !== Number(yilFiltre)) return false;
+    if (ayFiltre !== "" && p.ay !== Number(ayFiltre)) return false;
+    return true;
+  });
+
+  // Seçili mağaza yoksa: her mağaza için (filtreye uyan aylar içinden) en güncel ay gösterilir.
+  const listeGorunumu = useMemo(() => {
+    const enSon: Record<string, PerformansSatiri> = {};
+    sagFiltrelenmisHam.forEach((p) => {
+      const mevcut = enSon[p.magaza_id];
+      if (!mevcut || p.yil > mevcut.yil || (p.yil === mevcut.yil && p.ay > mevcut.ay)) enSon[p.magaza_id] = p;
+    });
+    return Object.values(enSon).sort((a, b) => (b.hgo ?? 0) - (a.hgo ?? 0));
+  }, [sagFiltrelenmisHam]);
+
+  // Seçili mağaza varsa: o mağazanın (filtreye uyan) tüm ayları, en yeniden eskiye.
+  const detayGorunumu = useMemo(() => {
+    if (!seciliMagazaId) return [];
+    return sagFiltrelenmisHam
+      .filter((p) => p.magaza_id === seciliMagazaId)
+      .sort((a, b) => (b.yil - a.yil) || (b.ay - a.ay));
+  }, [sagFiltrelenmisHam, seciliMagazaId]);
+
+  const seciliMagaza = seciliMagazaId ? magazaMap[seciliMagazaId] : null;
+
+  // ---- Zaman İçinde Performans grafiği ----
+  const enSonAyOzeti = useMemo(() => {
+    if (performansHam.length === 0) return null;
+
+    let enSonYil = 0, enSonAy = 0;
+
+    if (seciliMagazaId) {
+      // Mağaza seçiliyse referans dönem o mağazanın KENDİ en güncel ayı — başka bir
+      // mağazada daha yeni bir ay varsa bile bu mağazanın kendi geçmişi kaybolmasın.
+      performansHam.forEach((p) => {
+        if (p.magaza_id !== seciliMagazaId) return;
+        if (p.yil > enSonYil || (p.yil === enSonYil && p.ay > enSonAy)) { enSonYil = p.yil; enSonAy = p.ay; }
+      });
+      if (enSonYil === 0) return null; // bu mağaza için hiç veri yok
+    } else {
+      // Mağaza seçili değilse tüm veri setindeki en güncel ay kullanılır.
+      performansHam.forEach((p) => {
+        if (p.yil > enSonYil || (p.yil === enSonYil && p.ay > enSonAy)) { enSonYil = p.yil; enSonAy = p.ay; }
+      });
+    }
+
+    const buAyVerisi = performansHam.filter((p) => p.yil === enSonYil && p.ay === enSonAy);
+    if (buAyVerisi.length === 0) return null;
+
+    const toplamlar: Record<string, { toplam: number; sayi: number }> = {};
+    ZAMAN_DEGISKENLERI.forEach((d) => { toplamlar[d.key] = { toplam: 0, sayi: 0 }; });
+    buAyVerisi.forEach((p) => {
+      ZAMAN_DEGISKENLERI.forEach((d) => {
+        const deger = p[d.key];
+        if (deger === null || deger === undefined) return;
+        toplamlar[d.key].toplam += deger as number;
+        toplamlar[d.key].sayi += 1;
+      });
+    });
+
+    const kendiSatir = seciliMagazaId ? buAyVerisi.find((p) => p.magaza_id === seciliMagazaId) ?? null : null;
+
+    return {
+      etiket: `${AY_KISA[enSonAy]} ${enSonYil}`,
+      magazaSayisi: buAyVerisi.length,
+      degerler: ZAMAN_DEGISKENLERI.map((d) => {
+        const ortalama = toplamlar[d.key].sayi > 0 ? toplamlar[d.key].toplam / toplamlar[d.key].sayi : null;
+        const kendi = kendiSatir ? (kendiSatir[d.key] as number | null) : null;
+        return { ...d, ortalama, kendi };
+      }),
+    };
+  }, [performansHam, seciliMagazaId]);
+
+  // Turnover kümülatif bir bilgi (aylık değil, mağaza başına tek değer) — düşük olması iyi, o yüzden
+  // fark renklendirmesi diğer metriklerin tersi (fark pozitifse kırmızı, negatifse yeşil).
+  const turnoverOzet = useMemo(() => {
+    const gecerliler = magazalar.filter((m) => m.toplam_turnover !== null || m.istifa_turnover !== null || m.fesih_turnover !== null);
+    if (gecerliler.length === 0) return null;
+    const ortalama = (alan: "istifa_turnover" | "fesih_turnover" | "toplam_turnover") => {
+      const degerler = gecerliler.map((m) => m[alan]).filter((v): v is number => v !== null);
+      return degerler.length > 0 ? degerler.reduce((s, v) => s + v, 0) / degerler.length : null;
+    };
+    return {
+      istifa: { ortalama: ortalama("istifa_turnover"), kendi: seciliMagaza?.istifa_turnover ?? null },
+      fesih: { ortalama: ortalama("fesih_turnover"), kendi: seciliMagaza?.fesih_turnover ?? null },
+      toplam: { ortalama: ortalama("toplam_turnover"), kendi: seciliMagaza?.toplam_turnover ?? null },
+    };
+  }, [magazalar, seciliMagaza]);
+
+  // ---- Çalışan sayısı / satış yapan çalışan oranı (kişi bazlı performanstan) ----
+  // Not: performans_kisi_aylik satırında mağaza bilgisi yok, personelin GÜNCEL
+  // mağazası üzerinden eşleştiriliyor (geçmiş bir ay için o kişi başka bir
+  // mağazadaysa bu yaklaşık bir değerdir, ama elimizdeki en iyi veri budur).
+  const magazaDonemGruplari = useMemo(() => {
+    const gruplar: Record<string, Record<number, PerformansKisiSatiri[]>> = {};
+    performansKisiHam.forEach((s) => {
+      const magazaId = s.personel?.guncel_magaza_id;
+      if (!magazaId) return;
+      const donem = s.yil * 100 + s.ay;
+      if (!gruplar[magazaId]) gruplar[magazaId] = {};
+      if (!gruplar[magazaId][donem]) gruplar[magazaId][donem] = [];
+      gruplar[magazaId][donem].push(s);
+    });
+    return gruplar;
+  }, [performansKisiHam]);
+
+  const magazaCalisanMetrikleri = useMemo(() => {
+    const sonuc: Record<string, { calisanSayisi: number; satisYapan: number; enSonDonem: number }> = {};
+    Object.entries(magazaDonemGruplari).forEach(([magazaId, donemler]) => {
+      const donemKodlari = Object.keys(donemler).map(Number);
+      const enSonDonem = Math.max(...donemKodlari);
+      const satirlar = donemler[enSonDonem];
+      sonuc[magazaId] = {
+        calisanSayisi: satirlar.length,
+        satisYapan: satirlar.filter((s) => (s.gerceklesen_ciro_kdv_dahil ?? 0) > 0).length,
+        enSonDonem,
+      };
+    });
+    return sonuc;
+  }, [magazaDonemGruplari]);
+
+  const calisanKpiOzet = useMemo(() => {
+    const tumMagazalar = Object.values(magazaCalisanMetrikleri);
+    if (tumMagazalar.length === 0) return null;
+    const ortalamaCalisan = tumMagazalar.reduce((s, m) => s + m.calisanSayisi, 0) / tumMagazalar.length;
+    const ortalamaSatisYapan = tumMagazalar.reduce((s, m) => s + m.satisYapan, 0) / tumMagazalar.length;
+    const oranlar = tumMagazalar.filter((m) => m.calisanSayisi > 0).map((m) => (m.satisYapan / m.calisanSayisi) * 100);
+    const ortalamaOran = oranlar.length > 0 ? oranlar.reduce((s, v) => s + v, 0) / oranlar.length : null;
+
+    const kendiMetrik = seciliMagazaId ? magazaCalisanMetrikleri[seciliMagazaId] : null;
+    const kendiOran = kendiMetrik && kendiMetrik.calisanSayisi > 0 ? (kendiMetrik.satisYapan / kendiMetrik.calisanSayisi) * 100 : null;
+
+    return {
+      calisanSayisi: { kendi: kendiMetrik?.calisanSayisi ?? null, ortalama: ortalamaCalisan },
+      satisYapan: { kendi: kendiMetrik?.satisYapan ?? null, ortalama: ortalamaSatisYapan },
+      oran: { kendi: kendiOran, ortalama: ortalamaOran },
+    };
+  }, [magazaCalisanMetrikleri, seciliMagazaId]);
+
+  // ---- Seçili mağazanın çalışan listesi (dönem seçilebilir) ----
+  const magazaDonemSecenekleri = useMemo(() => {
+    if (!seciliMagazaId || !magazaDonemGruplari[seciliMagazaId]) return [];
+    return Object.keys(magazaDonemGruplari[seciliMagazaId]).map(Number).sort((a, b) => b - a);
+  }, [magazaDonemGruplari, seciliMagazaId]);
+
+  const [calisanListesiDonem, setCalisanListesiDonem] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Mağaza değişince, o mağazanın kendi en güncel dönemine sıfırla.
+    setCalisanListesiDonem(magazaDonemSecenekleri[0] ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seciliMagazaId]);
+
+  const calisanListesi = useMemo(() => {
+    if (!seciliMagazaId || calisanListesiDonem === null) return [];
+    const satirlar = magazaDonemGruplari[seciliMagazaId]?.[calisanListesiDonem] ?? [];
+    return satirlar
+      .filter((s) => s.personel)
+      .map((s) => ({ ad_soyad: s.personel!.ad_soyad, unvan: s.personel!.guncel_unvan, hgo: s.hgo }))
+      .sort((a, b) => (b.hgo ?? -Infinity) - (a.hgo ?? -Infinity));
+  }, [magazaDonemGruplari, seciliMagazaId, calisanListesiDonem]);
+
+  return (
+    <>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* SOL PANEL — Mağazalar */}
+      <div className="bg-white border border-gray-200 rounded-card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-semibold text-navy-3">Mağazalar — Norm Doluluk</div>
+          <div className="text-[11px] text-gray-400">
+            {solFiltrelenmis.length === magazalar.length
+              ? `${magazalar.length} mağaza`
+              : `${solFiltrelenmis.length} / ${magazalar.length} mağaza`}
+          </div>
+        </div>
+        <div className="text-[10px] text-gray-400 mb-2">Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür.</div>
+
+        <div className="flex flex-wrap gap-2 mb-2 items-center">
+          <input value={solArama} onChange={(e) => setSolArama(e.target.value)} placeholder="Mağaza kodu/adı ara..."
+            className="border border-gray-300 rounded-md px-2 py-1 text-[11px] w-40" />
+          <BolgeDropdownFiltre bolgeler={bolgeler} secilenler={solBolgeler} setSecilenler={setSolBolgeler} />
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-gray-400">Norm</span>
+            <input type="number" value={normMin} onChange={(e) => setNormMin(e.target.value)} placeholder="min" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
+            <span className="text-gray-300 text-[10px]">–</span>
+            <input type="number" value={normMax} onChange={(e) => setNormMax(e.target.value)} placeholder="max" className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[11px]" />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {(Object.keys(DURUM_ETIKET) as NormDurum[]).map((d) => (
+            <button
+              key={d}
+              onClick={() => durumToggle(d)}
+              className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] border ${
+                durumFiltre.has(d) ? "border-navy bg-navy/5 text-navy-3 font-medium" : "border-gray-200 text-gray-500"
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${DURUM_NOKTA[d]}`} />
+              {DURUM_ETIKET[d]}
+            </button>
+          ))}
+          <button
+            onClick={() => setSadeceKapaliGoster((v) => !v)}
+            className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] border ${
+              sadeceKapaliGoster ? "border-navy bg-navy/5 text-navy-3 font-medium" : "border-gray-200 text-gray-500"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-gray-400" />
+            Kapalı ({kapaliMagazaIdSet.size})
+          </button>
+        </div>
+
+        {solFiltrelenmis.length === 0 ? (
+          <div className="text-xs text-gray-400">Bu filtreye uyan mağaza yok.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[480px] overflow-y-auto pr-1">
+            {solFiltrelenmis.map((m) => {
+              const durum = normDurumu(m);
+              const secili = seciliMagazaId === m.id;
+              const kapali = kapaliMagazaIdSet.has(m.id);
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setSeciliMagazaId(secili ? null : m.id)}
+                  className={`text-left border border-gray-100 ${DURUM_BORDER[durum]} rounded-md p-2 transition-colors relative ${
+                    kapali ? "opacity-50 grayscale" : ""
+                  } ${secili ? "bg-navy/5 ring-1 ring-navy" : "hover:bg-gray-50"}`}
+                  title={`${m.magaza_adi} — ${m.bolge_adi}${kapali ? " (Kapalı — güncel dönemde performans verisi yok)" : ` (${DURUM_ETIKET[durum]})`}`}
+                >
+                  {kapali && (
+                    <span className="absolute top-1 right-1 text-[8px] bg-gray-500 text-white rounded-full px-1.5 py-0.5 font-medium">
+                      Kapalı
+                    </span>
+                  )}
+                  <div className="text-[11px] text-gray-700 truncate mb-0.5 font-medium">{m.magaza_adi}</div>
+                  <div className="text-[9px] text-gray-400 truncate mb-1.5">{m.bolge_adi || "—"}</div>
+                  <div className="space-y-1">
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-navy rounded-full" style={{ width: `${oranHesap(m.ana_dolu, m.ana_norm)}%` }} />
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-accent rounded-full" style={{ width: `${oranHesap(m.donemsel_dolu, m.donemsel_norm)}%` }} />
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-info rounded-full" style={{ width: `${oranHesap(m.part_dolu, m.part_norm)}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-[9px] text-gray-400 font-mono mt-1.5">{m.toplamDolu}/{m.toplamNorm} (%{m.oran})</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* SAĞ PANEL — Performans */}
+      <div className="bg-white border border-gray-200 rounded-card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-semibold text-navy-3 flex items-center gap-2">
+            {seciliMagaza ? `Performans — ${seciliMagaza.magaza_adi}` : "Mağazalar — Performans (HGO)"}
+            {seciliMagaza && kapaliMagazaIdSet.has(seciliMagaza.id) && (
+              <span className="text-[9px] bg-gray-500 text-white rounded-full px-1.5 py-0.5 font-medium">Kapalı</span>
+            )}
+          </div>
+          {seciliMagaza && (
+            <button onClick={() => setSeciliMagazaId(null)} className="text-[11px] text-info hover:underline">◀ Tüm Mağazalar</button>
+          )}
+        </div>
+
+        {seciliMagaza && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 bg-gray-50 rounded-md p-2.5 text-[11px]">
+            <div><div className="text-[9px] text-gray-400 uppercase">İl (tahmini)</div><div className="text-navy-3 font-medium">{ilTahminEt(seciliMagaza.magaza_adi)}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Bölge</div><div className="text-navy-3 font-medium">{seciliMagaza.bolge_adi || "—"}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Net m²</div><div className="text-navy-3 font-medium">{seciliMagaza.net_m2 ?? "—"}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">Mağaza Müdürü</div><div className="text-navy-3 font-medium">{seciliMagaza.magaza_muduru ?? "—"}</div></div>
+          </div>
+        )}
+
+        {(enSonAyOzeti || turnoverOzet) && (
+          <div className="mb-1">
+            <div className="text-[11px] text-gray-400 mb-2">
+              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı{enSonAyOzeti && ` — ${enSonAyOzeti.etiket}`}
+              {!seciliMagaza && enSonAyOzeti && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {enSonAyOzeti?.degerler.map((d) => (
+                <KpiKart
+                  key={d.key}
+                  label={d.label}
+                  kendi={d.kendi}
+                  ortalama={d.ortalama}
+                  format={d.format}
+                  seciliVar={!!seciliMagaza}
+                />
+              ))}
+              {turnoverOzet && (
+                <>
+                  <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                </>
+              )}
+              {calisanKpiOzet && (
+                <>
+                  <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                  <KpiKart label="Satış Yapan Çalışan" kendi={calisanKpiOzet.satisYapan.kendi} ortalama={calisanKpiOzet.satisYapan.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                  <KpiKart label="Satış Yapan Oranı" kendi={calisanKpiOzet.oran.kendi} ortalama={calisanKpiOzet.oran.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} />
+                </>
+              )}
+            </div>
+
+            {seciliMagaza && calisanListesi.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-semibold text-navy-3">Aktif Çalışanlar</div>
+                  <select
+                    value={calisanListesiDonem ?? ""}
+                    onChange={(e) => setCalisanListesiDonem(Number(e.target.value))}
+                    className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white"
+                  >
+                    {magazaDonemSecenekleri.map((d) => (
+                      <option key={d} value={d}>{AY_KISA[d % 100]} {Math.floor(d / 100)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="max-h-64 overflow-y-auto border border-gray-100 rounded-md">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="bg-gray-50 text-[9px] text-gray-400 uppercase sticky top-0">
+                        <th className="text-left px-2 py-1.5">Ad Soyad</th>
+                        <th className="text-left px-2 py-1.5">Ünvan</th>
+                        <th className="text-right px-2 py-1.5">HGO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {calisanListesi.map((c, i) => {
+                        const renk = c.hgo !== null ? hgoRenk(c.hgo) : null;
+                        return (
+                          <tr key={i} className="border-t border-gray-50">
+                            <td className="px-2 py-1.5 text-navy-3 font-medium">{c.ad_soyad}</td>
+                            <td className="px-2 py-1.5 text-gray-500">{c.unvan ?? "—"}</td>
+                            <td className={`px-2 py-1.5 text-right font-mono font-semibold ${renk ? renk.metin : "text-gray-400"}`}>
+                              {c.hgo !== null ? `%${c.hgo.toFixed(1)}` : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+
+    <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="hgo" />
+    <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="adet_hgo" />
     </>
   );
 }
