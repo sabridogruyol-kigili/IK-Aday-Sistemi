@@ -26,8 +26,9 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
 
   const { data: personelHam } = await supabase
     .from("personel")
-    .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar(magaza_adi, bolge_id, bolgeler(ad))")
+    .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar!inner(magaza_adi, bolge_id, aktif, bolgeler(ad))")
     .eq("durum", "aktif")
+    .eq("magazalar.aktif", true)
     .order("ad_soyad");
 
   const personelListesi = (personelHam ?? []).map((p: any) => ({
