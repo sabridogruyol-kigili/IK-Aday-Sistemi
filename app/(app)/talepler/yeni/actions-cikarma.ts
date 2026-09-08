@@ -212,7 +212,33 @@ export type PersonelDetay = {
   ozel_mobil: string | null;
   tc_kimlik_no: string | null;
   personel_kodu: string | null;
+  kidem_ay: number | null;
 };
+
+// Personel Listesi sayfasındaki (app/(app)/personel/page.tsx) mantıkla birebir
+// aynı kural: ardışık atama dönemleri arasında 2 aydan fazla boşluk varsa kıdem
+// o yeni dönemden itibaren sıfırdan sayılır.
+function kidemAyHesapla(donemler: { baslama_tarihi: string | null; ayrilma_tarihi: string | null }[]): number | null {
+  const gecerliler = donemler
+    .filter((d) => d.baslama_tarihi)
+    .map((d) => ({ baslama: new Date(d.baslama_tarihi as string), ayrilma: d.ayrilma_tarihi ? new Date(d.ayrilma_tarihi) : null }))
+    .sort((a, b) => a.baslama.getTime() - b.baslama.getTime());
+
+  if (gecerliler.length === 0) return null;
+
+  let donemBaslangic = gecerliler[0].baslama;
+  for (let i = 1; i < gecerliler.length; i++) {
+    const oncekiBitis = gecerliler[i - 1].ayrilma;
+    const buBaslangic = gecerliler[i].baslama;
+    if (oncekiBitis) {
+      const bosluk_ay = (buBaslangic.getTime() - oncekiBitis.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+      if (bosluk_ay > 2) donemBaslangic = buBaslangic;
+    }
+  }
+
+  const simdi = new Date();
+  return Math.max((simdi.getFullYear() - donemBaslangic.getFullYear()) * 12 + (simdi.getMonth() - donemBaslangic.getMonth()), 0);
+}
 
 export async function getPersonelDetay(personelId: string): Promise<PersonelDetay | null> {
   if (!personelId) return null;
@@ -227,6 +253,12 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     .single();
 
   if (!data) return null;
+
+  const { data: atamalar } = await supabase
+    .from("personel_atama_gecmisi")
+    .select("baslama_tarihi, ayrilma_tarihi")
+    .eq("personel_id", personelId);
+
   const magazaHam = data as any;
   return {
     dogum_tarihi: magazaHam.dogum_tarihi,
@@ -243,5 +275,6 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     savunma: magazaHam.savunma,
     notlar: magazaHam.notlar,
     il_adi: magazaHam.magazalar?.il_adi ?? null,
+    kidem_ay: kidemAyHesapla(atamalar ?? []),
   };
 }
