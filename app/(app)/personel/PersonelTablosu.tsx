@@ -100,7 +100,7 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
       <div className="bg-white border border-gray-200 rounded-card overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase tracking-wide">
+            <tr className="bg-gray-50 text-[10px] text-navy-3/70 uppercase tracking-wide border-b-2 border-navy">
               <th className="text-left p-3">Ad Soyad</th>
               <th className="text-left p-3">Ünvan</th>
               <th className="text-left p-3">Kategori</th>
@@ -131,8 +131,8 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
                   {s.performans_ortalama_hgo != null ? `%${s.performans_ortalama_hgo.toFixed(0)}` : "—"}
                 </td>
                 <td className="p-3">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    s.durum === "aktif" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                    s.durum === "aktif" ? "bg-success-bg text-success" : "bg-gray-100 text-gray-500"
                   }`}>
                     {s.durum === "aktif" ? "Aktif" : "Pasif"}
                   </span>
