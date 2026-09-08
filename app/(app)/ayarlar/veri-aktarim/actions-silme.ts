@@ -14,8 +14,6 @@ async function yonetimMi(): Promise<{ ok: boolean; hata?: string }> {
   return { ok: true };
 }
 
-// Personel + bağımlı kayıtlar (atama geçmişi, kişi bazlı performans, talep referansı)
-// tek bir SECURITY DEFINER fonksiyonla, doğru sırayla siliniyor.
 export async function personelTumunuSil(): Promise<SilmeSonuc> {
   const yetki = await yonetimMi();
   if (!yetki.ok) return { basarili: false, silinen: 0, hata: yetki.hata };
@@ -58,7 +56,6 @@ export async function performansKisiTumunuSil(): Promise<SilmeSonuc> {
   const { error } = await supabase.from("performans_kisi_aylik").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   if (error) return { basarili: false, silinen: 0, hata: error.message };
 
-  // Kişi bazlı özet alanları da (ortalama HGO vb.) artık geçersiz — sıfırlanıyor.
   await supabase.from("personel").update({
     performans_ortalama_hgo: null, performans_80_alti_sayisi: 0,
     performans_80_100_arasi_sayisi: 0, performans_100_ustu_sayisi: 0,
