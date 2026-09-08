@@ -4,6 +4,23 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
 
+// "cv-dosyalar" bucket'ı private olduğu için CV'yi görüntülemek geçici
+// (süreli) bir signed URL gerektirir. 5 dakikalık süre, bir kişinin CV'yi
+// popup içinde rahatça okumasına yetecek kadar uzun tutuldu.
+export async function getCvSignedUrl(cvYolu: string): Promise<{ url?: string; error?: string }> {
+  if (!cvYolu) return { error: "CV yolu bulunamadı." };
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Giriş yapmalısınız." };
+
+  const { data, error } = await supabase.storage
+    .from("cv-dosyalar")
+    .createSignedUrl(cvYolu, 300);
+
+  if (error || !data) return { error: "CV bağlantısı üretilemedi: " + error?.message };
+  return { url: data.signedUrl };
+}
+
 export async function yonlendirAday(formData: FormData) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
