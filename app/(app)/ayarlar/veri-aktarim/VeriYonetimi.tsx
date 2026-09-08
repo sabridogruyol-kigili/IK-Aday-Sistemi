@@ -33,7 +33,7 @@ export default function VeriYonetimi({ bolgeler, magazalar }: { bolgeler: Bolge[
         setSilmeHata(res.hata ?? "Silinemedi.");
         return;
       }
-      setSilmeSonucu(`${res.silinen} mağaza silindi.`);
+      setSilmeSonucu(`${res.silinen} mağaza ve tüm bölgeler silindi.`);
       setYenilemeSayaci((c) => c + 1);
     });
   }
@@ -71,11 +71,11 @@ export default function VeriYonetimi({ bolgeler, magazalar }: { bolgeler: Bolge[
             onClick={() => { setOnayAcik(true); setOnayMetni(""); setSilmeHata(null); setSilmeSonucu(null); }}
             className="px-3 py-1.5 rounded-md text-xs font-medium text-danger border border-danger/30 hover:bg-danger-bg"
           >
-            Tüm Mağazaları Sil
+            Tüm Mağaza ve Bölgeleri Sil
           </button>
         </div>
         <div className="text-[11px] text-gray-400 mb-3">
-          Mağaza sildiğinizde (tekil "Pasif Yap" hariç), ilişkili norm ve performans kayıtları da silinir; personel ve talepler silinmez, sadece mağaza bağlantıları temizlenir.
+          Mağaza sildiğinizde (tekil "Pasif Yap" hariç), ilişkili norm, performans ve bölge kayıtları da silinir; personel ve talepler silinmez, sadece mağaza/bölge bağlantıları temizlenir.
         </div>
 
         {silmeHata && <div className="text-[11px] text-danger mb-2">{silmeHata}</div>}
@@ -84,7 +84,7 @@ export default function VeriYonetimi({ bolgeler, magazalar }: { bolgeler: Bolge[
         {onayAcik && (
           <div className="bg-danger-bg border border-danger/30 rounded-md p-3 mb-3">
             <div className="text-xs text-danger font-medium mb-1">
-              Sistemdeki TÜM mağazaları ({magazalar.length} adet) ve bağlı norm/performans kayıtlarını kalıcı olarak silmek üzeresiniz. Bu işlem geri alınamaz.
+              Sistemdeki TÜM mağazaları ({magazalar.length} adet) ve TÜM bölgeleri ({bolgeler.length} adet) — bağlı norm/performans kayıtlarıyla birlikte — kalıcı olarak silmek üzeresiniz. Bu işlem geri alınamaz.
             </div>
             <div className="text-[11px] text-gray-600 mb-2">Onaylamak için kutuya <b>SİL</b> yazın:</div>
             <div className="flex items-center gap-2">
