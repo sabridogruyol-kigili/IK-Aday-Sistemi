@@ -268,5 +268,6 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   revalidatePath("/personel");
   revalidatePath("/norm");
   revalidatePath("/dashboard");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili, hatalar };
 }
