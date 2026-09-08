@@ -10,7 +10,7 @@ import AdayStepper from "./AdayStepper";
 import IseAlModal from "./IseAlModal";
 import SurecTarihce from "./SurecTarihce";
 
-const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma" };
+const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon", NORM_DEGISIKLIK: "Norm Değişikliği" };
 const DURUM_RENK: Record<string, string> = {
   BEKLEMEDE: "text-accent", KABUL_EDILDI: "text-success", DURAKLADI: "text-danger", KAPANDI_RED: "text-danger", ISLEME_DEVAM: "text-info",
 };
