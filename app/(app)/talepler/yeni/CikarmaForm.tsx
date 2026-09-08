@@ -330,38 +330,20 @@ export default function CikarmaForm({
                 <OzlukAlani label="Önceki İş Yeri" value={detay.onceki_is_yeri} />
               </div>
 
-              {(detay.ihtarname || detay.uyari_yazisi || detay.tutanak || detay.savunma || detay.notlar) && (
-                <div className="space-y-2">
-                  {detay.ihtarname && (
-                    <div className="bg-danger-bg rounded-md p-2">
-                      <div className="text-[9px] text-danger uppercase font-semibold mb-0.5">İhtarname</div>
-                      <div className="text-[10px] text-gray-700 whitespace-pre-line max-h-24 overflow-y-auto">{detay.ihtarname}</div>
-                    </div>
-                  )}
-                  {detay.uyari_yazisi && (
-                    <div className="bg-accent/10 rounded-md p-2">
-                      <div className="text-[9px] text-accent uppercase font-semibold mb-0.5">Uyarı Yazısı</div>
-                      <div className="text-[10px] text-gray-700 whitespace-pre-line max-h-24 overflow-y-auto">{detay.uyari_yazisi}</div>
-                    </div>
-                  )}
-                  {detay.tutanak && (
-                    <div className="bg-gray-50 rounded-md p-2">
-                      <div className="text-[9px] text-gray-500 uppercase font-semibold mb-0.5">Tutanak</div>
-                      <div className="text-[10px] text-gray-700 whitespace-pre-line max-h-24 overflow-y-auto">{detay.tutanak}</div>
-                    </div>
-                  )}
-                  {detay.savunma && (
-                    <div className="bg-gray-50 rounded-md p-2">
-                      <div className="text-[9px] text-gray-500 uppercase font-semibold mb-0.5">Savunma</div>
-                      <div className="text-[10px] text-gray-700 whitespace-pre-line max-h-24 overflow-y-auto">{detay.savunma}</div>
-                    </div>
-                  )}
-                  {detay.notlar && (
-                    <div className="bg-gray-50 rounded-md p-2">
-                      <div className="text-[9px] text-gray-500 uppercase font-semibold mb-0.5">Not</div>
-                      <div className="text-[10px] text-gray-700 whitespace-pre-line max-h-24 overflow-y-auto">{detay.notlar}</div>
-                    </div>
-                  )}
+              <div>
+                <div className="text-[9px] text-gray-400 uppercase mb-1.5">Disiplin Kayıtları (Adet)</div>
+                <div className="grid grid-cols-4 gap-2">
+                  <MiniKpi label="İhtarname" value={String(Number(detay.ihtarname) || 0)} vurgu={(Number(detay.ihtarname) || 0) > 0} />
+                  <MiniKpi label="Uyarı Yazısı" value={String(Number(detay.uyari_yazisi) || 0)} vurgu={(Number(detay.uyari_yazisi) || 0) > 0} />
+                  <MiniKpi label="Tutanak" value={String(Number(detay.tutanak) || 0)} vurgu={(Number(detay.tutanak) || 0) > 0} />
+                  <MiniKpi label="Savunma" value={String(Number(detay.savunma) || 0)} vurgu={(Number(detay.savunma) || 0) > 0} />
+                </div>
+              </div>
+
+              {detay.notlar && (
+                <div className="bg-gray-50 rounded-md p-2">
+                  <div className="text-[9px] text-gray-500 uppercase font-semibold mb-0.5">Not</div>
+                  <div className="text-[10px] text-gray-700 whitespace-pre-line max-h-24 overflow-y-auto">{detay.notlar}</div>
                 </div>
               )}
             </div>
