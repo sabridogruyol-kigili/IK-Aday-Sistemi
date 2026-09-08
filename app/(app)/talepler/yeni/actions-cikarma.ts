@@ -173,7 +173,11 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
 }
 
 // Seçilen personelin aylık HGO geçmişi — sağ taraftaki grafikler için.
-export type PersonelAylikHgo = { yil: number; ay: number; hgo: number | null; adet_hgo: number | null };
+export type PersonelAylikHgo = {
+  yil: number; ay: number; hgo: number | null; adet_hgo: number | null;
+  gerceklesen_ciro_kdv_dahil: number | null; gerceklesen_adet: number | null; brut_kar_marji: number | null;
+  brut_satis_adeti: number | null;
+};
 
 export async function getPersonelPerformansGecmisi(personelId: string): Promise<PersonelAylikHgo[]> {
   if (!personelId) return [];
@@ -183,7 +187,7 @@ export async function getPersonelPerformansGecmisi(personelId: string): Promise<
 
   const { data } = await supabase
     .from("performans_kisi_aylik")
-    .select("yil, ay, hgo, adet_hgo")
+    .select("yil, ay, hgo, adet_hgo, gerceklesen_ciro_kdv_dahil, gerceklesen_adet, brut_kar_marji, brut_satis_adeti")
     .eq("personel_id", personelId)
     .order("yil", { ascending: true })
     .order("ay", { ascending: true });
@@ -205,6 +209,9 @@ export type PersonelDetay = {
   savunma: string | null;
   notlar: string | null;
   il_adi: string | null;
+  ozel_mobil: string | null;
+  tc_kimlik_no: string | null;
+  personel_kodu: string | null;
 };
 
 export async function getPersonelDetay(personelId: string): Promise<PersonelDetay | null> {
@@ -215,7 +222,7 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
 
   const { data } = await supabase
     .from("personel")
-    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, magazalar(il_adi)")
+    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, magazalar(il_adi)")
     .eq("id", personelId)
     .single();
 
@@ -230,6 +237,9 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     ihtarname: magazaHam.ihtarname,
     uyari_yazisi: magazaHam.uyari_yazisi,
     tutanak: magazaHam.tutanak,
+    ozel_mobil: magazaHam.ozel_mobil,
+    tc_kimlik_no: magazaHam.tc_kimlik_no,
+    personel_kodu: magazaHam.personel_kodu,
     savunma: magazaHam.savunma,
     notlar: magazaHam.notlar,
     il_adi: magazaHam.magazalar?.il_adi ?? null,
