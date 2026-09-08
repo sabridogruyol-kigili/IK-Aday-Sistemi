@@ -37,9 +37,17 @@ export default async function AppLayout({
   const displayName = profile?.ad_soyad ?? user.email ?? "Kullanıcı";
   const initials = displayName.slice(0, 2).toUpperCase();
 
-  const visibleNavItems = navItems.filter(
-    (item) => item.href !== "/ayarlar/kullanicilar" || profile?.rol === "YONETIM"
-  );
+  // Mağazalar Direktörlüğü: sadece performans/norm izleme ve onay — talep açma,
+  // aday süreci ve sistem ayarlarına erişimi yok.
+  const DIREKTOR_GORUNUR_HREFLER = new Set([
+    "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel", "/raporlar", "/bildirimler",
+  ]);
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.href === "/ayarlar/kullanicilar" && profile?.rol !== "YONETIM") return false;
+    if (profile?.rol === "MAGAZALAR_DIREKTORLUGU" && !DIREKTOR_GORUNUR_HREFLER.has(item.href)) return false;
+    return true;
+  });
 
   return (
     <div className="flex h-screen">
