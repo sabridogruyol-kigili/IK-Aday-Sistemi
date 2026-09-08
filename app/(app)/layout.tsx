@@ -59,15 +59,17 @@ export default async function AppLayout({
           </div>
         </div>
         <SidebarNav items={visibleNavItems} />
-        <div className="px-4 py-3 border-t border-white/10 flex items-center gap-2.5">
-          <div className="w-[30px] h-[30px] rounded-full bg-accent border border-white/20 flex items-center justify-center text-[11px] font-semibold text-navy-3 shrink-0">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-white text-xs font-medium leading-tight truncate">{displayName}</div>
-            <div className="text-white/40 text-[10px] tracking-wide">{profile?.rol ?? "—"}</div>
-          </div>
+        <div className="px-4 py-3 border-t border-white/10 space-y-2.5">
           <CikisButonu />
+          <div className="flex items-center gap-2.5">
+            <div className="w-[30px] h-[30px] rounded-full bg-accent border border-white/20 flex items-center justify-center text-[11px] font-semibold text-navy-3 shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-xs font-medium leading-tight truncate">{displayName}</div>
+              <div className="text-white/40 text-[10px] tracking-wide">{profile?.rol ?? "—"}</div>
+            </div>
+          </div>
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto bg-[#FAFAF8]">
