@@ -136,7 +136,7 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
 
       <div className="bg-white border border-gray-200 rounded-card overflow-x-auto">
         {sekme === "personel" && (
-          <table className="w-full text-xs min-w-[800px]">
+          <table className="w-full text-xs min-w-[1000px]">
             <thead>
               <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase">
                 <th className="text-left px-3 py-2">Personel Kodu</th>
@@ -145,6 +145,11 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
                 <th className="text-left px-3 py-2">Ünvan</th>
                 <th className="text-left px-3 py-2">Kategori</th>
                 <th className="text-left px-3 py-2">Mağaza</th>
+                <th className="text-left px-3 py-2">İl</th>
+                <th className="text-left px-3 py-2">Doğum Tarihi</th>
+                <th className="text-left px-3 py-2">Kan Grubu</th>
+                <th className="text-left px-3 py-2">Uyruk</th>
+                <th className="text-left px-3 py-2">Evli</th>
                 <th className="text-left px-3 py-2">Durum</th>
                 <th className="text-left px-3 py-2">Ort. HGO</th>
               </tr>
@@ -158,6 +163,11 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
                   <td className="px-3 py-2 text-gray-600">{p.guncel_unvan ?? "—"}</td>
                   <td className="px-3 py-2 text-gray-500">{p.kadro_kategorisi ?? "—"}</td>
                   <td className="px-3 py-2 text-gray-500">{p.magazalar?.magaza_adi ?? "—"}</td>
+                  <td className="px-3 py-2 text-gray-500">{p.magazalar?.il_adi ?? "—"}</td>
+                  <td className="px-3 py-2 text-gray-500">{p.dogum_tarihi ?? "—"}</td>
+                  <td className="px-3 py-2 text-gray-500">{p.kan_grubu_kodu ?? "—"}</td>
+                  <td className="px-3 py-2 text-gray-500">{p.uyruk ?? "—"}</td>
+                  <td className="px-3 py-2 text-gray-500">{p.evli ?? "—"}</td>
                   <td className="px-3 py-2">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${p.durum === "aktif" ? "bg-success-bg text-success" : "bg-gray-100 text-gray-500"}`}>
                       {p.durum}
@@ -171,15 +181,20 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
         )}
 
         {sekme === "performans_kisi" && (
-          <table className="w-full text-xs min-w-[700px]">
+          <table className="w-full text-xs min-w-[1000px]">
             <thead>
               <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase">
                 <th className="text-left px-3 py-2">Personel Kodu</th>
                 <th className="text-left px-3 py-2">Ad Soyad</th>
                 <th className="text-left px-3 py-2">Ay/Yıl</th>
                 <th className="text-left px-3 py-2">Hedef Ciro</th>
-                <th className="text-left px-3 py-2">Gerçekleşen Ciro</th>
-                <th className="text-left px-3 py-2">HGO</th>
+                <th className="text-left px-3 py-2">Gerç. Ciro</th>
+                <th className="text-left px-3 py-2">HGO (Ciro)</th>
+                <th className="text-left px-3 py-2">Hedef Adet</th>
+                <th className="text-left px-3 py-2">Gerç. Adet</th>
+                <th className="text-left px-3 py-2">HGO (Adet)</th>
+                <th className="text-left px-3 py-2">Brüt Kâr Marjı</th>
+                <th className="text-left px-3 py-2">Brüt Satış Adedi</th>
               </tr>
             </thead>
             <tbody>
@@ -188,9 +203,14 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
                   <td className="px-3 py-2 font-mono text-gray-500">{s.personel?.personel_kodu ?? "—"}</td>
                   <td className="px-3 py-2 font-medium text-navy-3">{s.personel?.ad_soyad ?? "—"}</td>
                   <td className="px-3 py-2 text-gray-600">{AY_KISA[s.ay]} {s.yil}</td>
-                  <td className="px-3 py-2 font-mono text-gray-500">{s.hedef_ciro_kdv_dahil?.toLocaleString("tr-TR")}</td>
-                  <td className="px-3 py-2 font-mono text-gray-500">{s.gerceklesen_ciro_kdv_dahil?.toLocaleString("tr-TR")}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.hedef_ciro_kdv_dahil?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.gerceklesen_ciro_kdv_dahil?.toLocaleString("tr-TR") ?? "—"}</td>
                   <td className="px-3 py-2 font-mono font-semibold text-navy-3">{s.hgo != null ? `%${s.hgo.toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.hedef_adet?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.gerceklesen_adet?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono font-semibold text-navy-3">{s.adet_hgo != null ? `%${s.adet_hgo.toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.brut_kar_marji != null ? `%${(s.brut_kar_marji * 100).toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.brut_satis_adeti ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -198,17 +218,30 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
         )}
 
         {sekme === "performans_magaza" && (
-          <table className="w-full text-xs min-w-[800px]">
+          <table className="w-full text-xs min-w-[1400px]">
             <thead>
               <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase">
                 <th className="text-left px-3 py-2">Mağaza Kodu</th>
                 <th className="text-left px-3 py-2">Mağaza Adı</th>
+                <th className="text-left px-3 py-2">İl</th>
                 <th className="text-left px-3 py-2">Ay/Yıl</th>
-                <th className="text-left px-3 py-2">HGO</th>
+                <th className="text-left px-3 py-2">HGO (Ciro)</th>
+                <th className="text-left px-3 py-2">HGO (Adet)</th>
+                <th className="text-left px-3 py-2">Ciro Hedefi</th>
+                <th className="text-left px-3 py-2">Gerç. Ciro</th>
+                <th className="text-left px-3 py-2">Adet Hedefi</th>
+                <th className="text-left px-3 py-2">Gerç. Adet</th>
                 <th className="text-left px-3 py-2">Sepet Ort.</th>
                 <th className="text-left px-3 py-2">Sepet Der.</th>
                 <th className="text-left px-3 py-2">Dönüşüm</th>
                 <th className="text-left px-3 py-2">Giren Müşteri</th>
+                <th className="text-left px-3 py-2">Omnichannel</th>
+                <th className="text-left px-3 py-2">Omni. Hariç</th>
+                <th className="text-left px-3 py-2">Brüt Kâr Marjı</th>
+                <th className="text-left px-3 py-2">Fiş Sayısı</th>
+                <th className="text-left px-3 py-2">İstifa T.O.</th>
+                <th className="text-left px-3 py-2">Fesih T.O.</th>
+                <th className="text-left px-3 py-2">Toplam T.O.</th>
               </tr>
             </thead>
             <tbody>
@@ -216,12 +249,25 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
                 <tr key={s.id} className="border-t border-gray-100">
                   <td className="px-3 py-2 font-mono text-gray-500">{s.magazalar?.magaza_kodu ?? "—"}</td>
                   <td className="px-3 py-2 font-medium text-navy-3">{s.magazalar?.magaza_adi ?? "—"}</td>
+                  <td className="px-3 py-2 text-gray-500">{s.magazalar?.il_adi ?? "—"}</td>
                   <td className="px-3 py-2 text-gray-600">{AY_KISA[s.ay]} {s.yil}</td>
                   <td className="px-3 py-2 font-mono font-semibold text-navy-3">{s.hgo != null ? `%${s.hgo.toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono font-semibold text-navy-3">{s.adet_hgo != null ? `%${s.adet_hgo.toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.magaza_ciro_hedef?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.toplam_ciro_kdv_dahil?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.magaza_adet_hedef?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.satis_adeti?.toLocaleString("tr-TR") ?? "—"}</td>
                   <td className="px-3 py-2 font-mono text-gray-500">{s.sepet_ortalamasi ?? "—"}</td>
                   <td className="px-3 py-2 font-mono text-gray-500">{s.sepet_derinligi ?? "—"}</td>
                   <td className="px-3 py-2 font-mono text-gray-500">{s.donusum_orani != null ? `%${(s.donusum_orani * 100).toFixed(1)}` : "—"}</td>
                   <td className="px-3 py-2 font-mono text-gray-500">{s.giren_musteri_sayisi ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.omnichannel_ciro?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.omnichannel_haric_ciro?.toLocaleString("tr-TR") ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.brut_kar_marji != null ? `%${(s.brut_kar_marji * 100).toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.fis_sayisi ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.magazalar?.istifa_turnover != null ? `%${s.magazalar.istifa_turnover.toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.magazalar?.fesih_turnover != null ? `%${s.magazalar.fesih_turnover.toFixed(1)}` : "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{s.magazalar?.toplam_turnover != null ? `%${s.magazalar.toplam_turnover.toFixed(1)}` : "—"}</td>
                 </tr>
               ))}
             </tbody>
