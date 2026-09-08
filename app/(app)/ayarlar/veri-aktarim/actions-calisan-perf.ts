@@ -71,7 +71,24 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
   const unvanMap: Record<string, string> = {};
   (unvanlarHam ?? []).forEach((u: any) => { unvanMap[turkceBuyut(u.unvan)] = u.kategori; });
 
-  const { data: personelHam } = await supabase.from("personel").select("id, personel_kodu");
+  // KRİTİK: Supabase tek sorguda en fazla 1000 satır döndürür. Bu sayfalama
+  // olmadan, 1000'den fazla personel varsa geri kalanlar personelMap'e hiç
+  // girmiyordu — bu da onların sicili her import edildiğinde "eksik" sanılıp
+  // HER SEFERİNDE yeni bir mükerrer (PLASIYER-) hayalet kayıt oluşmasına yol
+  // açıyordu (aynı kişi için tekrar tekrar).
+  const personelHam: { id: string; personel_kodu: string | null }[] = [];
+  {
+    const PARCA = 1000;
+    let sayfa = 0;
+    while (true) {
+      const bas = sayfa * PARCA;
+      const { data } = await supabase.from("personel").select("id, personel_kodu").range(bas, bas + PARCA - 1);
+      if (!data || data.length === 0) break;
+      personelHam.push(...(data as any[]));
+      if (data.length < PARCA) break;
+      sayfa++;
+    }
+  }
   const personelMap: Record<string, string> = {};
   (personelHam ?? []).forEach((p: any) => { if (p.personel_kodu) personelMap[sicilNormalize(p.personel_kodu)] = p.id; });
 
@@ -122,7 +139,19 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
   }
 
   if (eksikPersonel.size > 0) {
-    const { data: placeholderlarHam } = await supabase.from("personel").select("id, personel_kodu").like("tc_kimlik_no", "PLASIYER-%");
+    const placeholderlarHam: { id: string; personel_kodu: string | null }[] = [];
+    {
+      const PARCA = 1000;
+      let sayfa = 0;
+      while (true) {
+        const bas = sayfa * PARCA;
+        const { data } = await supabase.from("personel").select("id, personel_kodu").like("tc_kimlik_no", "PLASIYER-%").range(bas, bas + PARCA - 1);
+        if (!data || data.length === 0) break;
+        placeholderlarHam.push(...(data as any[]));
+        if (data.length < PARCA) break;
+        sayfa++;
+      }
+    }
     const placeholderMap: Record<string, string> = {};
     (placeholderlarHam ?? []).forEach((p: any) => { if (p.personel_kodu) placeholderMap[p.personel_kodu] = p.id; });
 
