@@ -68,9 +68,9 @@ function OzlukAlani({ label, value }: { label: string; value: string | null }) {
 // Bağımsız bir grafik paneli — kendi değişken seçimini kendi içinde tutar, böylece
 // iki grafik aynı anda farklı değişkenler gösterebilir.
 function KisiGrafikPaneli({
-  gecmis, yukleniyor, varsayilanDegisken, hgoDusuk,
+  gecmis, yukleniyor, varsayilanDegisken, hgoYuksek,
 }: {
-  gecmis: PersonelAylikHgo[]; yukleniyor: boolean; varsayilanDegisken: keyof PersonelAylikHgo; hgoDusuk: boolean;
+  gecmis: PersonelAylikHgo[]; yukleniyor: boolean; varsayilanDegisken: keyof PersonelAylikHgo; hgoYuksek: boolean;
 }) {
   const [degisken, setDegisken] = useState<keyof PersonelAylikHgo>(varsayilanDegisken);
   const tanim = KISI_DEGISKENLERI.find((d) => d.key === degisken)!;
@@ -82,7 +82,7 @@ function KisiGrafikPaneli({
     [gecmis, degisken]
   );
 
-  const cizgiRengi = degisken === "hgo" && hgoDusuk ? "#b03030" : degisken === "adet_hgo" ? "#1a5fa0" : "#00365a";
+  const cizgiRengi = degisken === "hgo" && hgoYuksek ? "#b03030" : degisken === "adet_hgo" ? "#1a5fa0" : "#00365a";
 
   return (
     <div>
@@ -131,8 +131,11 @@ export default function CikarmaForm({
   const [aciklama, setAciklama] = useState("");
 
   const seciliPersonel = personelListesi.find((p) => p.id === seciliPersonelId) ?? null;
-  const hgoDusuk = seciliPersonel != null && seciliPersonel.performans_ortalama_hgo != null && seciliPersonel.performans_ortalama_hgo < 80;
-  const aciklamaZorunlu = israrli || hgoDusuk;
+  // İyi performans gösteren birinin çıkarılması, düşük performanslı birininkinden
+  // daha "anormal" bir durumdur ve ek açıklama gerektirir (kötüye kullanım/keyfi
+  // fesih riskine karşı) — bu yüzden eşik HGO %80 ÜSTÜ olarak tanımlanır.
+  const hgoYuksek = seciliPersonel != null && seciliPersonel.performans_ortalama_hgo != null && seciliPersonel.performans_ortalama_hgo >= 80;
+  const aciklamaZorunlu = israrli || hgoYuksek;
 
   const [gecmis, setGecmis] = useState<PersonelAylikHgo[]>([]);
   const [gecmisYukleniyor, setGecmisYukleniyor] = useState(false);
@@ -246,14 +249,14 @@ export default function CikarmaForm({
       </div>
 
       {seciliPersonel && (
-        <div className={`rounded-md p-3 text-xs ${hgoDusuk ? "bg-danger-bg border border-danger/30" : "bg-gray-50 border border-gray-200"}`}>
+        <div className={`rounded-md p-3 text-xs ${hgoYuksek ? "bg-danger-bg border border-danger/30" : "bg-gray-50 border border-gray-200"}`}>
           <div className="font-semibold text-navy-3 mb-1">Performans Özeti — {seciliPersonel.ad_soyad}</div>
           {seciliPersonel.performans_ortalama_hgo == null ? (
             <div className="text-gray-400">Bu personel için henüz performans verisi içe aktarılmamış.</div>
           ) : (
-            <div className={hgoDusuk ? "text-danger font-semibold" : "text-gray-700"}>
+            <div className={hgoYuksek ? "text-danger font-semibold" : "text-gray-700"}>
               Ortalama HGO: %{seciliPersonel.performans_ortalama_hgo.toFixed(1)}
-              {hgoDusuk && " — %80 altı, açıklama zorunlu"}
+              {hgoYuksek && " — %80 üstü (iyi performans), açıklama zorunlu"}
             </div>
           )}
         </div>
@@ -322,7 +325,7 @@ export default function CikarmaForm({
         <div>
           <div className="text-sm font-semibold text-navy-3 mb-2">Performans KPI'ları — {seciliPersonel.ad_soyad}</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-            <MiniKpi label="HGO (Ciro)" value={seciliPersonel.performans_ortalama_hgo != null ? `%${seciliPersonel.performans_ortalama_hgo.toFixed(1)}` : "—"} vurgu={hgoDusuk} />
+            <MiniKpi label="HGO (Ciro)" value={seciliPersonel.performans_ortalama_hgo != null ? `%${seciliPersonel.performans_ortalama_hgo.toFixed(1)}` : "—"} vurgu={hgoYuksek} />
             <MiniKpi label="HGO (Adet)" value={adetOrtalama != null ? `%${adetOrtalama.toFixed(1)}` : "—"} />
             <MiniKpi label="Toplam Ciro" value={toplamCiro.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} />
             <MiniKpi label="Toplam Adet" value={toplamAdet.toLocaleString("tr-TR")} />
@@ -335,8 +338,8 @@ export default function CikarmaForm({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="hgo" hgoDusuk={hgoDusuk} />
-          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="adet_hgo" hgoDusuk={hgoDusuk} />
+          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="hgo" hgoYuksek={hgoYuksek} />
+          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="adet_hgo" hgoYuksek={hgoYuksek} />
         </div>
 
         <div className="pt-3 border-t border-gray-100">
