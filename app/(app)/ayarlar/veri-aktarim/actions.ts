@@ -73,5 +73,6 @@ export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
 
   revalidatePath("/dashboard");
   revalidatePath("/norm");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili, hatalar };
 }
