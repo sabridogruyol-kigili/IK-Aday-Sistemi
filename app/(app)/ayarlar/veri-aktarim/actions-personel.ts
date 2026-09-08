@@ -6,6 +6,16 @@ import { revalidatePath } from "next/cache";
 type SatirHata = { satir: number; hata: string };
 type Sonuc = { basarili: number; hatalar: SatirHata[]; yetkiHatasi?: string };
 
+// Personel Kodu / Sicil kimi dosyada metin ("008144", baştaki sıfır korunur), kimi
+// dosyada Excel'in sayı+özel biçim olarak yazdığı bir değer ("8144", sıfır kaybolur)
+// olarak gelebilir. İki farklı dosyadan gelen aynı kişi eşleşsin diye baştaki
+// sıfırlar her zaman kaldırılır (tek başına "0" ise dokunulmaz).
+function sicilNormalize(kod: string): string {
+  const s = String(kod ?? "").trim();
+  const sifirsiz = s.replace(/^0+(?=\d)/, "");
+  return sifirsiz || s;
+}
+
 function excelTarih(v: any): string | null {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") {
@@ -100,7 +110,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     if (gercektenAyrilmisMi) continue;
 
     const tcKimlikNo = String(r["TC Kimlik No"] ?? "").trim();
-    const personelKodu = String(r["Personel Kodu"] ?? "").trim();
+    const personelKodu = sicilNormalize(String(r["Personel Kodu"] ?? ""));
     const adSoyad = String(r["Adı-Soyadı"] ?? "").trim();
     const departmanKodu = String(r["Departman Kodu"] ?? "").trim();
     const unvanHam = String(r["İş Ünvanı Açıklaması"] ?? "").trim();
