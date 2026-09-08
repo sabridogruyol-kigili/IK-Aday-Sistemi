@@ -25,6 +25,16 @@ const KATEGORI_LABEL: Record<string, string> = {
   PART_TIME: "Part Time",
 };
 
+// Grafiklerde seçilebilecek kişi bazlı satış değişkenleri.
+const KISI_DEGISKENLERI: { key: keyof PersonelAylikHgo; label: string; format: (v: number) => string }[] = [
+  { key: "hgo", label: "HGO (Ciro)", format: (v) => `%${v.toFixed(1)}` },
+  { key: "adet_hgo", label: "HGO (Adet)", format: (v) => `%${v.toFixed(1)}` },
+  { key: "gerceklesen_ciro_kdv_dahil", label: "Gerçekleşen Ciro", format: (v) => v.toLocaleString("tr-TR", { maximumFractionDigits: 0 }) },
+  { key: "gerceklesen_adet", label: "Gerçekleşen Adet", format: (v) => v.toLocaleString("tr-TR") },
+  { key: "brut_kar_marji", label: "Brüt Kâr Marjı", format: (v) => `%${(v * 100).toFixed(1)}` },
+  { key: "brut_satis_adeti", label: "Brüt Satış Adedi", format: (v) => v.toLocaleString("tr-TR") },
+];
+
 function yasHesapla(dogumTarihi: string | null): number | null {
   if (!dogumTarihi) return null;
   const dogum = new Date(dogumTarihi);
@@ -36,12 +46,70 @@ function yasHesapla(dogumTarihi: string | null): number | null {
   return yas;
 }
 
-// Küçük bir KPI kutusu — dashboard'daki KpiKart ile aynı görsel dil.
 function MiniKpi({ label, value, vurgu }: { label: string; value: string; vurgu?: boolean }) {
   return (
     <div className={`rounded-md px-2.5 py-2 ${vurgu ? "bg-danger-bg" : "bg-gray-50"}`}>
       <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">{label}</div>
       <div className={`text-sm font-mono font-semibold ${vurgu ? "text-danger" : "text-navy-3"}`}>{value}</div>
+    </div>
+  );
+}
+
+function OzlukAlani({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <div className="text-[9px] text-gray-400 uppercase">{label}</div>
+      <div className="text-navy-3 font-medium">{value || "—"}</div>
+    </div>
+  );
+}
+
+// Bağımsız bir grafik paneli — kendi değişken seçimini kendi içinde tutar, böylece
+// iki grafik aynı anda farklı değişkenler gösterebilir.
+function KisiGrafikPaneli({
+  gecmis, yukleniyor, varsayilanDegisken, hgoDusuk,
+}: {
+  gecmis: PersonelAylikHgo[]; yukleniyor: boolean; varsayilanDegisken: keyof PersonelAylikHgo; hgoDusuk: boolean;
+}) {
+  const [degisken, setDegisken] = useState<keyof PersonelAylikHgo>(varsayilanDegisken);
+  const tanim = KISI_DEGISKENLERI.find((d) => d.key === degisken)!;
+
+  const veri = useMemo(
+    () => gecmis
+      .filter((g) => g[degisken] !== null && g[degisken] !== undefined)
+      .map((g) => ({ etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`, deger: g[degisken] as number })),
+    [gecmis, degisken]
+  );
+
+  const cizgiRengi = degisken === "hgo" && hgoDusuk ? "#b03030" : degisken === "adet_hgo" ? "#1a5fa0" : "#00365a";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-[11px] font-semibold text-navy-3">{tanim.label} — Aylık</div>
+        <select
+          value={degisken}
+          onChange={(e) => setDegisken(e.target.value as keyof PersonelAylikHgo)}
+          className="border border-gray-300 rounded-md px-1.5 py-1 text-[10px] bg-white"
+        >
+          {KISI_DEGISKENLERI.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+        </select>
+      </div>
+      {yukleniyor ? (
+        <div className="text-xs text-gray-400 py-6 text-center">Yükleniyor...</div>
+      ) : veri.length === 0 ? (
+        <div className="text-xs text-gray-400 py-6 text-center">Veri yok.</div>
+      ) : (
+        <ResponsiveContainer width="100%" height={180}>
+          <LineChart data={veri} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
+            <YAxis tick={{ fontSize: 9 }} />
+            <Tooltip formatter={(v: number) => tanim.format(v)} labelStyle={{ fontSize: 11 }} />
+            <Line type="monotone" dataKey="deger" stroke={cizgiRengi} strokeWidth={2} dot={{ r: 2.5 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
@@ -65,7 +133,6 @@ export default function CikarmaForm({
   const hgoDusuk = seciliPersonel != null && seciliPersonel.performans_ortalama_hgo != null && seciliPersonel.performans_ortalama_hgo < 80;
   const aciklamaZorunlu = israrli || hgoDusuk;
 
-  // Seçilen personelin aylık HGO geçmişi (Ciro + Adet) — grafikler ve ortalama Adet HGO için.
   const [gecmis, setGecmis] = useState<PersonelAylikHgo[]>([]);
   const [gecmisYukleniyor, setGecmisYukleniyor] = useState(false);
   useEffect(() => {
@@ -77,7 +144,6 @@ export default function CikarmaForm({
     });
   }, [seciliPersonelId]);
 
-  // Personel dosyasındaki ek özlük bilgileri — sadece seçilince anlık çekilir.
   const [detay, setDetay] = useState<PersonelDetay | null>(null);
   const [detayYukleniyor, setDetayYukleniyor] = useState(false);
   useEffect(() => {
@@ -89,18 +155,12 @@ export default function CikarmaForm({
     });
   }, [seciliPersonelId]);
 
-  const ciroGrafikVerisi = useMemo(
-    () => gecmis.filter((g) => g.hgo !== null).map((g) => ({ etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`, hgo: g.hgo })),
-    [gecmis]
-  );
-  const adetGrafikVerisi = useMemo(
-    () => gecmis.filter((g) => g.adet_hgo !== null).map((g) => ({ etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`, hgo: g.adet_hgo })),
-    [gecmis]
-  );
   const adetOrtalama = useMemo(() => {
     const degerler = gecmis.map((g) => g.adet_hgo).filter((v): v is number => v !== null);
     return degerler.length > 0 ? degerler.reduce((s, v) => s + v, 0) / degerler.length : null;
   }, [gecmis]);
+  const toplamCiro = useMemo(() => gecmis.reduce((s, g) => s + (g.gerceklesen_ciro_kdv_dahil ?? 0), 0), [gecmis]);
+  const toplamAdet = useMemo(() => gecmis.reduce((s, g) => s + (g.gerceklesen_adet ?? 0), 0), [gecmis]);
 
   const yas = detay ? yasHesapla(detay.dogum_tarihi) : null;
 
@@ -134,7 +194,7 @@ export default function CikarmaForm({
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 items-start">
-    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl w-full space-y-4">
+    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl w-full space-y-4 shrink-0">
       <div>
         <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Filtrele</div>
         <div className="flex gap-2 mb-2">
@@ -230,12 +290,14 @@ export default function CikarmaForm({
     </form>
 
     {seciliPersonel && (
-      <div className="bg-white border border-gray-200 rounded-card p-4 w-full lg:w-[460px] shrink-0 space-y-4">
+      <div className="bg-white border border-gray-200 rounded-card p-4 w-full space-y-4">
         <div>
           <div className="text-sm font-semibold text-navy-3 mb-2">Performans KPI'ları — {seciliPersonel.ad_soyad}</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             <MiniKpi label="HGO (Ciro)" value={seciliPersonel.performans_ortalama_hgo != null ? `%${seciliPersonel.performans_ortalama_hgo.toFixed(1)}` : "—"} vurgu={hgoDusuk} />
             <MiniKpi label="HGO (Adet)" value={adetOrtalama != null ? `%${adetOrtalama.toFixed(1)}` : "—"} />
+            <MiniKpi label="Toplam Ciro" value={toplamCiro.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} />
+            <MiniKpi label="Toplam Adet" value={toplamAdet.toLocaleString("tr-TR")} />
             <MiniKpi label="Toplam Ay" value={String(gecmis.length)} />
             <MiniKpi label="%80 Altı" value={`${seciliPersonel.performans_80_alti_sayisi ?? 0} ay`} />
             <MiniKpi label="%80–100" value={`${seciliPersonel.performans_80_100_arasi_sayisi ?? 0} ay`} />
@@ -243,42 +305,9 @@ export default function CikarmaForm({
           </div>
         </div>
 
-        <div>
-          <div className="text-[11px] font-semibold text-navy-3 mb-1">HGO (Ciro) — Aylık</div>
-          {gecmisYukleniyor ? (
-            <div className="text-xs text-gray-400 py-6 text-center">Yükleniyor...</div>
-          ) : ciroGrafikVerisi.length === 0 ? (
-            <div className="text-xs text-gray-400 py-6 text-center">Veri yok.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={ciroGrafikVerisi} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
-                <YAxis tick={{ fontSize: 9 }} />
-                <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="hgo" stroke={hgoDusuk ? "#b03030" : "#00365a"} strokeWidth={2} dot={{ r: 2.5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        <div>
-          <div className="text-[11px] font-semibold text-navy-3 mb-1">HGO (Adet) — Aylık</div>
-          {gecmisYukleniyor ? (
-            <div className="text-xs text-gray-400 py-6 text-center">Yükleniyor...</div>
-          ) : adetGrafikVerisi.length === 0 ? (
-            <div className="text-xs text-gray-400 py-6 text-center">Veri yok.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={adetGrafikVerisi} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
-                <YAxis tick={{ fontSize: 9 }} />
-                <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="hgo" stroke="#1a5fa0" strokeWidth={2} dot={{ r: 2.5 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="hgo" hgoDusuk={hgoDusuk} />
+          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="adet_hgo" hgoDusuk={hgoDusuk} />
         </div>
 
         <div className="pt-3 border-t border-gray-100">
@@ -289,13 +318,16 @@ export default function CikarmaForm({
             <div className="text-xs text-gray-400">Bilgi bulunamadı.</div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div><div className="text-[9px] text-gray-400 uppercase">Yaş</div><div className="text-navy-3 font-medium">{yas ?? "—"}</div></div>
-                <div><div className="text-[9px] text-gray-400 uppercase">Görev Yeri (İl)</div><div className="text-navy-3 font-medium">{detay.il_adi ?? "—"}</div></div>
-                <div><div className="text-[9px] text-gray-400 uppercase">Kan Grubu</div><div className="text-navy-3 font-medium">{detay.kan_grubu_kodu ?? "—"}</div></div>
-                <div><div className="text-[9px] text-gray-400 uppercase">Uyruk</div><div className="text-navy-3 font-medium">{detay.uyruk ?? "—"}</div></div>
-                <div><div className="text-[9px] text-gray-400 uppercase">Medeni Durum</div><div className="text-navy-3 font-medium">{detay.evli === "DOĞRU" || detay.evli === "true" ? "Evli" : detay.evli ? "Bekar" : "—"}</div></div>
-                <div><div className="text-[9px] text-gray-400 uppercase">Önceki İş Yeri</div><div className="text-navy-3 font-medium">{detay.onceki_is_yeri ?? "—"}</div></div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                <OzlukAlani label="Personel Kodu" value={detay.personel_kodu} />
+                <OzlukAlani label="TC Kimlik No" value={detay.tc_kimlik_no} />
+                <OzlukAlani label="Telefon" value={detay.ozel_mobil} />
+                <OzlukAlani label="Yaş" value={yas != null ? String(yas) : null} />
+                <OzlukAlani label="Görev Yeri (İl)" value={detay.il_adi} />
+                <OzlukAlani label="Kan Grubu" value={detay.kan_grubu_kodu} />
+                <OzlukAlani label="Uyruk" value={detay.uyruk} />
+                <OzlukAlani label="Medeni Durum" value={detay.evli === "DOĞRU" || detay.evli === "true" ? "Evli" : detay.evli ? "Bekar" : null} />
+                <OzlukAlani label="Önceki İş Yeri" value={detay.onceki_is_yeri} />
               </div>
 
               {(detay.ihtarname || detay.uyari_yazisi || detay.tutanak || detay.savunma || detay.notlar) && (
