@@ -82,7 +82,7 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
         {SEKMELER.map((s) => (
           <button
             key={s.key}
-            onClick={() => setSekme(s.key)}
+            onClick={() => { setSekme(s.key); setOnayAcik(false); setSilmeHata(null); }}
             className={`px-3 py-1.5 rounded-md text-xs font-medium ${sekme === s.key ? "bg-navy text-white" : "bg-white border border-gray-200 text-gray-600"}`}
           >
             {s.label}
