@@ -37,7 +37,7 @@ export default function CvModal({ adayId, talepId, mevcutCv, onClose, onDone }: 
 
   return (
     <div className="fixed inset-0 bg-navy-3/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-card border border-gray-200 w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm font-semibold text-navy-3">{mevcutCv ? "CV Güncelle" : "CV Ekle"}</div>
           <button onClick={onClose} className="text-gray-400 text-lg leading-none">×</button>
