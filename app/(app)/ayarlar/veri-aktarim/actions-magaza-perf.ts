@@ -73,7 +73,27 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
 
   const hatalar: SatirHata[] = [];
   const magazaAylikSatirlari: Record<string, any>[] = [];
-  const magazaGuncellemeleri = new Map<string, { id: string; bolge_id: string; il_adi: string | null; subetipi: string | null; net_m2: number | null }>();
+
+  // Mağaza Performans dosyası birden fazla ay içerebilir ve aynı mağaza için farklı
+  // aylarda farklı bölge yazabilir (gerçek bir bölge değişikliğini yansıtabilir).
+  // Bölge her zaman dosyadaki EN GÜNCEL (en büyük yıl-ay) satırdan alınmalı — dosyanın
+  // satır sırasına güvenmiyoruz, açıkça karşılaştırıyoruz.
+  const magazaGuncellemeleri = new Map<string, {
+    id: string; enSonDonem: number; bolge_id: string; il_adi: string | null; subetipi: string | null; net_m2: number | null;
+  }>();
+
+  async function bolgeIdCoz(ad: string, satirNo: number): Promise<string | null> {
+    if (!ad) return null;
+    const mevcut = bolgeMap[ad];
+    if (mevcut) return mevcut;
+    const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad }).select("id").single();
+    if (bolgeHata || !yeniBolge) {
+      hatalar.push({ satir: satirNo, hata: `Bölge (${ad}) oluşturulamadı: ` + bolgeHata?.message });
+      return null;
+    }
+    bolgeMap[ad] = yeniBolge.id;
+    return yeniBolge.id;
+  }
 
   for (let i = 0; i < rows.length; i++) {
     const satirNo = i + 2;
@@ -93,25 +113,12 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
     const bolgeAdi = String(r["🏬RegionList"] ?? "").trim();
     const magazaAdiHam = String(r["🏬StoreFullName"] ?? "").trim();
     const magazaAdi = magazaAdiHam.startsWith(magazaKodu) ? magazaAdiHam.slice(magazaKodu.length).trim() : magazaAdiHam;
-
-    // Bölge adını çözer (varsa haritadan, yoksa oluşturup haritaya ekler). Mağaza Performans
-    // tek yetkili bölge kaynağı olduğu için hem yeni mağaza oluştururken hem mevcut bir
-    // mağazanın bölgesini güncel tutarken aynı fonksiyon kullanılıyor.
-    async function bolgeIdCoz(ad: string): Promise<string | null> {
-      if (!ad) return null;
-      const mevcut = bolgeMap[ad];
-      if (mevcut) return mevcut;
-      const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad }).select("id").single();
-      if (bolgeHata || !yeniBolge) {
-        hatalar.push({ satir: satirNo, hata: `Bölge (${ad}) oluşturulamadı: ` + bolgeHata?.message });
-        return null;
-      }
-      bolgeMap[ad] = yeniBolge.id;
-      return yeniBolge.id;
-    }
+    const donemKodu = yil * 100 + ay; // örn. 2026-09 -> 202609, karşılaştırmak için
 
     if (!magazaId) {
-      const bolgeId = await bolgeIdCoz(bolgeAdi);
+      // Gerçekten yeni bir mağaza — o anda başka kaynak olmadığı için bu satırın
+      // bölgesi (varsa) kullanılır, RegionList boşsa mağaza bölgesiz oluşturulur.
+      const bolgeId = await bolgeIdCoz(bolgeAdi, satirNo);
       const { data: yeniMagaza, error: magazaHata } = await supabase
         .from("magazalar")
         .insert({
@@ -128,16 +135,19 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
       magazaId = yeniMagaza.id;
       magazaMap[magazaKodu] = magazaId;
     } else if (bolgeAdi) {
-      // Mağaza zaten var — bölgesi dosyadakinden farklıysa günceller (Mağaza Performans
-      // tek yetkili bölge kaynağı olduğu için diğer importlar buna dokunmaz).
-      const bolgeId = await bolgeIdCoz(bolgeAdi);
-      if (bolgeId) {
-        magazaGuncellemeleri.set(magazaId, {
-          id: magazaId, bolge_id: bolgeId,
-          il_adi: String(r["🏬CityName"] ?? "").trim() || null,
-          subetipi: String(r["🏬StoreSegment"] ?? "").trim() || null,
-          net_m2: sayi(r["StoreSalesArea"]),
-        });
+      // Mağaza zaten var — sadece bu satır, o mağaza için şu ana kadar görülen en
+      // güncel dönemi temsil ediyorsa güncelleme adayı olarak işaretlenir.
+      const mevcutAday = magazaGuncellemeleri.get(magazaId);
+      if (!mevcutAday || donemKodu > mevcutAday.enSonDonem) {
+        const bolgeId = await bolgeIdCoz(bolgeAdi, satirNo);
+        if (bolgeId) {
+          magazaGuncellemeleri.set(magazaId, {
+            id: magazaId, enSonDonem: donemKodu, bolge_id: bolgeId,
+            il_adi: String(r["🏬CityName"] ?? "").trim() || null,
+            subetipi: String(r["🏬StoreSegment"] ?? "").trim() || null,
+            net_m2: sayi(r["StoreSalesArea"]),
+          });
+        }
       }
     }
 
@@ -161,7 +171,8 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
   }
 
   if (magazaGuncellemeleri.size > 0) {
-    const { error } = await supabase.rpc("magazalar_toplu_guncelle_v2", { p_guncellemeler: Array.from(magazaGuncellemeleri.values()) });
+    const guncellemeListesi = Array.from(magazaGuncellemeleri.values()).map(({ enSonDonem, ...rest }) => rest);
+    const { error } = await supabase.rpc("magazalar_toplu_guncelle_v2", { p_guncellemeler: guncellemeListesi });
     if (error) hatalar.push({ satir: 0, hata: "Mağaza bilgileri (bölge dahil) toplu güncellenemedi: " + error.message });
   }
 
