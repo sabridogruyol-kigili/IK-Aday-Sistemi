@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { createIstenCikarmaTalebi, getPersonelPerformansGecmisi, getPersonelDetay, type PersonelAylikHgo, type PersonelDetay } from "./actions-cikarma";
+import { kidemYilAyFormat } from "@/lib/kidemFormat";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -299,6 +300,7 @@ export default function CikarmaForm({
             <MiniKpi label="Toplam Ciro" value={toplamCiro.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} />
             <MiniKpi label="Toplam Adet" value={toplamAdet.toLocaleString("tr-TR")} />
             <MiniKpi label="Toplam Ay" value={String(gecmis.length)} />
+            <MiniKpi label="Kıdem (Yıl.Ay)" value={detay ? kidemYilAyFormat(detay.kidem_ay) : "—"} />
             <MiniKpi label="%80 Altı" value={`${seciliPersonel.performans_80_alti_sayisi ?? 0} ay`} />
             <MiniKpi label="%80–100" value={`${seciliPersonel.performans_80_100_arasi_sayisi ?? 0} ay`} />
             <MiniKpi label="%100 Üstü" value={`${seciliPersonel.performans_100_ustu_sayisi ?? 0} ay`} />
