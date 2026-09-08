@@ -26,8 +26,8 @@ function sayi(v: any): number | null {
   if (typeof v === "number") {
     n = v;
   } else {
-    const s = String(v).trim();
-    if (s === "-") return null;
+    let s = String(v).trim().replace(/[₺$%\s]/g, "");
+    if (s === "-" || s === "") return null;
     if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(s)) {
       n = Number(s.replace(/\./g, "").replace(",", "."));
     } else {
@@ -74,10 +74,8 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
   const hatalar: SatirHata[] = [];
   const magazaAylikSatirlari: Record<string, any>[] = [];
 
-  // Mağaza Performans dosyası birden fazla ay içerebilir ve aynı mağaza için farklı
-  // aylarda farklı bölge yazabilir (gerçek bir bölge değişikliğini yansıtabilir).
-  // Bölge her zaman dosyadaki EN GÜNCEL (en büyük yıl-ay) satırdan alınmalı — dosyanın
-  // satır sırasına güvenmiyoruz, açıkça karşılaştırıyoruz.
+  // Aynı mağaza için birden fazla ay olabilir; bölge her zaman dosyadaki EN GÜNCEL
+  // (en büyük yıl-ay) satırdan alınır — dosyanın satır sırasına güvenilmez.
   const magazaGuncellemeleri = new Map<string, {
     id: string; enSonDonem: number; bolge_id: string; il_adi: string | null; subetipi: string | null; net_m2: number | null;
   }>();
@@ -113,11 +111,9 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
     const bolgeAdi = String(r["🏬RegionList"] ?? "").trim();
     const magazaAdiHam = String(r["🏬StoreFullName"] ?? "").trim();
     const magazaAdi = magazaAdiHam.startsWith(magazaKodu) ? magazaAdiHam.slice(magazaKodu.length).trim() : magazaAdiHam;
-    const donemKodu = yil * 100 + ay; // örn. 2026-09 -> 202609, karşılaştırmak için
+    const donemKodu = yil * 100 + ay;
 
     if (!magazaId) {
-      // Gerçekten yeni bir mağaza — o anda başka kaynak olmadığı için bu satırın
-      // bölgesi (varsa) kullanılır, RegionList boşsa mağaza bölgesiz oluşturulur.
       const bolgeId = await bolgeIdCoz(bolgeAdi, satirNo);
       const { data: yeniMagaza, error: magazaHata } = await supabase
         .from("magazalar")
@@ -135,8 +131,6 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
       magazaId = yeniMagaza.id;
       magazaMap[magazaKodu] = magazaId;
     } else if (bolgeAdi) {
-      // Mağaza zaten var — sadece bu satır, o mağaza için şu ana kadar görülen en
-      // güncel dönemi temsil ediyorsa güncelleme adayı olarak işaretlenir.
       const mevcutAday = magazaGuncellemeleri.get(magazaId);
       if (!mevcutAday || donemKodu > mevcutAday.enSonDonem) {
         const bolgeId = await bolgeIdCoz(bolgeAdi, satirNo);
