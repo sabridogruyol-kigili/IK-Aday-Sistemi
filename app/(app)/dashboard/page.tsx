@@ -46,6 +46,7 @@ export default async function DashboardPage() {
       .from("personel")
       .select("id, guncel_magaza_id, kadro_kategorisi, guncel_unvan, ad_soyad, tc_kimlik_no")
       .eq("durum", "aktif")
+      .not("tc_kimlik_no", "like", "PLASIYER-%")
       .range(bas, bitis)
   );
 
@@ -65,26 +66,14 @@ export default async function DashboardPage() {
       .range(bas, bitis)
   );
 
-  // Personel Kodu / Sicil, Personel dosyası ile Çalışan Performans dosyası arasında
-  // farklı numaralandırılabiliyor (aynı kişi için iki farklı kod) — bu da aynı kişinin
-  // birden fazla kayıtla (bazen "PLASIYER-" yer tutucu, bazen gerçek TC'li) görünmesine
-  // yol açıyor. Doluluk sayımında aynı isim + aynı mağaza + aynı kategori kombinasyonu
-  // TEK kişi sayılır; gerçek TC'li kayıt varsa o tercih edilir.
-  const personelTekil = new Map<string, any>();
-  (personelList ?? []).forEach((p: any) => {
-    if (!p.guncel_magaza_id) return;
-    const anahtar = `${p.guncel_magaza_id}|${String(p.ad_soyad ?? "").trim().toLocaleUpperCase("tr-TR")}|${p.kadro_kategorisi ?? ""}`;
-    const mevcut = personelTekil.get(anahtar);
-    const buGercekMi = !String(p.tc_kimlik_no ?? "").startsWith("PLASIYER-");
-    if (!mevcut || (buGercekMi && String(mevcut.tc_kimlik_no ?? "").startsWith("PLASIYER-"))) {
-      personelTekil.set(anahtar, p);
-    }
-  });
-  const personelListTekil = Array.from(personelTekil.values());
-
-  // Mağaza başına, kadro kategorisine göre ayrı ayrı aktif personel sayısı
+  // Mağaza doluluk sayımı sadece GERÇEK Personel importundan gelen (İşten Ayrılma
+  // Tarihi boş, yani hâlâ çalışan) kayıtları esas alır. Çalışan Performans
+  // dosyasının sicili eşleşmeyince oluşturduğu "PLASIYER-" yer tutucu kayıtlar bu
+  // sayıma hiç dahil edilmez — isim bazlı eşleştirme denenmişti ama farklı
+  // mağaza geçmişi/yazım farkları yeni sayım hatalarına yol açtığı için
+  // kaldırıldı. Personel dosyası tek güvenilir kaynak kabul ediliyor.
   const doluMap: Record<string, { ANA_KADRO: number; DONEMSEL: number; PART_TIME: number }> = {};
-  personelListTekil.forEach((p: any) => {
+  (personelList ?? []).forEach((p: any) => {
     if (!p.guncel_magaza_id) return;
     if (!doluMap[p.guncel_magaza_id]) doluMap[p.guncel_magaza_id] = { ANA_KADRO: 0, DONEMSEL: 0, PART_TIME: 0 };
     if (p.kadro_kategorisi === "ANA_KADRO" || p.kadro_kategorisi === "DONEMSEL" || p.kadro_kategorisi === "PART_TIME") {
