@@ -4,16 +4,16 @@ import CikisButonu from "./CikisButonu";
 import SidebarNav from "./SidebarNav";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "◈" },
-  { href: "/norm", label: "Mağazalarım / Norm", icon: "▦" },
-  { href: "/talepler/yeni", label: "Yeni Talep", icon: "＋" },
-  { href: "/talepler", label: "Talepler", icon: "☰" },
-  { href: "/onay-bekleyenler", label: "Onay Bekleyenler", icon: "✓" },
-  { href: "/personel", label: "Personel Listesi", icon: "◒" },
-  { href: "/adaylar", label: "Adaylar", icon: "👤" },
-  { href: "/raporlar", label: "Raporlar", icon: "▤" },
-  { href: "/bildirimler", label: "Bildirimler", icon: "🔔" },
-  { href: "/ayarlar/kullanicilar", label: "Ayarlar", icon: "⚙" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/norm", label: "Mağazalarım / Norm", icon: "norm" },
+  { href: "/talepler/yeni", label: "Yeni Talep", icon: "yeni" },
+  { href: "/talepler", label: "Talepler", icon: "talepler" },
+  { href: "/onay-bekleyenler", label: "Onay Bekleyenler", icon: "onay" },
+  { href: "/personel", label: "Personel Listesi", icon: "personel" },
+  { href: "/adaylar", label: "Adaylar", icon: "adaylar" },
+  { href: "/raporlar", label: "Raporlar", icon: "raporlar" },
+  { href: "/bildirimler", label: "Bildirimler", icon: "bildirimler" },
+  { href: "/ayarlar/kullanicilar", label: "Ayarlar", icon: "ayarlar" },
 ];
 
 export default async function AppLayout({
