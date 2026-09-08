@@ -2,6 +2,23 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import NormTablosu from "./NormTablosu";
 
+// Supabase tek sorguda en fazla 1000 satır döndürür — personel sayımız bunu
+// aşabileceği için sayfalayarak (1000'erlik parçalar hâlinde) çekiyoruz.
+async function tumSatirlariGetir<T>(sorguOlustur: (bas: number, bitis: number) => any): Promise<T[]> {
+  const PARCA = 1000;
+  let tumSatirlar: T[] = [];
+  let sayfa = 0;
+  while (true) {
+    const bas = sayfa * PARCA;
+    const { data, error } = await sorguOlustur(bas, bas + PARCA - 1);
+    if (error || !data) break;
+    tumSatirlar = tumSatirlar.concat(data as T[]);
+    if (data.length < PARCA) break;
+    sayfa++;
+  }
+  return tumSatirlar;
+}
+
 export default async function NormPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -20,13 +37,20 @@ export default async function NormPage() {
 
   const magazaIdleri = (magazalarHam ?? []).map((m: any) => m.id);
 
-  const [normRes, personelRes] = await Promise.all([
+  const [normRes, personelListesi] = await Promise.all([
     magazaIdleri.length > 0
       ? supabase.from("norm").select("magaza_id, ana_kadro_norm, donemsel_norm, part_time_norm").in("magaza_id", magazaIdleri)
       : Promise.resolve({ data: [] as any[] }),
     magazaIdleri.length > 0
-      ? supabase.from("personel").select("guncel_magaza_id, kadro_kategorisi").eq("durum", "aktif").in("guncel_magaza_id", magazaIdleri)
-      : Promise.resolve({ data: [] as any[] }),
+      ? tumSatirlariGetir<any>((bas, bitis) =>
+          supabase
+            .from("personel")
+            .select("guncel_magaza_id, kadro_kategorisi")
+            .eq("durum", "aktif")
+            .not("tc_kimlik_no", "like", "PLASIYER-%")
+            .range(bas, bitis)
+        )
+      : Promise.resolve([]),
   ]);
 
   const normMap: Record<string, { ana_kadro_norm: number; donemsel_norm: number; part_time_norm: number }> = {};
@@ -39,7 +63,8 @@ export default async function NormPage() {
   });
 
   const doluMap: Record<string, { ANA_KADRO: number; DONEMSEL: number; PART_TIME: number }> = {};
-  (personelRes.data ?? []).forEach((p: any) => {
+  (personelListesi ?? []).forEach((p: any) => {
+    if (!p.guncel_magaza_id) return;
     if (!doluMap[p.guncel_magaza_id]) {
       doluMap[p.guncel_magaza_id] = { ANA_KADRO: 0, DONEMSEL: 0, PART_TIME: 0 };
     }
