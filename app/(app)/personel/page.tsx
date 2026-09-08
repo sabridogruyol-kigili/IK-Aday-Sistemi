@@ -69,16 +69,15 @@ export default async function PersonelPage() {
     return <div className="text-xs text-danger">Hata: {personelHata.message}</div>;
   }
 
-  const personelIdler = (personelHam ?? []).map((p: any) => p.id);
-  const atamaGecmisi = personelIdler.length > 0
-    ? await tumSatirlariGetir<any>((bas, bitis) =>
-        supabase
-          .from("personel_atama_gecmisi")
-          .select("personel_id, baslama_tarihi, ayrilma_tarihi")
-          .in("personel_id", personelIdler)
-          .range(bas, bitis)
-      )
-    : [];
+  // Not: personel_id'leri .in() filtresine tek seferde vermek (binlerce UUID),
+  // sorgunun istek boyutunu aşıp sessizce boş/eksik sonuç dönmesine yol açabiliyordu.
+  // Bunun yerine tüm atama geçmişi tablosu, kendi sayfalama mekanizmasıyla çekilir.
+  const atamaGecmisi = await tumSatirlariGetir<any>((bas, bitis) =>
+    supabase
+      .from("personel_atama_gecmisi")
+      .select("personel_id, baslama_tarihi, ayrilma_tarihi")
+      .range(bas, bitis)
+  );
 
   const atamaMap: Record<string, { baslama_tarihi: string | null; ayrilma_tarihi: string | null }[]> = {};
   atamaGecmisi.forEach((a: any) => {
