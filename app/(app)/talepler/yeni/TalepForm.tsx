@@ -72,15 +72,6 @@ export default function TalepForm({
     [magazaBilgi]
   );
 
-  // Norm yetersizse, ilk satırın kategorisi için doğrudan Norm Artırma
-  // Talebi'ne (mağaza + kategori önceden dolu şekilde) yönlendirme linki.
-  const ilkKategori = useMemo(() => {
-    const unvan = satirlar[0]?.pozisyon_tipi;
-    return pozisyonlar.find((p) => p.unvan === unvan)?.kategori ?? "";
-  }, [satirlar, pozisyonlar]);
-  const normArtirmaLinki = magazaId && ilkKategori
-    ? `/talepler/yeni?tur=norm_degisiklik&magaza_id=${magazaId}&kategori=${ilkKategori}`
-    : "/talepler/yeni?tur=norm_degisiklik";
 
   function satirEkle() {
     setSatirlar((s) => [...s, { id: crypto.randomUUID(), pozisyon_tipi: "", kisi_sayisi: 1 }]);
@@ -169,9 +160,6 @@ export default function TalepForm({
             <input type="checkbox" checked={israrli} onChange={(e) => setIsrarli(e.target.checked)} />
             Yine de talep etmek istiyorum (açıklama zorunlu)
           </label>
-          <a href={normArtirmaLinki} className="inline-block bg-white border border-danger/40 text-danger rounded-md px-3 py-1.5 text-[11px] font-medium hover:bg-danger/5">
-            Bunun yerine Norm Artırma Talebi Aç →
-          </a>
         </div>
       )}
 
