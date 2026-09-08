@@ -32,6 +32,23 @@ export async function personelTumunuSil(): Promise<SilmeSonuc> {
   return { basarili: true, silinen: data ?? 0 };
 }
 
+export async function magazalarTumunuSil(): Promise<SilmeSonuc> {
+  const yetki = await yonetimMi();
+  if (!yetki.ok) return { basarili: false, silinen: 0, hata: yetki.hata };
+
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("magazalar_topluca_sil");
+  if (error) return { basarili: false, silinen: 0, hata: error.message };
+
+  revalidatePath("/personel");
+  revalidatePath("/norm");
+  revalidatePath("/dashboard");
+  revalidatePath("/raporlar");
+  revalidatePath("/ayarlar/veri-aktarim");
+  revalidatePath("/ayarlar/magazalar");
+  return { basarili: true, silinen: data ?? 0 };
+}
+
 export async function performansKisiTumunuSil(): Promise<SilmeSonuc> {
   const yetki = await yonetimMi();
   if (!yetki.ok) return { basarili: false, silinen: 0, hata: yetki.hata };
