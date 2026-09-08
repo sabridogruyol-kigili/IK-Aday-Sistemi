@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { kidemYilAyFormat } from "@/lib/kidemFormat";
 
 type Satir = {
   id: string;
@@ -76,8 +77,7 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
               <th className="text-left p-3">Kategori</th>
               <th className="text-left p-3">Mağaza</th>
               <th className="text-left p-3">Bölge</th>
-              <th className="text-left p-3">Kıdem (Ay)</th>
-              <th className="text-left p-3">Kıdem (Yıl)</th>
+              <th className="text-left p-3">Kıdem (Yıl.Ay)</th>
               <th className="text-left p-3">Ort. HGO</th>
               <th className="text-left p-3">Durum</th>
             </tr>
@@ -85,7 +85,7 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
           <tbody>
             {filtrelenmis.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-6 text-center text-gray-400 text-xs">
+                <td colSpan={8} className="p-6 text-center text-gray-400 text-xs">
                   Yetkiniz dahilinde gösterilecek personel bulunamadı.
                 </td>
               </tr>
@@ -97,8 +97,7 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
                 <td className="p-3 text-xs text-gray-500">{KATEGORI_LABEL[s.kadro_kategorisi] ?? "—"}</td>
                 <td className="p-3 text-xs text-gray-600">{s.magaza_adi || "—"}</td>
                 <td className="p-3 text-xs text-gray-500">{s.bolge_adi || "—"}</td>
-                <td className="p-3 text-xs text-gray-500">{s.kidem_ay ?? "—"}</td>
-                <td className="p-3 text-xs text-gray-500">{s.kidem_yil ?? "—"}</td>
+                <td className="p-3 text-xs text-gray-500">{kidemYilAyFormat(s.kidem_ay)}</td>
                 <td className="p-3 text-xs text-gray-500">
                   {s.performans_ortalama_hgo != null ? `%${s.performans_ortalama_hgo.toFixed(0)}` : "—"}
                 </td>
