@@ -172,8 +172,8 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
   redirect("/talepler");
 }
 
-// Seçilen personelin aylık HGO geçmişi — sağ taraftaki grafik için.
-export type PersonelAylikHgo = { yil: number; ay: number; hgo: number | null };
+// Seçilen personelin aylık HGO geçmişi — sağ taraftaki grafikler için.
+export type PersonelAylikHgo = { yil: number; ay: number; hgo: number | null; adet_hgo: number | null };
 
 export async function getPersonelPerformansGecmisi(personelId: string): Promise<PersonelAylikHgo[]> {
   if (!personelId) return [];
@@ -183,10 +183,55 @@ export async function getPersonelPerformansGecmisi(personelId: string): Promise<
 
   const { data } = await supabase
     .from("performans_kisi_aylik")
-    .select("yil, ay, hgo")
+    .select("yil, ay, hgo, adet_hgo")
     .eq("personel_id", personelId)
     .order("yil", { ascending: true })
     .order("ay", { ascending: true });
 
   return (data ?? []) as PersonelAylikHgo[];
+}
+
+// Kişi seçilince gösterilecek ek özlük bilgileri — sadece seçilen kişi için anlık
+// çekilir (tüm personel listesine bu ağır alanları eklemeyip performansı koruyoruz).
+export type PersonelDetay = {
+  dogum_tarihi: string | null;
+  kan_grubu_kodu: string | null;
+  uyruk: string | null;
+  evli: string | null;
+  onceki_is_yeri: string | null;
+  ihtarname: string | null;
+  uyari_yazisi: string | null;
+  tutanak: string | null;
+  savunma: string | null;
+  notlar: string | null;
+  il_adi: string | null;
+};
+
+export async function getPersonelDetay(personelId: string): Promise<PersonelDetay | null> {
+  if (!personelId) return null;
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("personel")
+    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, magazalar(il_adi)")
+    .eq("id", personelId)
+    .single();
+
+  if (!data) return null;
+  const magazaHam = data as any;
+  return {
+    dogum_tarihi: magazaHam.dogum_tarihi,
+    kan_grubu_kodu: magazaHam.kan_grubu_kodu,
+    uyruk: magazaHam.uyruk,
+    evli: magazaHam.evli,
+    onceki_is_yeri: magazaHam.onceki_is_yeri,
+    ihtarname: magazaHam.ihtarname,
+    uyari_yazisi: magazaHam.uyari_yazisi,
+    tutanak: magazaHam.tutanak,
+    savunma: magazaHam.savunma,
+    notlar: magazaHam.notlar,
+    il_adi: magazaHam.magazalar?.il_adi ?? null,
+  };
 }
