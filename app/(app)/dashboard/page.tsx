@@ -157,7 +157,9 @@ export default async function DashboardPage() {
             <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">
               {k.label}
             </div>
-            <div className="text-2xl font-mono font-semibold text-navy">{k.value}</div>
+            <div className={`font-mono font-semibold text-navy whitespace-nowrap ${k.value.length > 10 ? "text-base" : k.value.length > 6 ? "text-lg" : "text-xl"}`}>
+              {k.value}
+            </div>
           </div>
         ))}
       </div>
