@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import CikisButonu from "./CikisButonu";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "◈" },
@@ -64,10 +65,11 @@ export default async function AppLayout({
           <div className="w-[30px] h-[30px] rounded-full bg-accent flex items-center justify-center text-[11px] font-bold text-navy-3 shrink-0">
             {initials}
           </div>
-          <div>
-            <div className="text-white text-xs font-medium leading-tight">{displayName}</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white text-xs font-medium leading-tight truncate">{displayName}</div>
             <div className="text-white/40 text-[10px]">{profile?.rol ?? "—"}</div>
           </div>
+          <CikisButonu />
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto bg-[#f5f5f3]">
