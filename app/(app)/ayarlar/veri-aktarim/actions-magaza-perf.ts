@@ -109,8 +109,11 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
 
     let magazaId = magazaMap[magazaKodu];
     const bolgeAdi = String(r["🏬RegionList"] ?? "").trim();
-    const magazaAdiHam = String(r["🏬StoreFullName"] ?? "").trim();
-    const magazaAdi = magazaAdiHam.startsWith(magazaKodu) ? magazaAdiHam.slice(magazaKodu.length).trim() : magazaAdiHam;
+    // NOT: Daha önce burada isimden kod öneki siliniyordu ("C025 ..." -> "...").
+    // Bu YANLIŞTI — dosyadaki StoreFullName zaten doğru (kodlu) geliyor, silmeye
+    // hiç gerek yoktu. Bu yüzden yeni oluşan mağazalar kodsuz, eskiler kodlu
+    // kalıyordu. Artık dosyadaki isim olduğu gibi kullanılıyor.
+    const magazaAdi = String(r["🏬StoreFullName"] ?? "").trim();
     const donemKodu = yil * 100 + ay;
 
     if (!magazaId) {
