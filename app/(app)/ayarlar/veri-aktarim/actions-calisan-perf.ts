@@ -232,7 +232,7 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
     };
   });
   for (const parca of parcala(personelGuncellemeleri, PARCA_BOYUTU)) {
-    const { error } = await supabase.from("personel").upsert(parca, { onConflict: "id" });
+    const { error } = await supabase.rpc("personel_performans_ozet_guncelle", { p_guncellemeler: parca });
     if (error) hatalar.push({ satir: 0, hata: "Personel performans özeti güncellenemedi: " + error.message });
   }
 
