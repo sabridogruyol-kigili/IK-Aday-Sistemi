@@ -12,9 +12,9 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: "#0B2545",
-          2: "#123863",
-          3: "#1C2430",
+          DEFAULT: "#0F1B4D",
+          2: "#1B2E6B",
+          3: "#0A122E",
         },
         accent: "#C08A2E",
         success: { DEFAULT: "#2F6F4E", bg: "#EAF3DE" },
