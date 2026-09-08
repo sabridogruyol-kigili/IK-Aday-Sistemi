@@ -288,6 +288,15 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
 
   const [seciliMagazaId, setSeciliMagazaId] = useState<string | null>(null);
 
+  // "Mağazalar — Performans" kutusundaki KPI'lar için elle dönem seçimi (null ise
+  // otomatik en güncel dönem kullanılır).
+  const [kpiDonemManuel, setKpiDonemManuel] = useState<number | null>(null);
+  const kpiDonemSecenekleri = useMemo(() => {
+    const set = new Set<number>();
+    performansHam.forEach((p) => set.add(p.yil * 100 + p.ay));
+    return Array.from(set).sort((a, b) => b - a);
+  }, [performansHam]);
+
   const magazaMap = useMemo(() => {
     const m: Record<string, Magaza> = {};
     magazalar.forEach((mag) => { m[mag.id] = mag; });
@@ -353,7 +362,11 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
 
     let enSonYil = 0, enSonAy = 0;
 
-    if (seciliMagazaId) {
+    if (kpiDonemManuel !== null) {
+      // Kullanıcı elle bir dönem seçmiş — o dönem kullanılır.
+      enSonYil = Math.floor(kpiDonemManuel / 100);
+      enSonAy = kpiDonemManuel % 100;
+    } else if (seciliMagazaId) {
       // Mağaza seçiliyse referans dönem o mağazanın KENDİ en güncel ayı — başka bir
       // mağazada daha yeni bir ay varsa bile bu mağazanın kendi geçmişi kaybolmasın.
       performansHam.forEach((p) => {
@@ -393,7 +406,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
         return { ...d, ortalama, kendi };
       }),
     };
-  }, [performansHam, seciliMagazaId]);
+  }, [performansHam, seciliMagazaId, kpiDonemManuel]);
 
   // Turnover kümülatif bir bilgi (aylık değil, mağaza başına tek değer) — düşük olması iyi, o yüzden
   // fark renklendirmesi diğer metriklerin tersi (fark pozitifse kırmızı, negatifse yeşil).
@@ -625,9 +638,21 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
 
         {(enSonAyOzeti || turnoverOzet) && (
           <div className="mb-1">
-            <div className="text-[11px] text-gray-400 mb-2">
-              {seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı{enSonAyOzeti && ` — ${enSonAyOzeti.etiket}`}
-              {!seciliMagaza && enSonAyOzeti && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-[11px] text-gray-400">
+                {kpiDonemManuel !== null ? "Seçili dönem" : seciliMagaza ? "Bu mağazanın" : "Tüm mağazaların"} en güncel ayı{enSonAyOzeti && ` — ${enSonAyOzeti.etiket}`}
+                {!seciliMagaza && enSonAyOzeti && ` (${enSonAyOzeti.magazaSayisi} mağaza)`}
+              </div>
+              <select
+                value={kpiDonemManuel ?? ""}
+                onChange={(e) => setKpiDonemManuel(e.target.value === "" ? null : Number(e.target.value))}
+                className="border border-gray-300 rounded-md px-2 py-1 text-[10px] bg-white shrink-0"
+              >
+                <option value="">Otomatik (en güncel)</option>
+                {kpiDonemSecenekleri.map((d) => (
+                  <option key={d} value={d}>{AY_KISA[d % 100]} {Math.floor(d / 100)}</option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {enSonAyOzeti?.degerler.map((d) => (
