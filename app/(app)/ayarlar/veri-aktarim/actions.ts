@@ -6,6 +6,16 @@ import { revalidatePath } from "next/cache";
 type SatirHata = { satir: number; hata: string };
 type Sonuc = { basarili: number; hatalar: SatirHata[]; yetkiHatasi?: string };
 
+// Farklı dosya kaynakları aynı sütun için biraz farklı başlık kullanabiliyor
+// (örn. "Bölge" / "Bölge Adı", "Ana Kadro Norm" / "Ana Kadro Normu", Türkçe
+// karaktersiz "Magaza Kodu"). Aday isimlerden ilk doluyu kullanır.
+function sutunAl(r: any, adaylar: string[]): any {
+  for (const ad of adaylar) {
+    if (r[ad] !== undefined && r[ad] !== null && r[ad] !== "") return r[ad];
+  }
+  return undefined;
+}
+
 export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -20,12 +30,12 @@ export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
   for (let i = 0; i < rows.length; i++) {
     const satirNo = i + 2;
     const r = rows[i];
-    const magazaKodu = String(r["Mağaza Kodu"] ?? "").trim();
-    const magazaAdi = String(r["Mağaza Adı"] ?? "").trim();
-    const bolgeAdi = String(r["Bölge Adı"] ?? "").trim();
-    const anaKadro = Number(r["Ana Kadro Norm"]);
-    const donemsel = Number(r["Dönemsel Norm"]);
-    const partTime = Number(r["Part-Time Norm"]);
+    const magazaKodu = String(sutunAl(r, ["Mağaza Kodu", "Magaza Kodu", "MAĞAZA KODU", "Şube Kodu"]) ?? "").trim();
+    const magazaAdi = String(sutunAl(r, ["Mağaza Adı", "Magaza Adi", "Mağaza Adi", "MAĞAZA ADI", "Şube Adı"]) ?? "").trim();
+    const bolgeAdi = String(sutunAl(r, ["Bölge Adı", "Bölge", "Bolge Adi", "Bolge", "BÖLGE"]) ?? "").trim();
+    const anaKadro = Number(sutunAl(r, ["Ana Kadro Norm", "Ana Kadro Normu"]));
+    const donemsel = Number(sutunAl(r, ["Dönemsel Norm", "Dönemsel Normu"]));
+    const partTime = Number(sutunAl(r, ["Part-Time Norm", "Part-Time Normu", "Part Time Norm", "Part Time Normu"]));
 
     if (!magazaKodu || !magazaAdi) {
       hatalar.push({ satir: satirNo, hata: "Mağaza Kodu veya Mağaza Adı eksik." });
