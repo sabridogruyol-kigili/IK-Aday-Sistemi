@@ -26,7 +26,7 @@ export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
 
   return (
     <div className="fixed inset-0 bg-navy-3/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-card border border-gray-200 w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm font-semibold text-navy-3">İşe Alım Bilgileri</div>
           <button onClick={onClose} className="text-gray-400 text-lg leading-none">×</button>
