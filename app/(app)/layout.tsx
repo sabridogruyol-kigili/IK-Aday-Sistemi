@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CikisButonu from "./CikisButonu";
+import SidebarNav from "./SidebarNav";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "◈" },
@@ -54,34 +54,23 @@ export default async function AppLayout({
       <aside className="w-[210px] min-w-[210px] bg-navy flex flex-col">
         <div className="px-4 pt-5 pb-4 border-b border-white/10 flex flex-col items-center text-center gap-2">
           <img src="/logo.png" alt="Kiğılı İK" className="h-16 w-auto" />
-          <div className="text-white text-sm font-semibold leading-tight">
+          <div className="text-white text-[13px] font-medium leading-tight tracking-wide">
             İK Aday ve Süreç Takip Sistemi
           </div>
         </div>
-        <nav className="py-2 flex-1 overflow-y-auto">
-          {visibleNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-2 px-4 py-2 text-[13px] text-white/55 hover:bg-white/10 hover:text-white/90 border-l-[3px] border-transparent transition-colors"
-            >
-              <span className="w-[15px] text-center text-[13px]">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav items={visibleNavItems} />
         <div className="px-4 py-3 border-t border-white/10 flex items-center gap-2.5">
-          <div className="w-[30px] h-[30px] rounded-full bg-accent flex items-center justify-center text-[11px] font-bold text-navy-3 shrink-0">
+          <div className="w-[30px] h-[30px] rounded-full bg-accent border border-white/20 flex items-center justify-center text-[11px] font-semibold text-navy-3 shrink-0">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-white text-xs font-medium leading-tight truncate">{displayName}</div>
-            <div className="text-white/40 text-[10px]">{profile?.rol ?? "—"}</div>
+            <div className="text-white/40 text-[10px] tracking-wide">{profile?.rol ?? "—"}</div>
           </div>
           <CikisButonu />
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto bg-[#f5f5f3]">
+      <main className="flex-1 overflow-y-auto bg-[#FAFAF8]">
         <div className="p-5">{children}</div>
       </main>
     </div>
