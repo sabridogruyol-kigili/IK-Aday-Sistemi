@@ -143,8 +143,11 @@ export default function NormTablosu({ satirlar }: { satirlar: Satir[] }) {
           <tbody>
             {filtrelenmis.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-gray-400 text-xs">
-                  Bu filtreye uyan mağaza bulunamadı.
+                <td colSpan={7} className="p-8 text-center text-gray-400 text-xs">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-2 opacity-50">
+                    <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
+                  </svg>
+                  Bu filtreye uyan mağaza bulunamadı — filtreleri gevşetmeyi deneyin.
                 </td>
               </tr>
             )}
