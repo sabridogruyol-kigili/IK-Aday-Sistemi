@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
+import { getMagazaCalisanGecmisi, type MagazaCalisanSatiri } from "./actions";
 
 type Magaza = {
   id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string;
@@ -18,12 +19,6 @@ type PerformansSatiri = {
   adet_hgo: number | null; satis_adeti: number | null; toplam_ciro_kdv_dahil: number | null;
   omnichannel_ciro: number | null; omnichannel_haric_ciro: number | null;
 };
-type PerformansKisiSatiri = {
-  personel_id: string; yil: number; ay: number; hgo: number | null; adet_hgo: number | null;
-  gerceklesen_ciro_kdv_dahil: number | null;
-  personel: { ad_soyad: string; guncel_unvan: string | null; guncel_magaza_id: string | null; durum: string } | null;
-};
-
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 const ZAMAN_DEGISKENLERI: { key: keyof PerformansSatiri; label: string; format: (v: number) => string }[] = [
@@ -255,7 +250,7 @@ function BolgeDropdownFiltre({ bolgeler, secilenler, setSecilenler }: { bolgeler
   );
 }
 
-export default function DashboardPaneller({ magazalar, bolgeler, performansHam, performansKisiHam }: { magazalar: Magaza[]; bolgeler: Bolge[]; performansHam: PerformansSatiri[]; performansKisiHam: PerformansKisiSatiri[] }) {
+export default function DashboardPaneller({ magazalar, bolgeler, performansHam, calisanOzetMap }: { magazalar: Magaza[]; bolgeler: Bolge[]; performansHam: PerformansSatiri[]; calisanOzetMap: Record<string, { calisanSayisi: number; satisYapan: number }> }) {
   // ---- Sol panel (Mağazalar) filtreleri ----
   const [solBolgeler, setSolBolgeler] = useState<Set<string>>(new Set());
   const [solArama, setSolArama] = useState("");
@@ -439,43 +434,17 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
   // Not: performans_kisi_aylik satırında mağaza bilgisi yok, personelin GÜNCEL
   // mağazası üzerinden eşleştiriliyor (geçmiş bir ay için o kişi başka bir
   // mağazadaysa bu yaklaşık bir değerdir, ama elimizdeki en iyi veri budur).
-  const magazaDonemGruplari = useMemo(() => {
-    const gruplar: Record<string, Record<number, PerformansKisiSatiri[]>> = {};
-    performansKisiHam.forEach((s) => {
-      const magazaId = s.personel?.guncel_magaza_id;
-      if (!magazaId) return;
-      const donem = s.yil * 100 + s.ay;
-      if (!gruplar[magazaId]) gruplar[magazaId] = {};
-      if (!gruplar[magazaId][donem]) gruplar[magazaId][donem] = [];
-      gruplar[magazaId][donem].push(s);
-    });
-    return gruplar;
-  }, [performansKisiHam]);
-
-  const magazaCalisanMetrikleri = useMemo(() => {
-    const sonuc: Record<string, { calisanSayisi: number; satisYapan: number; enSonDonem: number }> = {};
-    Object.entries(magazaDonemGruplari).forEach(([magazaId, donemler]) => {
-      const donemKodlari = Object.keys(donemler).map(Number);
-      const enSonDonem = Math.max(...donemKodlari);
-      const satirlar = donemler[enSonDonem];
-      sonuc[magazaId] = {
-        calisanSayisi: satirlar.length,
-        satisYapan: satirlar.filter((s) => (s.gerceklesen_ciro_kdv_dahil ?? 0) > 0).length,
-        enSonDonem,
-      };
-    });
-    return sonuc;
-  }, [magazaDonemGruplari]);
-
+  // ---- Çalışan Sayısı / Satış Yapan Oranı KPI'ları — sunucuda (page.tsx)
+  // sadece EN GÜNCEL dönem için önceden hesaplanmış hafif bir özet kullanılır.
   const calisanKpiOzet = useMemo(() => {
-    const tumMagazalar = Object.values(magazaCalisanMetrikleri);
+    const tumMagazalar = Object.values(calisanOzetMap);
     if (tumMagazalar.length === 0) return null;
     const ortalamaCalisan = tumMagazalar.reduce((s, m) => s + m.calisanSayisi, 0) / tumMagazalar.length;
     const ortalamaSatisYapan = tumMagazalar.reduce((s, m) => s + m.satisYapan, 0) / tumMagazalar.length;
     const oranlar = tumMagazalar.filter((m) => m.calisanSayisi > 0).map((m) => (m.satisYapan / m.calisanSayisi) * 100);
     const ortalamaOran = oranlar.length > 0 ? oranlar.reduce((s, v) => s + v, 0) / oranlar.length : null;
 
-    const kendiMetrik = seciliMagazaId ? magazaCalisanMetrikleri[seciliMagazaId] : null;
+    const kendiMetrik = seciliMagazaId ? calisanOzetMap[seciliMagazaId] : null;
     const kendiOran = kendiMetrik && kendiMetrik.calisanSayisi > 0 ? (kendiMetrik.satisYapan / kendiMetrik.calisanSayisi) * 100 : null;
 
     return {
@@ -483,13 +452,28 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
       satisYapan: { kendi: kendiMetrik?.satisYapan ?? null, ortalama: ortalamaSatisYapan },
       oran: { kendi: kendiOran, ortalama: ortalamaOran },
     };
-  }, [magazaCalisanMetrikleri, seciliMagazaId]);
+  }, [calisanOzetMap, seciliMagazaId]);
 
   // ---- Seçili mağazanın çalışan listesi (dönem seçilebilir) ----
+  // Performans açısından, mağaza seçilene kadar hiçbir kişi bazlı veri çekilmez;
+  // seçilince SADECE o mağazanın personelinin geçmişi anlık (on-demand) çekilir.
+  const [magazaCalisanGecmisi, setMagazaCalisanGecmisi] = useState<MagazaCalisanSatiri[]>([]);
+  const [calisanGecmisiYukleniyor, setCalisanGecmisiYukleniyor] = useState(false);
+
+  useEffect(() => {
+    if (!seciliMagazaId) { setMagazaCalisanGecmisi([]); return; }
+    setCalisanGecmisiYukleniyor(true);
+    getMagazaCalisanGecmisi(seciliMagazaId).then((veri) => {
+      setMagazaCalisanGecmisi(veri);
+      setCalisanGecmisiYukleniyor(false);
+    });
+  }, [seciliMagazaId]);
+
   const magazaDonemSecenekleri = useMemo(() => {
-    if (!seciliMagazaId || !magazaDonemGruplari[seciliMagazaId]) return [];
-    return Object.keys(magazaDonemGruplari[seciliMagazaId]).map(Number).sort((a, b) => b - a);
-  }, [magazaDonemGruplari, seciliMagazaId]);
+    const set = new Set<number>();
+    magazaCalisanGecmisi.forEach((s) => set.add(s.yil * 100 + s.ay));
+    return Array.from(set).sort((a, b) => b - a);
+  }, [magazaCalisanGecmisi]);
 
   const [calisanListesiDonem, setCalisanListesiDonem] = useState<number | null>(null);
 
@@ -497,16 +481,15 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
     // Mağaza değişince, o mağazanın kendi en güncel dönemine sıfırla.
     setCalisanListesiDonem(magazaDonemSecenekleri[0] ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seciliMagazaId]);
+  }, [seciliMagazaId, magazaCalisanGecmisi]);
 
   const calisanListesi = useMemo(() => {
-    if (!seciliMagazaId || calisanListesiDonem === null) return [];
-    const satirlar = magazaDonemGruplari[seciliMagazaId]?.[calisanListesiDonem] ?? [];
-    return satirlar
-      .filter((s) => s.personel)
-      .map((s) => ({ ad_soyad: s.personel!.ad_soyad, unvan: s.personel!.guncel_unvan, hgo: s.hgo }))
+    if (calisanListesiDonem === null) return [];
+    return magazaCalisanGecmisi
+      .filter((s) => s.yil * 100 + s.ay === calisanListesiDonem)
+      .map((s) => ({ ad_soyad: s.ad_soyad, unvan: s.guncel_unvan, hgo: s.hgo }))
       .sort((a, b) => (b.hgo ?? -Infinity) - (a.hgo ?? -Infinity));
-  }, [magazaDonemGruplari, seciliMagazaId, calisanListesiDonem]);
+  }, [magazaCalisanGecmisi, calisanListesiDonem]);
 
   return (
     <>
@@ -685,7 +668,10 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
               )}
             </div>
 
-            {seciliMagaza && calisanListesi.length > 0 && (
+            {seciliMagaza && calisanGecmisiYukleniyor && (
+              <div className="text-xs text-gray-400 py-4 text-center">Çalışan geçmişi yükleniyor...</div>
+            )}
+            {seciliMagaza && !calisanGecmisiYukleniyor && calisanListesi.length > 0 && (
               <div className="mt-4 pt-3 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[11px] font-semibold text-navy-3">Aktif Çalışanlar</div>
