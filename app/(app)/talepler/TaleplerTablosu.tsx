@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import TalepRow from "./TalepRow";
 
-const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma" };
+const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon", NORM_DEGISIKLIK: "Norm Değişikliği" };
 
 export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum }: {
   talepler: any[]; benimKullaniciId: string; benimRolum: string;
