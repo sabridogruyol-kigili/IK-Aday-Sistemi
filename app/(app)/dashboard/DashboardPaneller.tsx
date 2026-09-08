@@ -304,7 +304,9 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
     if (normMin !== "" && m.toplamNorm < Number(normMin)) return false;
     if (normMax !== "" && m.toplamNorm > Number(normMax)) return false;
     if (durumFiltre.size > 0 && !durumFiltre.has(normDurumu(m))) return false;
-    if (sadeceKapaliGoster && !kapaliMagazaIdSet.has(m.id)) return false;
+    // Varsayılan: sadece açık mağazalar görünür. "Kapalı" butonuna basılınca bu tersine
+    // döner, sadece kapalı mağazalar gösterilir.
+    if (sadeceKapaliGoster ? !kapaliMagazaIdSet.has(m.id) : kapaliMagazaIdSet.has(m.id)) return false;
     return true;
   });
 
