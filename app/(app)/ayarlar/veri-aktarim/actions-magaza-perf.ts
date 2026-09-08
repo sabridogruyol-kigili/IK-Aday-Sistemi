@@ -188,5 +188,6 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
 
   revalidatePath("/raporlar");
   revalidatePath("/dashboard");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili, hatalar };
 }
