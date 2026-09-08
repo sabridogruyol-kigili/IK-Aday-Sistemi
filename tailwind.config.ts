@@ -1,7 +1,8 @@
 import type { Config } from "tailwindcss";
 
-// Marka kimliği: mevcut İşe Alım modülü mockup'ıyla aynı token seti.
-// Yeni bir tema icat etmiyoruz — Norm Kadro modülü bu paleti genişletiyor.
+// Kiğılı marka kimliği: koyu lacivert + kağıt beyazı + terzi işi hassasiyet.
+// "SaaS kart kiti" (her yerde aynı yuvarlak köşe + soft gölge) yerine ince
+// çerçeveler ve keskin köşelerle disiplinli bir hiyerarşi kuruluyor.
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -11,21 +12,21 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: "#00365a",
-          2: "#00294a",
-          3: "#001d36",
+          DEFAULT: "#0B2545",
+          2: "#123863",
+          3: "#1C2430",
         },
-        accent: "#e8a020",
-        success: { DEFAULT: "#2d7a3a", bg: "#eaf4ec" },
-        danger: { DEFAULT: "#b03030", bg: "#faeaea" },
-        info: { DEFAULT: "#1a5fa0", bg: "#e6f1fb" },
+        accent: "#C08A2E",
+        success: { DEFAULT: "#2F6F4E", bg: "#EAF3DE" },
+        danger: { DEFAULT: "#B0402E", bg: "#FCEBEB" },
+        info: { DEFAULT: "#3E7CB1", bg: "#E9F1F7" },
       },
       fontFamily: {
-        sans: ["'DM Sans'", "sans-serif"],
-        mono: ["'DM Mono'", "monospace"],
+        sans: ["'IBM Plex Sans'", "sans-serif"],
+        mono: ["'IBM Plex Mono'", "monospace"],
       },
       borderRadius: {
-        card: "12px",
+        card: "6px",
       },
     },
   },
