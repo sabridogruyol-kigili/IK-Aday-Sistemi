@@ -64,8 +64,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-navy-3">
-      <div className="bg-white rounded-card p-8 w-[380px]">
-        <img src="/logo.png" alt="Kiğılı İK" className="h-9 w-auto mb-4" />
+      <div className="bg-white border border-white/10 rounded-card p-8 w-[380px]">
+        <img src="/logo.png" alt="Kiğılı İK" className="h-9 w-auto mb-5" />
         <div className="text-lg font-semibold text-navy-3 mb-1">Giriş Yap</div>
         <div className="text-xs text-gray-400 mb-5">
           {step === "email"
@@ -74,7 +74,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="text-xs text-danger bg-danger-bg rounded-md px-3 py-2 mb-3">
+          <div className="text-xs text-danger bg-danger-bg rounded px-3 py-2 mb-3">
             {error}
           </div>
         )}
@@ -86,12 +86,12 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ad.soyad@sirketiniz.com"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-1 focus:ring-info focus:border-info"
             />
             <button
               onClick={handleSendCode}
               disabled={loading || !email}
-              className="w-full bg-navy text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
+              className="w-full bg-navy hover:bg-navy-2 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {loading ? "Gönderiliyor..." : "Kod Gönder"}
             </button>
@@ -103,18 +103,18 @@ export default function LoginPage() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="8 haneli kod"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-1 focus:ring-info focus:border-info"
             />
             <button
               onClick={handleVerifyCode}
               disabled={loading || !code}
-              className="w-full bg-navy text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
+              className="w-full bg-navy hover:bg-navy-2 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {loading ? "Doğrulanıyor..." : "Giriş Yap"}
             </button>
             <button
               onClick={() => setStep("email")}
-              className="w-full text-xs text-gray-400 mt-3"
+              className="w-full text-xs text-gray-400 mt-3 hover:text-gray-600 transition-colors"
             >
               E-postayı değiştir
             </button>
