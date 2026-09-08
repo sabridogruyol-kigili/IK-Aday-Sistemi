@@ -121,11 +121,25 @@ export default async function DashboardPage() {
   const toplamDoluGenel = magazaDetay.reduce((s, m) => s + m.toplamDolu, 0);
   const normDolulukOraniGenel = toplamNormGenel > 0 ? Math.round((toplamDoluGenel / toplamNormGenel) * 100) : 0;
 
+  const anaNormToplam = magazaDetay.reduce((s, m) => s + m.ana_norm, 0);
+  const anaDoluToplam = magazaDetay.reduce((s, m) => s + m.ana_dolu, 0);
+  const anaOran = anaNormToplam > 0 ? Math.round((anaDoluToplam / anaNormToplam) * 100) : 0;
+
+  const donemselNormToplam = magazaDetay.reduce((s, m) => s + m.donemsel_norm, 0);
+  const donemselDoluToplam = magazaDetay.reduce((s, m) => s + m.donemsel_dolu, 0);
+  const donemselOran = donemselNormToplam > 0 ? Math.round((donemselDoluToplam / donemselNormToplam) * 100) : 0;
+
+  const partNormToplam = magazaDetay.reduce((s, m) => s + m.part_norm, 0);
+  const partDoluToplam = magazaDetay.reduce((s, m) => s + m.part_dolu, 0);
+  const partOran = partNormToplam > 0 ? Math.round((partDoluToplam / partNormToplam) * 100) : 0;
+
   const kpis = [
     { label: "Toplam Talep", value: String(toplamTalep ?? 0) },
     { label: "Bekleyen Talep", value: String(bekleyenTalep ?? 0) },
     { label: "Onaylanan Talep", value: String(onaylananTalep ?? 0) },
-    { label: "Norm Doluluk Oranı", value: `%${normDolulukOraniGenel}` },
+    { label: "Ana Kadro Doluluk", value: `%${anaOran} (${anaDoluToplam}/${anaNormToplam})` },
+    { label: "Dönemsel Doluluk", value: `%${donemselOran} (${donemselDoluToplam}/${donemselNormToplam})` },
+    { label: "Part-Time Doluluk", value: `%${partOran} (${partDoluToplam}/${partNormToplam})` },
   ];
 
   return (
@@ -137,7 +151,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
         {kpis.map((k) => (
           <div key={k.label} className="bg-white border border-gray-200 rounded-card p-4">
             <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">
