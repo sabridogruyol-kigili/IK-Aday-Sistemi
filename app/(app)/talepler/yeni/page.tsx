@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TalepForm from "./TalepForm";
 import CikarmaForm from "./CikarmaForm";
+import NormTalebiForm from "./NormTalebiForm";
 
 // Supabase tek sorguda en fazla 1000 satır döndürür — personel sayımız bunu
 // aşabileceği için sayfalayarak (1000'erlik parçalar hâlinde) çekiyoruz.
@@ -25,13 +26,34 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const tur = ["ise_alim", "cikarma"].includes(searchParams.tur ?? "") ? searchParams.tur! : "ise_alim";
+  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  if (me?.rol === "MAGAZALAR_DIREKTORLUGU") redirect("/talepler");
+
+  const tur = ["ise_alim", "cikarma", "norm_degisiklik"].includes(searchParams.tur ?? "") ? searchParams.tur! : "ise_alim";
 
   const { data: magazalar } = await supabase
     .from("magazalar").select("id, magaza_adi, magaza_kodu").eq("aktif", true).order("magaza_adi");
 
   const { data: bolgeler } = await supabase
     .from("bolgeler").select("id, ad").order("ad");
+
+  const { data: magazalarNormHam } = await supabase
+    .from("magazalar")
+    .select("id, magaza_adi, magaza_kodu, bolgeler(ad), norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
+    .eq("aktif", true)
+    .order("magaza_adi");
+  const magazalarNorm = (magazalarNormHam ?? []).map((m: any) => {
+    const n = Array.isArray(m.norm) ? m.norm[0] : m.norm;
+    return {
+      id: m.id,
+      magaza_adi: m.magaza_adi,
+      magaza_kodu: m.magaza_kodu,
+      bolge_adi: m.bolgeler?.ad ?? "",
+      ana_kadro_norm: n?.ana_kadro_norm ?? 0,
+      donemsel_norm: n?.donemsel_norm ?? 0,
+      part_time_norm: n?.part_time_norm ?? 0,
+    };
+  });
 
   const { data: pozisyonlarHam } = await supabase
     .from("unvan_kadro_kategorisi")
@@ -66,6 +88,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const sekmeler = [
     { key: "ise_alim", label: "İşe Alım" },
     { key: "cikarma", label: "İşten Çıkarma" },
+    { key: "norm_degisiklik", label: "Norm Değişikliği" },
   ];
 
   return (
@@ -84,6 +107,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
       </div>
       {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} bolgeler={bolgeler ?? []} />}
       {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} pozisyonlar={pozisyonlar} />}
+      {tur === "norm_degisiklik" && <NormTalebiForm magazalar={magazalarNorm} />}
     </div>
   );
 }
