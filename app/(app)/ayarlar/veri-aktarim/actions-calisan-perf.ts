@@ -262,6 +262,43 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
     if (error) hatalar.push({ satir: 0, hata: "Personel performans özeti güncellenemedi: " + error.message });
   }
 
+  // Aynı personel_kodu'na sahip birden fazla AKTİF kayıt varsa (örn. biri
+  // "PLASIYER-" yer tutucu, biri gerçek TC'li), isme VE performans verisine
+  // bakılmadan (dönemsel kadro bazı aylarda hiç performans vermeyebilir, bu
+  // riskli bir sinyal olur) sadece TEK kritere göre karar verilir: gerçek TC'li
+  // (Personel dosyasından doğrulanmış) kayıt aktif kalır, PLASIYER- yer tutucu
+  // olan otomatik pasif yapılır. Bu kontrol SADECE bu importa giren kişilerle
+  // sınırlı değildir — sistemdeki TÜM personel_kodu grupları taranır.
+  {
+    const { data: aktifPersonel } = await supabase
+      .from("personel")
+      .select("id, personel_kodu, tc_kimlik_no")
+      .eq("durum", "aktif")
+      .not("personel_kodu", "is", null);
+
+    const koduGrupla = new Map<string, { id: string; gercekMi: boolean }[]>();
+    (aktifPersonel ?? []).forEach((p: any) => {
+      if (!koduGrupla.has(p.personel_kodu)) koduGrupla.set(p.personel_kodu, []);
+      koduGrupla.get(p.personel_kodu)!.push({ id: p.id, gercekMi: !String(p.tc_kimlik_no ?? "").startsWith("PLASIYER-") });
+    });
+
+    const pasifeAlinacaklar: string[] = [];
+    koduGrupla.forEach((kayitlar) => {
+      if (kayitlar.length <= 1) return; // mükerrer yok
+      // Gerçek TC'li kayıt varsa o kalıcı. Hiçbiri gerçek değilse (hepsi
+      // PLASIYER- ise) bile istisna yapılmaz — id sırasına göre ilk kayıt
+      // kalıcı kabul edilir, geri kalanı pasife alınır. Amaç: mükerrer sayının
+      // her zaman TEK aktif kayda inmesi, veri kalitesi ne olursa olsun.
+      const gercekOlanlar = kayitlar.filter((k) => k.gercekMi);
+      const kalici = gercekOlanlar.length > 0 ? gercekOlanlar[0] : kayitlar.sort((a, b) => a.id.localeCompare(b.id))[0];
+      kayitlar.forEach((k) => { if (k.id !== kalici.id) pasifeAlinacaklar.push(k.id); });
+    });
+
+    for (const parca of parcala(pasifeAlinacaklar, 500)) {
+      await supabase.from("personel").update({ durum: "pasif" }).in("id", parca);
+    }
+  }
+
   await supabase.from("import_gecmisi").insert({ tip: "calisan_performans", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length });
 
   revalidatePath("/personel");
