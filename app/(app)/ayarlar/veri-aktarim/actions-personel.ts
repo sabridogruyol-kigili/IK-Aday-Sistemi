@@ -116,7 +116,10 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     const unvanHam = String(r["İş Ünvanı Açıklaması"] ?? "").trim();
     const dogumTarihi = excelTarih(r["Doğum Tarihi"]);
     const cinsiyet = String(r["Cinsiyet Açıklaması"] ?? "").trim() || null;
-    const iseBaslamaTarihi = excelTarih(r["İşyeri Başlama Tarihi"]);
+    // "İşyeri Başlama Tarihi" boşsa "İlk Başlama Tarihi" yedek olarak denenir —
+    // tek başına kıdem hesabı için güvenilmez kabul edilse de, hiç atama geçmişi
+    // kaydı oluşmamasından (dolayısıyla kıdemin tamamen boş kalmasından) iyidir.
+    const iseBaslamaTarihi = excelTarih(r["İşyeri Başlama Tarihi"]) ?? excelTarih(r["İlk Başlama Tarihi"]);
     const onceki_is_yeri = String(r["Önceki İş Yeri"] ?? "").trim() || null;
     const ihtarname = String(r["İHTARNAME Açıklama"] ?? "").trim() || null;
     const uyari_yazisi = String(r["UYARI YAZISI Açıklama"] ?? "").trim() || null;
