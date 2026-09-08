@@ -21,7 +21,7 @@ async function tumSatirlariGetir<T>(sorguOlustur: (bas: number, bitis: number) =
   return tumSatirlar;
 }
 
-export default async function YeniTalepPage({ searchParams }: { searchParams: { tur?: string } }) {
+export default async function YeniTalepPage({ searchParams }: { searchParams: { tur?: string; magaza_id?: string; kategori?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -107,7 +107,13 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
       </div>
       {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} bolgeler={bolgeler ?? []} />}
       {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} pozisyonlar={pozisyonlar} />}
-      {tur === "norm_degisiklik" && <NormTalebiForm magazalar={magazalarNorm} />}
+      {tur === "norm_degisiklik" && (
+        <NormTalebiForm
+          magazalar={magazalarNorm}
+          initialMagazaId={searchParams.magaza_id ?? ""}
+          initialKategori={searchParams.kategori ?? ""}
+        />
+      )}
     </div>
   );
 }
