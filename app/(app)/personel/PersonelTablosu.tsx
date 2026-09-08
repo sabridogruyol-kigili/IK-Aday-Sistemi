@@ -27,10 +27,20 @@ const KATEGORI_LABEL: Record<string, string> = {
 export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
   const [arama, setArama] = useState("");
   const [bolgeFiltre, setBolgeFiltre] = useState("");
+  const [magazaFiltre, setMagazaFiltre] = useState("");
+  const [kategoriFiltre, setKategoriFiltre] = useState("");
   const [durumFiltre, setDurumFiltre] = useState<"aktif" | "tumu">("aktif");
 
   const bolgeler = useMemo(
     () => Array.from(new Set(satirlar.map((s) => s.bolge_adi).filter(Boolean))).sort(),
+    [satirlar]
+  );
+  const magazalar = useMemo(() => {
+    const kaynak = bolgeFiltre ? satirlar.filter((s) => s.bolge_adi === bolgeFiltre) : satirlar;
+    return Array.from(new Set(kaynak.map((s) => s.magaza_adi).filter(Boolean))).sort();
+  }, [satirlar, bolgeFiltre]);
+  const kategoriler = useMemo(
+    () => Array.from(new Set(satirlar.map((s) => s.kadro_kategorisi).filter(Boolean))),
     [satirlar]
   );
 
@@ -38,6 +48,8 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
     return satirlar.filter((s) => {
       if (durumFiltre === "aktif" && s.durum !== "aktif") return false;
       if (bolgeFiltre && s.bolge_adi !== bolgeFiltre) return false;
+      if (magazaFiltre && s.magaza_adi !== magazaFiltre) return false;
+      if (kategoriFiltre && s.kadro_kategorisi !== kategoriFiltre) return false;
       if (arama) {
         const q = arama.toLocaleLowerCase("tr-TR");
         if (
@@ -48,24 +60,41 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
       }
       return true;
     });
-  }, [satirlar, bolgeFiltre, arama, durumFiltre]);
+  }, [satirlar, bolgeFiltre, magazaFiltre, kategoriFiltre, arama, durumFiltre]);
 
   return (
     <div>
-      <div className="flex gap-2 mb-3 flex-wrap">
-        <select value={durumFiltre} onChange={(e) => setDurumFiltre(e.target.value as "aktif" | "tumu")}
-          className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
-          <option value="aktif">Sadece Aktif</option>
-          <option value="tumu">Tümü (Pasif dahil)</option>
-        </select>
-        <select value={bolgeFiltre} onChange={(e) => setBolgeFiltre(e.target.value)}
-          className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
-          <option value="">Tüm Bölgeler (yetkiniz dahilinde)</option>
-          {bolgeler.map((b) => <option key={b} value={b}>{b}</option>)}
-        </select>
-        <input value={arama} onChange={(e) => setArama(e.target.value)}
-          placeholder="İsim / unvan / mağaza ara..."
-          className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1 max-w-xs" />
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <select value={durumFiltre} onChange={(e) => setDurumFiltre(e.target.value as "aktif" | "tumu")}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
+            <option value="aktif">Sadece Aktif</option>
+            <option value="tumu">Tümü (Pasif dahil)</option>
+          </select>
+          <select value={bolgeFiltre} onChange={(e) => { setBolgeFiltre(e.target.value); setMagazaFiltre(""); }}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
+            <option value="">Tüm Bölgeler (yetkiniz dahilinde)</option>
+            {bolgeler.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <select value={magazaFiltre} onChange={(e) => setMagazaFiltre(e.target.value)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
+            <option value="">Tüm Mağazalar</option>
+            {magazalar.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={kategoriFiltre} onChange={(e) => setKategoriFiltre(e.target.value)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
+            <option value="">Tüm Kategoriler</option>
+            {kategoriler.map((k) => <option key={k} value={k}>{KATEGORI_LABEL[k] ?? k}</option>)}
+          </select>
+          <input value={arama} onChange={(e) => setArama(e.target.value)}
+            placeholder="İsim / unvan / mağaza ara..."
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1 max-w-xs" />
+        </div>
+        <div className="text-xs text-gray-500 font-medium whitespace-nowrap">
+          {filtrelenmis.length === satirlar.length
+            ? `${satirlar.length} kişi`
+            : `${filtrelenmis.length} / ${satirlar.length} kişi`}
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-card overflow-hidden overflow-x-auto">
