@@ -241,5 +241,6 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
   revalidatePath("/personel");
   revalidatePath("/raporlar");
   revalidatePath("/dashboard");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili, hatalar };
 }
