@@ -57,14 +57,36 @@ export default async function DashboardPage() {
       .range(bas, bitis)
   );
 
-  // Kişi bazlı performans — mağaza KPI'larındaki çalışan sayısı/satış yapan oranı
-  // ve mağaza seçilince altında görünen "aktif çalışanlar" listesi için.
-  const performansKisiHam = await tumSatirlariGetir<any>((bas, bitis) =>
-    supabase
-      .from("performans_kisi_aylik")
-      .select("personel_id, yil, ay, hgo, adet_hgo, gerceklesen_ciro_kdv_dahil, personel(ad_soyad, guncel_unvan, guncel_magaza_id, durum)")
-      .range(bas, bitis)
-  );
+  // Kişi bazlı TÜM geçmişi (binlerce personel × onlarca ay) önceden çekmek sayfa
+  // yüklenişini ciddi yavaşlatıyordu. Bunun yerine sadece "Çalışan Sayısı" KPI'sı
+  // için gereken EN GÜNCEL dönemin özeti çekilir; bir mağaza seçilince detaylı
+  // geçmiş ayrı bir server action ile anlık (on-demand) çekilir.
+  const { data: enSonKisiDonem } = await supabase
+    .from("performans_kisi_aylik")
+    .select("yil, ay")
+    .order("yil", { ascending: false })
+    .order("ay", { ascending: false })
+    .limit(1);
+
+  let calisanOzetMap: Record<string, { calisanSayisi: number; satisYapan: number }> = {};
+  if (enSonKisiDonem && enSonKisiDonem.length > 0) {
+    const { yil: enSonYil, ay: enSonAy } = enSonKisiDonem[0];
+    const enSonAyVerisi = await tumSatirlariGetir<any>((bas, bitis) =>
+      supabase
+        .from("performans_kisi_aylik")
+        .select("personel_id, gerceklesen_ciro_kdv_dahil, personel(guncel_magaza_id)")
+        .eq("yil", enSonYil)
+        .eq("ay", enSonAy)
+        .range(bas, bitis)
+    );
+    enSonAyVerisi.forEach((s: any) => {
+      const magazaId = s.personel?.guncel_magaza_id;
+      if (!magazaId) return;
+      if (!calisanOzetMap[magazaId]) calisanOzetMap[magazaId] = { calisanSayisi: 0, satisYapan: 0 };
+      calisanOzetMap[magazaId].calisanSayisi++;
+      if ((s.gerceklesen_ciro_kdv_dahil ?? 0) > 0) calisanOzetMap[magazaId].satisYapan++;
+    });
+  }
 
   // Mağaza doluluk sayımı sadece GERÇEK Personel importundan gelen (İşten Ayrılma
   // Tarihi boş, yani hâlâ çalışan) kayıtları esas alır. Çalışan Performans
@@ -173,7 +195,7 @@ export default async function DashboardPage() {
         magazalar={magazaDetay}
         bolgeler={bolgeler ?? []}
         performansHam={performansHam ?? []}
-        performansKisiHam={performansKisiHam ?? []}
+        calisanOzetMap={calisanOzetMap}
       />
     </div>
   );
