@@ -126,6 +126,14 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
     const tamUnvan = String(r["🤵TitleName"] ?? "").trim();
     const kategori = unvanMap[turkceBuyut(tamUnvan)] ?? null;
 
+    // Dosyada bazen "Toplam" gibi özet satırları gerçek bir SalespersonCode
+    // değeriyle (örn. "1") geliyor. Hem isim boşsa HEM ünvan tanınmıyorsa, bu
+    // gerçek bir çalışan değil, özet/junk bir satırdır — atlanır.
+    if (!adSoyad && !kategori) {
+      hatalar.push({ satir: satirNo, hata: `Sicil ${sicilHam}: isim boş ve ünvan tanınmıyor — özet/junk satır olarak atlandı.` });
+      continue;
+    }
+
     if (!personelMap[sicil] && !eksikPersonel.has(sicil)) {
       eksikPersonel.set(sicil, { ad: adSoyad || sicil, unvan: tamUnvan, kategori, magazaId });
     }
