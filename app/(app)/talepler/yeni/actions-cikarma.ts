@@ -171,3 +171,22 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
   revalidatePath("/talepler");
   redirect("/talepler");
 }
+
+// Seçilen personelin aylık HGO geçmişi — sağ taraftaki grafik için.
+export type PersonelAylikHgo = { yil: number; ay: number; hgo: number | null };
+
+export async function getPersonelPerformansGecmisi(personelId: string): Promise<PersonelAylikHgo[]> {
+  if (!personelId) return [];
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("performans_kisi_aylik")
+    .select("yil, ay, hgo")
+    .eq("personel_id", personelId)
+    .order("yil", { ascending: true })
+    .order("ay", { ascending: true });
+
+  return (data ?? []) as PersonelAylikHgo[];
+}
