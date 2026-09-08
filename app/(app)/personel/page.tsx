@@ -58,11 +58,15 @@ export default async function PersonelPage() {
   if (!user) redirect("/login");
 
   // RLS (personel_select) zaten bölge bazlı kısıtlıyor — ek filtre gerekmez.
+  // Kapalı (pasif) mağazadaki personel hiç gösterilmez — sistem genelinde pasif
+  // mağazalar sadece Dashboard'daki "Kapalı" filtresi gibi özel bir seçenekle
+  // görülebilir, başka hiçbir listede varsayılan olarak çıkmaz.
   const { data: personelHam, error: personelHata } = await supabase
     .from("personel")
     .select(
-      "id, ad_soyad, guncel_unvan, kadro_kategorisi, durum, kidem_ay, performans_ortalama_hgo, guncel_magaza_id, magazalar(magaza_adi, bolgeler(ad))"
+      "id, ad_soyad, guncel_unvan, kadro_kategorisi, durum, kidem_ay, performans_ortalama_hgo, guncel_magaza_id, magazalar!inner(magaza_adi, aktif, bolgeler(ad))"
     )
+    .eq("magazalar.aktif", true)
     .order("ad_soyad");
 
   if (personelHata) {
