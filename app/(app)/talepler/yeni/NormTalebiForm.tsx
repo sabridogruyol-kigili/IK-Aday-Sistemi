@@ -19,12 +19,16 @@ const KATEGORI_LABEL: Record<string, string> = {
   PART_TIME: "Part-Time Norm",
 };
 
-export default function NormTalebiForm({ magazalar }: { magazalar: Magaza[] }) {
+export default function NormTalebiForm({
+  magazalar, initialMagazaId, initialKategori,
+}: {
+  magazalar: Magaza[]; initialMagazaId?: string; initialKategori?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [bolgeFiltre, setBolgeFiltre] = useState("");
-  const [magazaId, setMagazaId] = useState("");
-  const [kategori, setKategori] = useState("");
+  const [magazaId, setMagazaId] = useState(initialMagazaId ?? "");
+  const [kategori, setKategori] = useState(initialKategori ?? "");
   const [yeniDeger, setYeniDeger] = useState("");
   const [aciklama, setAciklama] = useState("");
 
