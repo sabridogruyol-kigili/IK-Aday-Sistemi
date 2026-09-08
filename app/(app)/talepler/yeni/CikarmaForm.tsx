@@ -316,7 +316,7 @@ export default function CikarmaForm({
       {error && <div className="text-xs text-danger">{error}</div>}
 
       <button type="submit" disabled={pending || (aciklamaZorunlu && aciklama.trim().length < 100)} className="bg-navy text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50">
-        {pending ? "Gönderiliyor..." : "Talebi Gönder"}
+        {pending ? (<span className="flex items-center justify-center gap-2"><span className="yukleniyor-donen" /> Gönderiliyor</span>) : "Talebi Gönder"}
       </button>
     </form>
 
