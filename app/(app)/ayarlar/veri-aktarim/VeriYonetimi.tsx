@@ -40,6 +40,20 @@ export default function VeriYonetimi({ bolgeler, magazalar }: { bolgeler: Bolge[
 
   return (
     <div className="space-y-6">
+      <div className="bg-info-bg border border-info/30 rounded-md p-3">
+        <div className="text-xs font-semibold text-info mb-1.5">Önerilen İçe Aktarım Sırası</div>
+        <ol className="text-[11px] text-gray-600 space-y-1 list-decimal list-inside">
+          <li><b>Mağaza Performans</b> — mağazaları ve bölgeleri oluşturur, diğer tüm importlar buna bağlı.</li>
+          <li><b>Çalışan Performans</b> — mağaza koduna göre eşleşir, sicili sistemde yoksa geçici personel oluşturur.</li>
+          <li><b>Turnover</b> — mağaza koduna göre eşleşir.</li>
+          <li><b>Personel</b> — mağaza koduna göre eşleşir; Çalışan Performans'ın oluşturduğu geçici kayıtları gerçek bilgiyle günceller.</li>
+          <li><b>Mağaza / Bölge / Norm</b> — en sona bırakılması önerilir; mağazalar zaten var olduğu için bölgelerine dokunmaz, sadece kadro sayılarını ekler.</li>
+        </ol>
+        <div className="text-[10px] text-gray-400 mt-1.5">
+          Bu sıra dışında da yükleyebilirsiniz — sistem eksik mağaza gibi durumlarda hangi dosyayı önce yüklemeniz gerektiğini hata mesajında belirtir.
+        </div>
+      </div>
+
       <ImportForm onBasarili={() => setYenilemeSayaci((c) => c + 1)} />
 
       <div>
