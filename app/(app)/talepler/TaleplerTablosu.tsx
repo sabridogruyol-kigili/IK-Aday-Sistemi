@@ -66,7 +66,7 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase">
+            <tr className="bg-gray-50 text-[10px] text-navy-3/70 uppercase border-b-2 border-navy">
               <th className="text-left px-3 py-2">Talep No</th>
               <th className="text-left px-3 py-2">Tür</th>
               <th className="text-left px-3 py-2">Mağaza</th>
