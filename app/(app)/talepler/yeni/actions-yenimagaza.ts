@@ -77,10 +77,14 @@ export async function createYeniMagazaTalebi(formData: FormData): Promise<Sonuc>
     }
   }
 
+  // Mağaza adı ne yazılırsa yazılsın, başında her zaman mağaza kodu olsun —
+  // sistemdeki diğer mağazalarla (örn. "C030 Ankara Armada") tutarlı olması için.
+  const magazaAdiTemiz = magazaAdi.startsWith(magazaKodu) ? magazaAdi : `${magazaKodu} ${magazaAdi}`;
+
   // 1) Mağazayı oluştur
   const { data: yeniMagaza, error: magazaHata } = await supabase
     .from("magazalar")
-    .insert({ magaza_kodu: magazaKodu, magaza_adi: magazaAdi, bolge_id: bolgeId, aktif: true })
+    .insert({ magaza_kodu: magazaKodu, magaza_adi: magazaAdiTemiz, bolge_id: bolgeId, aktif: true })
     .select("id")
     .single();
   if (magazaHata || !yeniMagaza) return { error: "Mağaza oluşturulamadı: " + magazaHata?.message };
@@ -152,7 +156,7 @@ export async function createYeniMagazaTalebi(formData: FormData): Promise<Sonuc>
   const gonderimSatirlari = yeniTalepler.map((t) => ({
     talep_id: t.id,
     gonderim_no: 1,
-    aciklama: aciklama || `Yeni mağaza/çadır/pop-up açılışı: ${magazaAdi} (${magazaKodu})`,
+    aciklama: aciklama || `Yeni mağaza/çadır/pop-up açılışı: ${magazaAdiTemiz}`,
     norm_kontrol_sonucu: "UYGUN",
   }));
   const { data: yeniGonderimler, error: gonderimHata } = await supabase.from("talep_gonderimler").insert(gonderimSatirlari).select("id");
