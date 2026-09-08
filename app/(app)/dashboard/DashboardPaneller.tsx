@@ -277,6 +277,8 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
     return new Set(magazalar.filter((m) => !veriOlanlar.has(m.id)).map((m) => m.id));
   }, [performansHam, magazalar]);
 
+  const acikMagazaSayisi = magazalar.length - kapaliMagazaIdSet.size;
+
   // ---- Sağ panel (Performans) filtreleri ----
   const [sagBolgeler, setSagBolgeler] = useState<Set<string>>(new Set());
   const [hgoMin, setHgoMin] = useState("");
@@ -409,6 +411,17 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
     };
   }, [magazalar, seciliMagaza]);
 
+  const normKpiOzet = useMemo(() => {
+    const ortalama = (alan: "ana_norm" | "donemsel_norm" | "part_norm" | "toplamNorm") =>
+      magazalar.length > 0 ? magazalar.reduce((s, m) => s + m[alan], 0) / magazalar.length : null;
+    return {
+      ana: { kendi: seciliMagaza?.ana_norm ?? null, ortalama: ortalama("ana_norm") },
+      donemsel: { kendi: seciliMagaza?.donemsel_norm ?? null, ortalama: ortalama("donemsel_norm") },
+      part: { kendi: seciliMagaza?.part_norm ?? null, ortalama: ortalama("part_norm") },
+      toplam: { kendi: seciliMagaza?.toplamNorm ?? null, ortalama: ortalama("toplamNorm") },
+    };
+  }, [magazalar, seciliMagaza]);
+
   // ---- Çalışan sayısı / satış yapan çalışan oranı (kişi bazlı performanstan) ----
   // Not: performans_kisi_aylik satırında mağaza bilgisi yok, personelin GÜNCEL
   // mağazası üzerinden eşleştiriliyor (geçmiş bir ay için o kişi başka bir
@@ -490,9 +503,11 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-semibold text-navy-3">Mağazalar — Norm Doluluk</div>
           <div className="text-[11px] text-gray-400">
-            {solFiltrelenmis.length === magazalar.length
-              ? `${magazalar.length} mağaza`
-              : `${solFiltrelenmis.length} / ${magazalar.length} mağaza`}
+            {sadeceKapaliGoster
+              ? `${solFiltrelenmis.length} kapalı mağaza`
+              : solFiltrelenmis.length === acikMagazaSayisi
+                ? `${acikMagazaSayisi} açık mağaza`
+                : `${solFiltrelenmis.length} / ${acikMagazaSayisi} açık mağaza`}
           </div>
         </div>
         <div className="text-[10px] text-gray-400 mb-2">Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür.</div>
@@ -558,17 +573,26 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
                   <div className="text-[11px] text-gray-700 truncate mb-0.5 font-medium">{m.magaza_adi}</div>
                   <div className="text-[9px] text-gray-400 truncate mb-1.5">{m.bolge_adi || "—"}</div>
                   <div className="space-y-1">
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-navy rounded-full" style={{ width: `${oranHesap(m.ana_dolu, m.ana_norm)}%` }} />
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-navy rounded-full" style={{ width: `${oranHesap(m.ana_dolu, m.ana_norm)}%` }} />
+                      </div>
+                      <span className="text-[8px] text-gray-400 font-mono w-14 text-right shrink-0">Ana {m.ana_dolu}/{m.ana_norm}</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-accent rounded-full" style={{ width: `${oranHesap(m.donemsel_dolu, m.donemsel_norm)}%` }} />
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-accent rounded-full" style={{ width: `${oranHesap(m.donemsel_dolu, m.donemsel_norm)}%` }} />
+                      </div>
+                      <span className="text-[8px] text-gray-400 font-mono w-14 text-right shrink-0">Dön. {m.donemsel_dolu}/{m.donemsel_norm}</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-info rounded-full" style={{ width: `${oranHesap(m.part_dolu, m.part_norm)}%` }} />
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-info rounded-full" style={{ width: `${oranHesap(m.part_dolu, m.part_norm)}%` }} />
+                      </div>
+                      <span className="text-[8px] text-gray-400 font-mono w-14 text-right shrink-0">P.T. {m.part_dolu}/{m.part_norm}</span>
                     </div>
                   </div>
-                  <div className="text-[9px] text-gray-400 font-mono mt-1.5">{m.toplamDolu}/{m.toplamNorm} (%{m.oran})</div>
+                  <div className="text-[9px] text-gray-400 font-mono mt-1.5">Toplam: {m.toplamDolu}/{m.toplamNorm} (%{m.oran})</div>
                 </button>
               );
             })}
@@ -623,6 +647,10 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
                   <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
                 </>
               )}
+              <KpiKart label="Ana Kadro Norm" kendi={normKpiOzet.ana.kendi} ortalama={normKpiOzet.ana.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+              <KpiKart label="Dönemsel Norm" kendi={normKpiOzet.donemsel.kendi} ortalama={normKpiOzet.donemsel.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+              <KpiKart label="Part-Time Norm" kendi={normKpiOzet.part.kendi} ortalama={normKpiOzet.part.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+              <KpiKart label="Toplam Norm" kendi={normKpiOzet.toplam.kendi} ortalama={normKpiOzet.toplam.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
               {calisanKpiOzet && (
                 <>
                   <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
