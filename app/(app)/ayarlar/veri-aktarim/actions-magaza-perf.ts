@@ -6,8 +6,6 @@ import { revalidatePath } from "next/cache";
 type SatirHata = { satir: number; hata: string };
 type Sonuc = { basarili: number; hatalar: SatirHata[]; yetkiHatasi?: string };
 
-const HARIC_MAGAZA_KODLARI = new Set(["A400", "A401", "A402", "A405", "C400"]);
-
 const AY_INGILIZCE_MAP: Record<string, number> = {
   "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
   "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
@@ -38,15 +36,12 @@ function sayi(v: any): number | null {
   return Math.round(n * 100) / 100;
 }
 
-function tarihCoz(v: any): string | null {
-  if (v === null || v === undefined || v === "") return null;
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  if (typeof v === "number") {
-    const ms = Math.round((v - 25569) * 86400 * 1000);
-    return new Date(ms).toISOString().slice(0, 10);
-  }
-  const d = new Date(String(v));
-  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+function sicilNormalize(kod: string): string {
+  return String(kod ?? "").trim().replace(/\.0$/, "").replace(/-\d+$/, "");
+}
+
+function turkceBuyut(s: string): string {
+  return s.toLocaleUpperCase("tr-TR").trim();
 }
 
 function parcala<T>(dizi: T[], boyut: number): T[][] {
@@ -55,7 +50,7 @@ function parcala<T>(dizi: T[], boyut: number): T[][] {
   return parcalar;
 }
 
-export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
+export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { basarili: 0, hatalar: [], yetkiHatasi: "Giriş yapmalısınız." };
@@ -67,12 +62,18 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
   const magazaMap: Record<string, string> = {};
   (magazalarHam ?? []).forEach((m: any) => { magazaMap[m.magaza_kodu] = m.id; });
 
-  const { data: bolgelerHam } = await supabase.from("bolgeler").select("id, ad");
-  const bolgeMap: Record<string, string> = {};
-  (bolgelerHam ?? []).forEach((b: any) => { bolgeMap[b.ad] = b.id; });
+  const { data: unvanlarHam } = await supabase.from("unvan_kadro_kategorisi").select("unvan, kategori");
+  const unvanMap: Record<string, string> = {};
+  (unvanlarHam ?? []).forEach((u: any) => { unvanMap[turkceBuyut(u.unvan)] = u.kategori; });
+
+  const { data: personelHam } = await supabase.from("personel").select("id, personel_kodu");
+  const personelMap: Record<string, string> = {};
+  (personelHam ?? []).forEach((p: any) => { if (p.personel_kodu) personelMap[sicilNormalize(p.personel_kodu)] = p.id; });
 
   const hatalar: SatirHata[] = [];
-  const magazaAylikSatirlari: Record<string, any>[] = [];
+  type KisiSatirHam = { sicil: string; yil: number; ay: number; hedef_ciro: number | null; gerceklesen_ciro: number | null; hedef_adet: number | null; gerceklesen_adet: number | null; hgo: number | null; adet_hgo: number | null; brut_kar_marji: number | null; brut_satis_adeti: number | null };
+  const kisiSatirlarHam: KisiSatirHam[] = [];
+  const eksikPersonel = new Map<string, { ad: string; unvan: string; kategori: string | null; magazaId: string }>();
 
   for (let i = 0; i < rows.length; i++) {
     const satirNo = i + 2;
@@ -81,77 +82,163 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
     const yil = sayi(r["📆 Year"]);
     const ay = ayCoz(r["📆MonthName"]);
     const magazaKodu = String(r["🏬StoreCode"] ?? "").trim();
+    const sicilHam = r["🤵SalespersonCode"];
 
     if (!yil || !ay || !magazaKodu) {
       hatalar.push({ satir: satirNo, hata: "Year, MonthName veya StoreCode alanı eksik/okunamadı." });
       continue;
     }
-    if (HARIC_MAGAZA_KODLARI.has(magazaKodu)) continue;
+    if (sicilHam === null || sicilHam === undefined || sicilHam === "") {
+      hatalar.push({ satir: satirNo, hata: "SalespersonCode eksik." });
+      continue;
+    }
 
-    let magazaId = magazaMap[magazaKodu];
-    const bolgeAdi = String(r["🏬RegionList"] ?? "").trim();
-    const magazaAdiHam = String(r["🏬StoreFullName"] ?? "").trim();
-    const magazaAdi = magazaAdiHam.startsWith(magazaKodu) ? magazaAdiHam.slice(magazaKodu.length).trim() : magazaAdiHam;
-
+    const magazaId = magazaMap[magazaKodu];
     if (!magazaId) {
-      let bolgeId: string | null = null;
-      if (bolgeAdi) {
-        bolgeId = bolgeMap[bolgeAdi] ?? null;
-        if (!bolgeId) {
-          const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad: bolgeAdi }).select("id").single();
-          if (bolgeHata || !yeniBolge) { hatalar.push({ satir: satirNo, hata: `Bölge (${bolgeAdi}) oluşturulamadı: ` + bolgeHata?.message }); continue; }
-          bolgeId = yeniBolge.id;
-          bolgeMap[bolgeAdi] = bolgeId;
-        }
-      }
-      // RegionList boşsa mağaza bölgesiz (bolge_id null) oluşturulur — sonradan
-      // Ayarlar > Mağazalar sayfasından elle bölge atanabilir.
-      const { data: yeniMagaza, error: magazaHata } = await supabase
-        .from("magazalar")
-        .insert({
-          magaza_kodu: magazaKodu, magaza_adi: magazaAdi || magazaKodu, bolge_id: bolgeId,
-          il_adi: String(r["🏬CityName"] ?? "").trim() || null,
-          subetipi: String(r["🏬StoreSegment"] ?? "").trim() || null,
-          net_m2: sayi(r["StoreSalesArea"]),
-          acilis_tarihi: tarihCoz(r["🏬StoreOpeningDate"]),
-          aktif: true,
-        })
-        .select("id")
-        .single();
-      if (magazaHata || !yeniMagaza) { hatalar.push({ satir: satirNo, hata: `Mağaza (${magazaKodu}) oluşturulamadı: ` + magazaHata?.message }); continue; }
-      magazaId = yeniMagaza.id;
-      magazaMap[magazaKodu] = magazaId;
+      hatalar.push({ satir: satirNo, hata: `Mağaza kodu (${magazaKodu}) sistemde tanımlı değil — önce Mağaza Performans dosyasını içe aktarın.` });
+      continue;
+    }
+
+    const sicil = sicilNormalize(String(sicilHam));
+    const adSoyad = String(r["🤵SalesPersonName"] ?? "").trim();
+    const tamUnvan = String(r["🤵TitleName"] ?? "").trim();
+    const kategori = unvanMap[turkceBuyut(tamUnvan)] ?? null;
+
+    if (!personelMap[sicil] && !eksikPersonel.has(sicil)) {
+      eksikPersonel.set(sicil, { ad: adSoyad || sicil, unvan: tamUnvan, kategori, magazaId });
     }
 
     const netSatis = sayi(r["Net Sales Amount(VI+OMS+ThrdCard+Cntr)"]);
     const netAdet = sayi(r["Sales Quantity(+OMS+Cntr)"]);
-    const ciroHedef = sayi(r["Target Net Amount- Store"]);
-    const adetHedef = sayi(r["Target Sales Quantity"]);
+    const ciroHedef = sayi(r["Target Net Amount- SalesPerson"]);
+    const adetHedef = sayi(r["Target Sales Quantity-SalesPerson"]);
     const hgoCiro = netSatis !== null && ciroHedef ? Math.round((netSatis / ciroHedef) * 10000) / 100 : null;
     const hgoAdet = netAdet !== null && adetHedef ? Math.round((netAdet / adetHedef) * 10000) / 100 : null;
 
-    magazaAylikSatirlari.push({
-      magaza_id: magazaId, yil, ay,
+    kisiSatirlarHam.push({
+      sicil, yil, ay,
+      hedef_ciro: ciroHedef, gerceklesen_ciro: netSatis,
+      hedef_adet: adetHedef, gerceklesen_adet: netAdet,
       hgo: hgoCiro, adet_hgo: hgoAdet,
-      sepet_ortalamasi: sayi(r["ATV"]), sepet_derinligi: sayi(r["UPT"]),
-      donusum_orani: sayi(r["ConversionRate"]), giren_musteri_sayisi: sayi(r["Visitors"]),
-      toplam_ciro_kdv_dahil: netSatis, satis_adeti: netAdet,
-      omnichannel_ciro: sayi(r["OMS_NetSalesAmount(VI)"]),
-      magaza_ciro_hedef: ciroHedef, magaza_adet_hedef: adetHedef,
-      brut_kar_marji: sayi(r["Gross Profit Margin"]), fis_sayisi: sayi(r["Gross Transaction Count"]),
+      brut_kar_marji: sayi(r["Gross Profit Margin"]), brut_satis_adeti: sayi(r["GrossSalesQuantity"]),
     });
   }
 
+  if (eksikPersonel.size > 0) {
+    const { data: placeholderlarHam } = await supabase.from("personel").select("id, personel_kodu").like("tc_kimlik_no", "PLASIYER-%");
+    const placeholderMap: Record<string, string> = {};
+    (placeholderlarHam ?? []).forEach((p: any) => { if (p.personel_kodu) placeholderMap[p.personel_kodu] = p.id; });
+
+    const birlestirilecekler: { id: string; sicil: string }[] = [];
+    const yeniEklenecekler: { sicil: string; bilgi: { ad: string; unvan: string; kategori: string | null; magazaId: string } }[] = [];
+    eksikPersonel.forEach((bilgi, sicil) => {
+      if (placeholderMap[sicil]) birlestirilecekler.push({ id: placeholderMap[sicil], sicil });
+      else yeniEklenecekler.push({ sicil, bilgi });
+    });
+
+    for (const parca of parcala(birlestirilecekler, 300)) {
+      const guncellemeler = parca.map((p) => {
+        const bilgi = eksikPersonel.get(p.sicil)!;
+        return { id: p.id, ad_soyad: bilgi.ad, guncel_unvan: bilgi.unvan, kadro_kategorisi: bilgi.kategori, guncel_magaza_id: bilgi.magazaId };
+      });
+      const { error } = await supabase.rpc("personel_placeholder_birlestir_basit", { p_guncellemeler: guncellemeler });
+      if (error) hatalar.push({ satir: 0, hata: "Yer tutucu personel birleştirilemedi: " + error.message });
+      else parca.forEach((p) => { personelMap[p.sicil] = p.id; });
+    }
+
+    for (const parca of parcala(yeniEklenecekler, 500)) {
+      const { data: eklenenler, error } = await supabase
+        .from("personel")
+        .upsert(
+          parca.map((p) => ({
+            tc_kimlik_no: `PLASIYER-${p.sicil}`, personel_kodu: p.sicil, ad_soyad: p.bilgi.ad,
+            guncel_unvan: p.bilgi.unvan, kadro_kategorisi: p.bilgi.kategori, guncel_magaza_id: p.bilgi.magazaId, durum: "aktif",
+          })),
+          { onConflict: "tc_kimlik_no" }
+        )
+        .select("id, personel_kodu");
+      if (error) hatalar.push({ satir: 0, hata: "Yeni personel oluşturulamadı: " + error.message });
+      else (eklenenler ?? []).forEach((p: any) => { if (p.personel_kodu) personelMap[p.personel_kodu] = p.id; });
+    }
+  }
+
+  // Aynı kişi aynı ay için birden fazla satır olabilir (örn. ay içinde mağaza değiştirme) —
+  // bunlar aynı toplu upsert içinde çakışıp "ON CONFLICT ... cannot affect row a second time"
+  // hatası verir. Ciro/adet toplanıp, HGO toplam üzerinden yeniden hesaplanarak tek satıra indirilir.
+  const kisiAylikMap = new Map<string, {
+    personel_id: string; yil: number; ay: number;
+    hedef_ciro: number; gerceklesen_ciro: number; hedef_adet: number; gerceklesen_adet: number;
+    brut_kar_marji_toplam: number; brut_kar_marji_sayi: number; brut_satis_adeti: number;
+  }>();
+
+  for (const satir of kisiSatirlarHam) {
+    const personelId = personelMap[satir.sicil];
+    if (!personelId) { hatalar.push({ satir: 0, hata: `Sicil (${satir.sicil}) için personel bulunamadı/oluşturulamadı, atlandı.` }); continue; }
+
+    const anahtar = `${personelId}|${satir.yil}|${satir.ay}`;
+    if (!kisiAylikMap.has(anahtar)) {
+      kisiAylikMap.set(anahtar, {
+        personel_id: personelId, yil: satir.yil, ay: satir.ay,
+        hedef_ciro: 0, gerceklesen_ciro: 0, hedef_adet: 0, gerceklesen_adet: 0,
+        brut_kar_marji_toplam: 0, brut_kar_marji_sayi: 0, brut_satis_adeti: 0,
+      });
+    }
+    const g = kisiAylikMap.get(anahtar)!;
+    g.hedef_ciro += satir.hedef_ciro ?? 0;
+    g.gerceklesen_ciro += satir.gerceklesen_ciro ?? 0;
+    g.hedef_adet += satir.hedef_adet ?? 0;
+    g.gerceklesen_adet += satir.gerceklesen_adet ?? 0;
+    g.brut_satis_adeti += satir.brut_satis_adeti ?? 0;
+    if (satir.brut_kar_marji !== null) { g.brut_kar_marji_toplam += satir.brut_kar_marji; g.brut_kar_marji_sayi += 1; }
+  }
+
+  const kisiAylikSatirlari = Array.from(kisiAylikMap.values()).map((g) => ({
+    personel_id: g.personel_id, yil: g.yil, ay: g.ay,
+    hedef_ciro_kdv_dahil: g.hedef_ciro, gerceklesen_ciro_kdv_dahil: g.gerceklesen_ciro,
+    hedef_adet: g.hedef_adet, gerceklesen_adet: g.gerceklesen_adet,
+    hgo: g.hedef_ciro > 0 ? Math.round((g.gerceklesen_ciro / g.hedef_ciro) * 10000) / 100 : null,
+    adet_hgo: g.hedef_adet > 0 ? Math.round((g.gerceklesen_adet / g.hedef_adet) * 10000) / 100 : null,
+    brut_kar_marji: g.brut_kar_marji_sayi > 0 ? Math.round((g.brut_kar_marji_toplam / g.brut_kar_marji_sayi) * 100) / 100 : null,
+    brut_satis_adeti: g.brut_satis_adeti,
+  }));
+
   let basarili = 0;
   const PARCA_BOYUTU = 1000;
-  for (const parca of parcala(magazaAylikSatirlari, PARCA_BOYUTU)) {
-    const { error } = await supabase.from("performans_magaza_aylik").upsert(parca, { onConflict: "magaza_id,yil,ay" });
-    if (error) hatalar.push({ satir: 0, hata: "Mağaza aylık veri kaydında hata: " + error.message });
+  for (const parca of parcala(kisiAylikSatirlari, PARCA_BOYUTU)) {
+    const { error } = await supabase.from("performans_kisi_aylik").upsert(parca, { onConflict: "personel_id,yil,ay" });
+    if (error) hatalar.push({ satir: 0, hata: "Kişi aylık veri kaydında hata: " + error.message });
     else basarili += parca.length;
   }
 
-  await supabase.from("import_gecmisi").insert({ tip: "magaza_performans2", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length });
+  const etkilenenPersonelIdleri = Array.from(new Set(kisiAylikSatirlari.map((s) => s.personel_id)));
+  const tumAylar: { personel_id: string; hgo: number | null }[] = [];
+  for (const parca of parcala(etkilenenPersonelIdleri, PARCA_BOYUTU)) {
+    const { data } = await supabase.from("performans_kisi_aylik").select("personel_id, hgo").in("personel_id", parca).not("hgo", "is", null);
+    if (data) tumAylar.push(...(data as any[]));
+  }
+  const gruplanmis = new Map<string, number[]>();
+  tumAylar.forEach((a) => {
+    if (a.hgo === null) return;
+    if (!gruplanmis.has(a.personel_id)) gruplanmis.set(a.personel_id, []);
+    gruplanmis.get(a.personel_id)!.push(a.hgo);
+  });
+  const personelGuncellemeleri = Array.from(gruplanmis.entries()).map(([personelId, degerler]) => {
+    const ortalama = degerler.reduce((s, v) => s + v, 0) / degerler.length;
+    return {
+      id: personelId, performans_ortalama_hgo: ortalama,
+      performans_80_alti_sayisi: degerler.filter((v) => v < 80).length,
+      performans_80_100_arasi_sayisi: degerler.filter((v) => v >= 80 && v <= 100).length,
+      performans_100_ustu_sayisi: degerler.filter((v) => v > 100).length,
+    };
+  });
+  for (const parca of parcala(personelGuncellemeleri, PARCA_BOYUTU)) {
+    const { error } = await supabase.from("personel").upsert(parca, { onConflict: "id" });
+    if (error) hatalar.push({ satir: 0, hata: "Personel performans özeti güncellenemedi: " + error.message });
+  }
 
+  await supabase.from("import_gecmisi").insert({ tip: "calisan_performans", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length });
+
+  revalidatePath("/personel");
   revalidatePath("/raporlar");
   revalidatePath("/dashboard");
   return { basarili, hatalar };
