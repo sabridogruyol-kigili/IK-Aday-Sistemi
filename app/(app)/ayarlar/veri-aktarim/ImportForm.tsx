@@ -5,7 +5,8 @@ import * as XLSX from "xlsx";
 import { iceAktarMagazaNorm } from "./actions";
 import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarTurnover } from "./actions-turnover";
-import { iceAktarMagazaPerformans } from "./actions-magaza-performans";
+import { iceAktarMagazaPerformans2 } from "./actions-magaza-perf";
+import { iceAktarCalisanPerformans } from "./actions-calisan-perf";
 import { getSonImportlar, kaydetImportGecmisi, type SonImport } from "./actions-gecmis";
 
 type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string; eslenemeyenSutunlar?: string[] };
@@ -43,12 +44,20 @@ const SABLONLAR: Sablon[] = [
     parcaBoyutu: 2000,
   },
   {
-    key: "magaza_performans",
-    label: "Mağaza Performans Dosyası",
+    key: "magaza_performans2",
+    label: "Mağaza Performans",
     aciklama:
-      "Mağaza Bilgisi ve Performans'ın birleştiği tek dosya. Her mağaza+ay için önce kişi satırları, en altta mağaza toplamını temsil eden bir 'Total' satırı gelir (Total satırında mağaza kodu yazmaz, bir önceki satırlardan otomatik takip edilir). HGO (hem Ciro hem Adet) dosyada hazır gelmiyor, gerçekleşen/hedef oranından hesaplanır. Sicili sistemde olmayan kişiler otomatik oluşturulur, ünvan kısaltmaları (MAĞAZA MD. vb.) tam ünvana çevrilip kategoriye bağlanır.",
-    action: iceAktarMagazaPerformans,
-    parcaBoyutu: 1500,
+      "Sütunlar: Year, MonthName (İngilizce kısaltma: Jan/Feb/...), StoreCode, StoreFullName, CityName, StoreSegment, RegionList, StoreOpeningDate, StoreSalesArea, ATV, UPT, ConversionRate, Visitors, Target Net Amount- Store, Target Sales Quantity, Net Sales Amount(...), Sales Quantity(...), OMS_NetSalesAmount(VI), Gross Profit Margin, Gross Transaction Count. HGO (Ciro/Adet) dosyada hazır gelmiyor, gerçekleşen/hedef oranından hesaplanır. Mağaza sistemde yoksa otomatik oluşturulur.",
+    action: iceAktarMagazaPerformans2,
+    parcaBoyutu: 3000,
+  },
+  {
+    key: "calisan_performans",
+    label: "Çalışan Performans",
+    aciklama:
+      "Sütunlar: Year, MonthName, StoreCode, SalespersonCode, SalesPersonName, TitleName (tam ünvan, kısaltma yok), Target Net Amount- SalesPerson, Target Sales Quantity-SalesPerson, Net Sales Amount(...), Sales Quantity(...), GrossSalesQuantity, Gross Profit Margin. Not: Mağaza (StoreCode) sistemde önceden kayıtlı olmalı — önce Mağaza Performans dosyasını içe aktarın. Sicili sistemde olmayan kişiler otomatik oluşturulur.",
+    action: iceAktarCalisanPerformans,
+    parcaBoyutu: 3000,
   },
 ];
 
