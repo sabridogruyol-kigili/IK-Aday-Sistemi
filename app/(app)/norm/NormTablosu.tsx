@@ -130,7 +130,7 @@ export default function NormTablosu({ satirlar }: { satirlar: Satir[] }) {
       <div className="bg-white border border-gray-200 rounded-card overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-[10px] text-gray-400 uppercase tracking-wide">
+            <tr className="bg-gray-50 text-[10px] text-navy-3/70 uppercase tracking-wide border-b-2 border-navy">
               <th className="text-left p-3">Mağaza Kodu</th>
               <th className="text-left p-3">Mağaza Adı</th>
               <th className="text-left p-3">Bölge</th>
