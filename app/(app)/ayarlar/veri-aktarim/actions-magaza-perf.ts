@@ -63,7 +63,7 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
   const { data: me } = await supabase.from("kullanicilar").select("id, ad_soyad, rol").eq("email", user.email).single();
   if (!me || me.rol !== "YONETIM") return { basarili: 0, hatalar: [], yetkiHatasi: "Sadece Yönetim veri içe aktarabilir." };
 
-  const { data: magazalarHam } = await supabase.from("magazalar").select("id, magaza_kodu");
+  const { data: magazalarHam } = await supabase.from("magazalar").select("id, magaza_kodu, magaza_adi");
   const magazaMap: Record<string, string> = {};
   (magazalarHam ?? []).forEach((m: any) => { magazaMap[m.magaza_kodu] = m.id; });
 
@@ -176,6 +176,34 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
     const { error } = await supabase.from("performans_magaza_aylik").upsert(parca, { onConflict: "magaza_id,yil,ay" });
     if (error) hatalar.push({ satir: 0, hata: "Mağaza aylık veri kaydında hata: " + error.message });
     else basarili += parca.length;
+  }
+
+  // Sistemdeki EN GÜNCEL dönem baz alınır (sadece bu importtaki değil, tüm veri
+  // setindeki en son yıl-ay). O dönemde veri veren mağaza aktif, vermeyen mağaza
+  // (örn. kodu değişmiş/kapanmış eski kayıt) otomatik pasif işaretlenir — isim
+  // eşleştirmesi gerekmeden, "en güncel veri neyse o geçerli" prensibiyle.
+  const { data: tumDonemler } = await supabase.from("performans_magaza_aylik").select("yil, ay").order("yil", { ascending: false }).order("ay", { ascending: false }).limit(1);
+  if (tumDonemler && tumDonemler.length > 0) {
+    const enSonYil = tumDonemler[0].yil;
+    const enSonAy = tumDonemler[0].ay;
+
+    const { data: enSonDonemVerenler } = await supabase
+      .from("performans_magaza_aylik")
+      .select("magaza_id")
+      .eq("yil", enSonYil)
+      .eq("ay", enSonAy);
+    const aktifKalmasiGerekenler = new Set((enSonDonemVerenler ?? []).map((r: any) => r.magaza_id));
+
+    const { data: tumMagazalar } = await supabase.from("magazalar").select("id, aktif");
+    const pasifeAlinacaklar = (tumMagazalar ?? []).filter((m: any) => m.aktif && !aktifKalmasiGerekenler.has(m.id)).map((m: any) => m.id);
+    const aktifeAlinacaklar = (tumMagazalar ?? []).filter((m: any) => !m.aktif && aktifKalmasiGerekenler.has(m.id)).map((m: any) => m.id);
+
+    for (const parca of parcala(pasifeAlinacaklar, 500)) {
+      await supabase.from("magazalar").update({ aktif: false }).in("id", parca);
+    }
+    for (const parca of parcala(aktifeAlinacaklar, 500)) {
+      await supabase.from("magazalar").update({ aktif: true }).in("id", parca);
+    }
   }
 
   await supabase.from("import_gecmisi").insert({ tip: "magaza_performans2", kullanici_id: me.id, kullanici_adi: me.ad_soyad, basarili, hatali: hatalar.length });
