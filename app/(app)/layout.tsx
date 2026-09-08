@@ -12,7 +12,6 @@ const navItems = [
   { href: "/personel", label: "Personel Listesi", icon: "personel" },
   { href: "/adaylar", label: "Adaylar", icon: "adaylar" },
   { href: "/raporlar", label: "Raporlar", icon: "raporlar" },
-  { href: "/bildirimler", label: "Bildirimler", icon: "bildirimler" },
   { href: "/ayarlar/kullanicilar", label: "Ayarlar", icon: "ayarlar" },
 ];
 
@@ -40,7 +39,7 @@ export default async function AppLayout({
   // Mağazalar Direktörlüğü: sadece performans/norm izleme ve onay — talep açma,
   // aday süreci ve sistem ayarlarına erişimi yok.
   const DIREKTOR_GORUNUR_HREFLER = new Set([
-    "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel", "/raporlar", "/bildirimler",
+    "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel", "/raporlar",
   ]);
 
   const visibleNavItems = navItems.filter((item) => {
