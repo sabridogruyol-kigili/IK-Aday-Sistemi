@@ -1,6 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
 import DashboardPaneller from "./DashboardPaneller";
 
+// Supabase/PostgREST tek sorguda varsayılan olarak en fazla 1000 satır döndürür.
+// Mağaza sayısı × ay sayısı ya da aktif personel sayısı bunu kolayca aşabildiği
+// için, tüm satırları sayfalayarak (1000'erlik parçalar hâlinde) çekiyoruz.
+async function tumSatirlariGetir<T>(sorguOlustur: (bas: number, bitis: number) => any): Promise<T[]> {
+  const PARCA = 1000;
+  let tumSatirlar: T[] = [];
+  let sayfa = 0;
+  while (true) {
+    const bas = sayfa * PARCA;
+    const { data, error } = await sorguOlustur(bas, bas + PARCA - 1);
+    if (error || !data) break;
+    tumSatirlar = tumSatirlar.concat(data as T[]);
+    if (data.length < PARCA) break;
+    sayfa++;
+  }
+  return tumSatirlar;
+}
+
 export default async function DashboardPage() {
   const supabase = createClient();
 
@@ -11,9 +29,7 @@ export default async function DashboardPage() {
     { count: bekleyenTalep },
     { count: onaylananTalep },
     { data: magazalarHam },
-    { data: personelList },
     { data: bolgeler },
-    { data: performansHam },
   ] = await Promise.all([
     supabase.from("talepler").select("*", { count: "exact", head: true }),
     supabase.from("talepler").select("*", { count: "exact", head: true }).eq("durum", "BEKLEMEDE"),
@@ -22,12 +38,19 @@ export default async function DashboardPage() {
       .from("magazalar")
       .select("id, magaza_kodu, magaza_adi, bolge_id, subetipi, net_m2, aktif, istifa_turnover, fesih_turnover, toplam_turnover, norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
       .eq("aktif", true),
-    supabase.from("personel").select("id, guncel_magaza_id, kadro_kategorisi, guncel_unvan, ad_soyad").eq("durum", "aktif"),
     supabase.from("bolgeler").select("id, ad").order("ad"),
+  ]);
+
+  const personelList = await tumSatirlariGetir<any>((bas, bitis) =>
+    supabase.from("personel").select("id, guncel_magaza_id, kadro_kategorisi, guncel_unvan, ad_soyad").eq("durum", "aktif").range(bas, bitis)
+  );
+
+  const performansHam = await tumSatirlariGetir<any>((bas, bitis) =>
     supabase
       .from("performans_magaza_aylik")
-      .select("magaza_id, yil, ay, hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, adet_hgo, satis_adeti, toplam_ciro_kdv_dahil, omnichannel_ciro, omnichannel_haric_ciro"),
-  ]);
+      .select("magaza_id, yil, ay, hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, adet_hgo, satis_adeti, toplam_ciro_kdv_dahil, omnichannel_ciro, omnichannel_haric_ciro")
+      .range(bas, bitis)
+  );
 
   // Mağaza başına, kadro kategorisine göre ayrı ayrı aktif personel sayısı
   const doluMap: Record<string, { ANA_KADRO: number; DONEMSEL: number; PART_TIME: number }> = {};
