@@ -203,8 +203,8 @@ function ZamanGrafigi({
               )}
             </Line>
             {seciliMagaza && (
-              <Line type="monotone" dataKey="secili" stroke="#00365a" strokeWidth={2.5} dot={{ r: 3 }} name={seciliMagaza.magaza_adi} connectNulls>
-                <LabelList dataKey="secili" position="top" style={{ fontSize: 10, fill: "#00365a" }} formatter={(v: number) => zamanTanim.format(v)} />
+              <Line type="monotone" dataKey="secili" stroke="#0F1B4D" strokeWidth={2.5} dot={{ r: 3 }} name={seciliMagaza.magaza_adi} connectNulls>
+                <LabelList dataKey="secili" position="top" style={{ fontSize: 10, fill: "#0F1B4D" }} formatter={(v: number) => zamanTanim.format(v)} />
               </Line>
             )}
           </LineChart>
