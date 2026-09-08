@@ -24,8 +24,8 @@ function sayi(v: any): number | null {
   if (typeof v === "number") {
     n = v;
   } else {
-    const s = String(v).trim();
-    if (s === "-") return null;
+    let s = String(v).trim().replace(/[₺$%\s]/g, "");
+    if (s === "-" || s === "") return null;
     if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(s)) {
       n = Number(s.replace(/\./g, "").replace(",", "."));
     } else {
@@ -36,8 +36,13 @@ function sayi(v: any): number | null {
   return Math.round(n * 100) / 100;
 }
 
+// Personel Kodu / Sicil kimi dosyada metin ("008144"), kimi dosyada Excel'in
+// sayı+özel biçim olarak yazdığı bir değer ("8144") olarak gelebilir. Baştaki
+// sıfırlar her zaman kaldırılır ki iki farklı dosyadan gelen aynı kişi eşleşsin.
 function sicilNormalize(kod: string): string {
-  return String(kod ?? "").trim().replace(/\.0$/, "").replace(/-\d+$/, "");
+  const s = String(kod ?? "").trim().replace(/\.0$/, "").replace(/-\d+$/, "");
+  const sifirsiz = s.replace(/^0+(?=\d)/, "");
+  return sifirsiz || s;
 }
 
 function turkceBuyut(s: string): string {
@@ -71,7 +76,7 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
   (personelHam ?? []).forEach((p: any) => { if (p.personel_kodu) personelMap[sicilNormalize(p.personel_kodu)] = p.id; });
 
   const hatalar: SatirHata[] = [];
-  type KisiSatirHam = { sicil: string; yil: number; ay: number; hedef_ciro: number | null; gerceklesen_ciro: number | null; hedef_adet: number | null; gerceklesen_adet: number | null; hgo: number | null; adet_hgo: number | null; brut_kar_marji: number | null; brut_satis_adeti: number | null };
+  type KisiSatirHam = { sicil: string; yil: number; ay: number; hedef_ciro: number | null; gerceklesen_ciro: number | null; hedef_adet: number | null; gerceklesen_adet: number | null; brut_kar_marji: number | null; brut_satis_adeti: number | null };
   const kisiSatirlarHam: KisiSatirHam[] = [];
   const eksikPersonel = new Map<string, { ad: string; unvan: string; kategori: string | null; magazaId: string }>();
 
@@ -108,18 +113,10 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
       eksikPersonel.set(sicil, { ad: adSoyad || sicil, unvan: tamUnvan, kategori, magazaId });
     }
 
-    const netSatis = sayi(r["Net Sales Amount(VI+OMS+ThrdCard+Cntr)"]);
-    const netAdet = sayi(r["Sales Quantity(+OMS+Cntr)"]);
-    const ciroHedef = sayi(r["Target Net Amount- SalesPerson"]);
-    const adetHedef = sayi(r["Target Sales Quantity-SalesPerson"]);
-    const hgoCiro = netSatis !== null && ciroHedef ? Math.round((netSatis / ciroHedef) * 10000) / 100 : null;
-    const hgoAdet = netAdet !== null && adetHedef ? Math.round((netAdet / adetHedef) * 10000) / 100 : null;
-
     kisiSatirlarHam.push({
       sicil, yil, ay,
-      hedef_ciro: ciroHedef, gerceklesen_ciro: netSatis,
-      hedef_adet: adetHedef, gerceklesen_adet: netAdet,
-      hgo: hgoCiro, adet_hgo: hgoAdet,
+      hedef_ciro: sayi(r["Target Net Amount- SalesPerson"]), gerceklesen_ciro: sayi(r["Net Sales Amount(VI+OMS+ThrdCard+Cntr)"]),
+      hedef_adet: sayi(r["Target Sales Quantity-SalesPerson"]), gerceklesen_adet: sayi(r["Sales Quantity(+OMS+Cntr)"]),
       brut_kar_marji: sayi(r["Gross Profit Margin"]), brut_satis_adeti: sayi(r["GrossSalesQuantity"]),
     });
   }
@@ -163,8 +160,8 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
   }
 
   // Aynı kişi aynı ay için birden fazla satır olabilir (örn. ay içinde mağaza değiştirme) —
-  // bunlar aynı toplu upsert içinde çakışıp "ON CONFLICT ... cannot affect row a second time"
-  // hatası verir. Ciro/adet toplanıp, HGO toplam üzerinden yeniden hesaplanarak tek satıra indirilir.
+  // bunlar aynı toplu upsert içinde çakışıp hata verir. Toplanıp tek satıra indirilir,
+  // HGO da toplam üzerinden yeniden hesaplanır.
   const kisiAylikMap = new Map<string, {
     personel_id: string; yil: number; ay: number;
     hedef_ciro: number; gerceklesen_ciro: number; hedef_adet: number; gerceklesen_adet: number;
