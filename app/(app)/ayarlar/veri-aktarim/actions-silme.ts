@@ -28,6 +28,7 @@ export async function personelTumunuSil(): Promise<SilmeSonuc> {
   revalidatePath("/norm");
   revalidatePath("/dashboard");
   revalidatePath("/ayarlar/veri-aktarim");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili: true, silinen: data ?? 0 };
 }
 
@@ -50,6 +51,7 @@ export async function performansKisiTumunuSil(): Promise<SilmeSonuc> {
   revalidatePath("/raporlar");
   revalidatePath("/dashboard");
   revalidatePath("/ayarlar/veri-aktarim");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili: true, silinen: count ?? 0 };
 }
 
@@ -65,5 +67,6 @@ export async function performansMagazaTumunuSil(): Promise<SilmeSonuc> {
   revalidatePath("/raporlar");
   revalidatePath("/dashboard");
   revalidatePath("/ayarlar/veri-aktarim");
+  revalidatePath("/ayarlar/magazalar");
   return { basarili: true, silinen: count ?? 0 };
 }
