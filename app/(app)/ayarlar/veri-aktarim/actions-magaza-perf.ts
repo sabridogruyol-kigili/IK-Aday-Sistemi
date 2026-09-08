@@ -94,17 +94,18 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
     const magazaAdi = magazaAdiHam.startsWith(magazaKodu) ? magazaAdiHam.slice(magazaKodu.length).trim() : magazaAdiHam;
 
     if (!magazaId) {
-      if (!bolgeAdi) {
-        hatalar.push({ satir: satirNo, hata: `Mağaza (${magazaKodu}) sistemde yok ve RegionList boş olduğu için oluşturulamadı.` });
-        continue;
+      let bolgeId: string | null = null;
+      if (bolgeAdi) {
+        bolgeId = bolgeMap[bolgeAdi] ?? null;
+        if (!bolgeId) {
+          const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad: bolgeAdi }).select("id").single();
+          if (bolgeHata || !yeniBolge) { hatalar.push({ satir: satirNo, hata: `Bölge (${bolgeAdi}) oluşturulamadı: ` + bolgeHata?.message }); continue; }
+          bolgeId = yeniBolge.id;
+          bolgeMap[bolgeAdi] = bolgeId;
+        }
       }
-      let bolgeId = bolgeMap[bolgeAdi];
-      if (!bolgeId) {
-        const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad: bolgeAdi }).select("id").single();
-        if (bolgeHata || !yeniBolge) { hatalar.push({ satir: satirNo, hata: `Bölge (${bolgeAdi}) oluşturulamadı: ` + bolgeHata?.message }); continue; }
-        bolgeId = yeniBolge.id;
-        bolgeMap[bolgeAdi] = bolgeId;
-      }
+      // RegionList boşsa mağaza bölgesiz (bolge_id null) oluşturulur — sonradan
+      // Ayarlar > Mağazalar sayfasından elle bölge atanabilir.
       const { data: yeniMagaza, error: magazaHata } = await supabase
         .from("magazalar")
         .insert({
