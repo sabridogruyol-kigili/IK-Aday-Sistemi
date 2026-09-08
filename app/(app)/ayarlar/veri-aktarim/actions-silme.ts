@@ -37,14 +37,14 @@ export async function performansKisiTumunuSil(): Promise<SilmeSonuc> {
 
   const supabase = createClient();
   const { count } = await supabase.from("performans_kisi_aylik").select("*", { count: "exact", head: true });
-  const { error } = await supabase.from("performans_kisi_aylik").delete().not("id", "is", null);
+  const { error } = await supabase.from("performans_kisi_aylik").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   if (error) return { basarili: false, silinen: 0, hata: error.message };
 
   // Kişi bazlı özet alanları da (ortalama HGO vb.) artık geçersiz — sıfırlanıyor.
   await supabase.from("personel").update({
     performans_ortalama_hgo: null, performans_80_alti_sayisi: 0,
     performans_80_100_arasi_sayisi: 0, performans_100_ustu_sayisi: 0,
-  }).not("id", "is", null);
+  }).neq("id", "00000000-0000-0000-0000-000000000000");
 
   revalidatePath("/personel");
   revalidatePath("/raporlar");
@@ -59,7 +59,7 @@ export async function performansMagazaTumunuSil(): Promise<SilmeSonuc> {
 
   const supabase = createClient();
   const { count } = await supabase.from("performans_magaza_aylik").select("*", { count: "exact", head: true });
-  const { error } = await supabase.from("performans_magaza_aylik").delete().not("id", "is", null);
+  const { error } = await supabase.from("performans_magaza_aylik").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   if (error) return { basarili: false, silinen: 0, hata: error.message };
 
   revalidatePath("/raporlar");
