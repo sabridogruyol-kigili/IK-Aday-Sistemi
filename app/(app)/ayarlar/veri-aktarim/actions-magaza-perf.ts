@@ -101,7 +101,7 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
           const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad: bolgeAdi }).select("id").single();
           if (bolgeHata || !yeniBolge) { hatalar.push({ satir: satirNo, hata: `Bölge (${bolgeAdi}) oluşturulamadı: ` + bolgeHata?.message }); continue; }
           bolgeId = yeniBolge.id;
-          bolgeMap[bolgeAdi] = bolgeId;
+          bolgeMap[bolgeAdi] = bolgeId!;
         }
       }
       const { data: yeniMagaza, error: magazaHata } = await supabase
