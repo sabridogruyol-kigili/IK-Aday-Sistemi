@@ -162,18 +162,45 @@ export async function iceAktarCalisanPerformans(rows: any[]): Promise<Sonuc> {
     }
   }
 
-  const kisiAylikSatirlari: any[] = [];
+  // Aynı kişi aynı ay için birden fazla satır olabilir (örn. ay içinde mağaza değiştirme) —
+  // bunlar aynı toplu upsert içinde çakışıp "ON CONFLICT ... cannot affect row a second time"
+  // hatası verir. Ciro/adet toplanıp, HGO toplam üzerinden yeniden hesaplanarak tek satıra indirilir.
+  const kisiAylikMap = new Map<string, {
+    personel_id: string; yil: number; ay: number;
+    hedef_ciro: number; gerceklesen_ciro: number; hedef_adet: number; gerceklesen_adet: number;
+    brut_kar_marji_toplam: number; brut_kar_marji_sayi: number; brut_satis_adeti: number;
+  }>();
+
   for (const satir of kisiSatirlarHam) {
     const personelId = personelMap[satir.sicil];
     if (!personelId) { hatalar.push({ satir: 0, hata: `Sicil (${satir.sicil}) için personel bulunamadı/oluşturulamadı, atlandı.` }); continue; }
-    kisiAylikSatirlari.push({
-      personel_id: personelId, yil: satir.yil, ay: satir.ay,
-      hedef_ciro_kdv_dahil: satir.hedef_ciro, gerceklesen_ciro_kdv_dahil: satir.gerceklesen_ciro,
-      hedef_adet: satir.hedef_adet, gerceklesen_adet: satir.gerceklesen_adet,
-      hgo: satir.hgo, adet_hgo: satir.adet_hgo,
-      brut_kar_marji: satir.brut_kar_marji, brut_satis_adeti: satir.brut_satis_adeti,
-    });
+
+    const anahtar = `${personelId}|${satir.yil}|${satir.ay}`;
+    if (!kisiAylikMap.has(anahtar)) {
+      kisiAylikMap.set(anahtar, {
+        personel_id: personelId, yil: satir.yil, ay: satir.ay,
+        hedef_ciro: 0, gerceklesen_ciro: 0, hedef_adet: 0, gerceklesen_adet: 0,
+        brut_kar_marji_toplam: 0, brut_kar_marji_sayi: 0, brut_satis_adeti: 0,
+      });
+    }
+    const g = kisiAylikMap.get(anahtar)!;
+    g.hedef_ciro += satir.hedef_ciro ?? 0;
+    g.gerceklesen_ciro += satir.gerceklesen_ciro ?? 0;
+    g.hedef_adet += satir.hedef_adet ?? 0;
+    g.gerceklesen_adet += satir.gerceklesen_adet ?? 0;
+    g.brut_satis_adeti += satir.brut_satis_adeti ?? 0;
+    if (satir.brut_kar_marji !== null) { g.brut_kar_marji_toplam += satir.brut_kar_marji; g.brut_kar_marji_sayi += 1; }
   }
+
+  const kisiAylikSatirlari = Array.from(kisiAylikMap.values()).map((g) => ({
+    personel_id: g.personel_id, yil: g.yil, ay: g.ay,
+    hedef_ciro_kdv_dahil: g.hedef_ciro, gerceklesen_ciro_kdv_dahil: g.gerceklesen_ciro,
+    hedef_adet: g.hedef_adet, gerceklesen_adet: g.gerceklesen_adet,
+    hgo: g.hedef_ciro > 0 ? Math.round((g.gerceklesen_ciro / g.hedef_ciro) * 10000) / 100 : null,
+    adet_hgo: g.hedef_adet > 0 ? Math.round((g.gerceklesen_adet / g.hedef_adet) * 10000) / 100 : null,
+    brut_kar_marji: g.brut_kar_marji_sayi > 0 ? Math.round((g.brut_kar_marji_toplam / g.brut_kar_marji_sayi) * 100) / 100 : null,
+    brut_satis_adeti: g.brut_satis_adeti,
+  }));
 
   let basarili = 0;
   const PARCA_BOYUTU = 1000;
