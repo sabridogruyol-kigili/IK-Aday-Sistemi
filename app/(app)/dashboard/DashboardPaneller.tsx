@@ -288,6 +288,21 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
 
   const [seciliMagazaId, setSeciliMagazaId] = useState<string | null>(null);
 
+  // Soldaki mağaza listesinin yüksekliği, sağdaki panelin GERÇEK render edilen
+  // yüksekliğine eşitlenir (CSS Grid'in "stretch" davranışı, içerik taştığında
+  // kaydırmayı garanti etmediği için burada ölçüp uyguluyoruz).
+  const sagPanelRef = useRef<HTMLDivElement>(null);
+  const [sagPanelYukseklik, setSagPanelYukseklik] = useState<number | null>(null);
+  useEffect(() => {
+    const el = sagPanelRef.current;
+    if (!el) return;
+    const gozlemci = new ResizeObserver((girdiler) => {
+      for (const girdi of girdiler) setSagPanelYukseklik(girdi.contentRect.height);
+    });
+    gozlemci.observe(el);
+    return () => gozlemci.disconnect();
+  }, []);
+
   // "Mağazalar — Performans" kutusundaki KPI'lar için elle dönem seçimi (null ise
   // otomatik en güncel dönem kullanılır).
   const [kpiDonemManuel, setKpiDonemManuel] = useState<number | null>(null);
@@ -564,7 +579,10 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
         {solFiltrelenmis.length === 0 ? (
           <div className="text-xs text-gray-400">Bu filtreye uyan mağaza yok.</div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 flex-1 min-h-[300px] overflow-y-auto pr-1">
+          <div
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto pr-1"
+            style={{ maxHeight: sagPanelYukseklik ? `${sagPanelYukseklik}px` : undefined, minHeight: 300 }}
+          >
             {solFiltrelenmis.map((m) => {
               const durum = normDurumu(m);
               const secili = seciliMagazaId === m.id;
@@ -614,7 +632,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
       </div>
 
       {/* SAĞ PANEL — Performans */}
-      <div className="bg-white border border-gray-200 rounded-card p-4">
+      <div ref={sagPanelRef} className="bg-white border border-gray-200 rounded-card p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-semibold text-navy-3 flex items-center gap-2">
             {seciliMagaza ? `Performans — ${seciliMagaza.magaza_adi}` : "Mağazalar — Performans (HGO)"}
