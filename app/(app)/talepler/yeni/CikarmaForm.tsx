@@ -82,7 +82,7 @@ function KisiGrafikPaneli({
     [gecmis, degisken]
   );
 
-  const cizgiRengi = degisken === "hgo" && hgoYuksek ? "#b03030" : degisken === "adet_hgo" ? "#1a5fa0" : "#00365a";
+  const cizgiRengi = degisken === "hgo" && hgoYuksek ? "#B0402E" : degisken === "adet_hgo" ? "#3E7CB1" : "#0F1B4D";
 
   return (
     <div>
