@@ -19,7 +19,10 @@ export async function getPersonelSayfa(sayfa: number, arama: string) {
 
   let sorgu = supabase
     .from("personel")
-    .select("id, personel_kodu, tc_kimlik_no, ad_soyad, guncel_unvan, kadro_kategorisi, durum, performans_ortalama_hgo, magazalar(magaza_adi, magaza_kodu)", { count: "exact" })
+    .select(
+      "id, personel_kodu, tc_kimlik_no, ad_soyad, guncel_unvan, kadro_kategorisi, durum, dogum_tarihi, kan_grubu_kodu, uyruk, evli, performans_ortalama_hgo, magazalar(magaza_adi, magaza_kodu, il_adi)",
+      { count: "exact" }
+    )
     .order("ad_soyad")
     .range(bas, bas + SAYFA_BOYUTU - 1);
 
@@ -38,7 +41,10 @@ export async function getPerformansKisiSayfa(sayfa: number, arama: string) {
 
   let sorgu = supabase
     .from("performans_kisi_aylik")
-    .select("id, yil, ay, hedef_ciro_kdv_dahil, gerceklesen_ciro_kdv_dahil, hgo, personel(ad_soyad, personel_kodu)", { count: "exact" })
+    .select(
+      "id, yil, ay, hedef_ciro_kdv_dahil, gerceklesen_ciro_kdv_dahil, hgo, hedef_adet, gerceklesen_adet, adet_hgo, brut_kar_marji, brut_satis_adeti, personel(ad_soyad, personel_kodu)",
+      { count: "exact" }
+    )
     .order("yil", { ascending: false })
     .order("ay", { ascending: false })
     .range(bas, bas + SAYFA_BOYUTU - 1);
@@ -63,7 +69,10 @@ export async function getPerformansMagazaSayfa(sayfa: number, arama: string) {
 
   const sorgu = supabase
     .from("performans_magaza_aylik")
-    .select("id, yil, ay, hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, magazalar(magaza_adi, magaza_kodu)", { count: "exact" })
+    .select(
+      "id, yil, ay, hgo, adet_hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, satis_adeti, toplam_ciro_kdv_dahil, magaza_ciro_hedef, magaza_adet_hedef, omnichannel_ciro, omnichannel_haric_ciro, brut_kar_marji, fis_sayisi, magazalar(magaza_adi, magaza_kodu, il_adi, istifa_turnover, fesih_turnover, toplam_turnover)",
+      { count: "exact" }
+    )
     .order("yil", { ascending: false })
     .order("ay", { ascending: false })
     .range(bas, bas + SAYFA_BOYUTU - 1);
