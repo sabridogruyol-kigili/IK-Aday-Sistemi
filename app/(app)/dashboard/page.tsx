@@ -42,7 +42,12 @@ export default async function DashboardPage() {
   ]);
 
   const personelList = await tumSatirlariGetir<any>((bas, bitis) =>
-    supabase.from("personel").select("id, guncel_magaza_id, kadro_kategorisi, guncel_unvan, ad_soyad").eq("durum", "aktif").range(bas, bitis)
+    supabase
+      .from("personel")
+      .select("id, guncel_magaza_id, kadro_kategorisi, guncel_unvan, ad_soyad, tc_kimlik_no")
+      .eq("durum", "aktif")
+      .not("tc_kimlik_no", "like", "PLASIYER-%")
+      .range(bas, bitis)
   );
 
   const performansHam = await tumSatirlariGetir<any>((bas, bitis) =>
