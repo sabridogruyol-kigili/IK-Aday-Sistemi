@@ -167,18 +167,28 @@ export default function CikarmaForm({
 
   const bolgeler = useMemo(() => Array.from(new Set(personelListesi.map((p) => p.bolge_adi).filter(Boolean))).sort(), [personelListesi]);
   const [bolgeFiltre, setBolgeFiltre] = useState("");
+  const [magazaFiltre, setMagazaFiltre] = useState("");
+  const [unvanFiltre, setUnvanFiltre] = useState("");
   const [arama, setArama] = useState("");
+
+  const magazalar = useMemo(() => {
+    const kaynak = bolgeFiltre ? personelListesi.filter((p) => p.bolge_adi === bolgeFiltre) : personelListesi;
+    return Array.from(new Set(kaynak.map((p) => p.magaza_adi).filter(Boolean))).sort();
+  }, [personelListesi, bolgeFiltre]);
+  const unvanlar = useMemo(() => Array.from(new Set(personelListesi.map((p) => p.guncel_unvan).filter(Boolean))).sort() as string[], [personelListesi]);
 
   const filtrelenmisPersonel = useMemo(() => {
     return personelListesi.filter((p) => {
       if (bolgeFiltre && p.bolge_adi !== bolgeFiltre) return false;
+      if (magazaFiltre && p.magaza_adi !== magazaFiltre) return false;
+      if (unvanFiltre && p.guncel_unvan !== unvanFiltre) return false;
       if (arama) {
         const q = arama.toLocaleLowerCase("tr-TR");
-        if (!p.ad_soyad.toLocaleLowerCase("tr-TR").includes(q) && !(p.guncel_unvan ?? "").toLocaleLowerCase("tr-TR").includes(q)) return false;
+        if (!p.ad_soyad.toLocaleLowerCase("tr-TR").includes(q)) return false;
       }
       return true;
     });
-  }, [personelListesi, bolgeFiltre, arama]);
+  }, [personelListesi, bolgeFiltre, magazaFiltre, unvanFiltre, arama]);
 
   const gruplar = Array.from(new Set(pozisyonlar.map((p) => p.kategori)));
 
@@ -198,24 +208,41 @@ export default function CikarmaForm({
     <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl w-full space-y-4 shrink-0">
       <div>
         <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Filtrele</div>
-        <div className="flex gap-2 mb-2">
-          <select value={bolgeFiltre} onChange={(e) => setBolgeFiltre(e.target.value)}
-            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1">
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <select value={bolgeFiltre} onChange={(e) => { setBolgeFiltre(e.target.value); setMagazaFiltre(""); }}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
             <option value="">Tüm Bölgeler (yetkiniz dahilinde)</option>
             {bolgeler.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
+          <select value={magazaFiltre} onChange={(e) => setMagazaFiltre(e.target.value)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
+            <option value="">Tüm Mağazalar</option>
+            {magazalar.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={unvanFiltre} onChange={(e) => setUnvanFiltre(e.target.value)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-xs">
+            <option value="">Tüm Ünvanlar</option>
+            {unvanlar.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
           <input value={arama} onChange={(e) => setArama(e.target.value)}
-            placeholder="İsim / unvan ara..." className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1" />
+            placeholder="İsim ara..." className="border border-gray-300 rounded-md px-2 py-1.5 text-xs" />
         </div>
-        <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Çıkarılacak Personel *</label>
+        <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
+          Çıkarılacak Personel * <span className="text-gray-400 normal-case font-normal">({filtrelenmisPersonel.length} kişi)</span>
+        </label>
         <select name="personel_id" required value={seciliPersonelId}
           onChange={(e) => setSeciliPersonelId(e.target.value)}
           className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm">
           <option value="">Seçin</option>
           {filtrelenmisPersonel.map((p) => (
-            <option key={p.id} value={p.id}>{p.ad_soyad} — {p.guncel_unvan} — {p.magaza_adi} ({p.bolge_adi})</option>
+            <option key={p.id} value={p.id}>{p.ad_soyad}</option>
           ))}
         </select>
+        {seciliPersonel && (
+          <div className="text-[11px] text-gray-500 mt-1.5">
+            {seciliPersonel.guncel_unvan} — {seciliPersonel.magaza_adi} ({seciliPersonel.bolge_adi})
+          </div>
+        )}
       </div>
 
       {seciliPersonel && (
