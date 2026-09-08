@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { createIstenCikarmaTalebi } from "./actions-cikarma";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { createIstenCikarmaTalebi, getPersonelPerformansGecmisi, type PersonelAylikHgo } from "./actions-cikarma";
+
+const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 type Pozisyon = { unvan: string; kategori: string };
 type Personel = {
@@ -41,6 +44,23 @@ export default function CikarmaForm({
   const hgoDusuk = seciliPersonel != null && seciliPersonel.performans_ortalama_hgo != null && seciliPersonel.performans_ortalama_hgo < 80;
   const aciklamaZorunlu = israrli || hgoDusuk;
 
+  // Seçilen personelin aylık HGO geçmişi — sağdaki grafik için.
+  const [gecmis, setGecmis] = useState<PersonelAylikHgo[]>([]);
+  const [gecmisYukleniyor, setGecmisYukleniyor] = useState(false);
+  useEffect(() => {
+    if (!seciliPersonelId) { setGecmis([]); return; }
+    setGecmisYukleniyor(true);
+    getPersonelPerformansGecmisi(seciliPersonelId).then((veri) => {
+      setGecmis(veri);
+      setGecmisYukleniyor(false);
+    });
+  }, [seciliPersonelId]);
+
+  const grafikVerisi = useMemo(
+    () => gecmis.filter((g) => g.hgo !== null).map((g) => ({ etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`, hgo: g.hgo })),
+    [gecmis]
+  );
+
   const bolgeler = useMemo(() => Array.from(new Set(personelListesi.map((p) => p.bolge_adi).filter(Boolean))).sort(), [personelListesi]);
   const [bolgeFiltre, setBolgeFiltre] = useState("");
   const [arama, setArama] = useState("");
@@ -70,7 +90,8 @@ export default function CikarmaForm({
   }
 
   return (
-    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4 items-start">
+    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl w-full space-y-4">
       <div>
         <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Filtrele</div>
         <div className="flex gap-2 mb-2">
@@ -171,5 +192,35 @@ export default function CikarmaForm({
         {pending ? "Gönderiliyor..." : "Talebi Gönder"}
       </button>
     </form>
+
+    {seciliPersonel && (
+      <div className="bg-white border border-gray-200 rounded-card p-4 w-full lg:w-[420px] shrink-0">
+        <div className="text-sm font-semibold text-navy-3 mb-1">Aylık HGO Geçmişi — {seciliPersonel.ad_soyad}</div>
+        <div className="text-[10px] text-gray-400 mb-3">Kişi bazlı performans importundan (Çalışan Performans) alınır.</div>
+
+        {gecmisYukleniyor ? (
+          <div className="text-xs text-gray-400 py-8 text-center">Yükleniyor...</div>
+        ) : grafikVerisi.length === 0 ? (
+          <div className="text-xs text-gray-400 py-8 text-center">Bu personel için henüz aylık performans verisi yok.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={grafikVerisi} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis dataKey="etiket" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 12 }} />
+              <Line
+                type="monotone"
+                dataKey="hgo"
+                stroke={hgoDusuk ? "#b03030" : "#00365a"}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    )}
+    </div>
   );
 }
