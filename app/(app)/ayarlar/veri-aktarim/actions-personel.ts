@@ -94,6 +94,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   };
   const gecerliler: GecerliSatir[] = [];
   const tcGorulen = new Set<string>();
+  const gercektenAyrilanlar = new Map<string, string>(); // tc -> ayrılma tarihi
 
   for (let i = 0; i < rowsHam.length; i++) {
     const satirNo = i + 2;
@@ -107,7 +108,11 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     // tarihleri her zaman 1901'den çok sonra olacaktır).
     const ayrilmaYili = ayrilmaTarihiParsed ? parseInt(ayrilmaTarihiParsed.slice(0, 4), 10) : null;
     const gercektenAyrilmisMi = ayrilmaYili !== null && ayrilmaYili > 1901;
-    if (gercektenAyrilmisMi) continue;
+    if (gercektenAyrilmisMi) {
+      const tc = String(r["TC Kimlik No"] ?? "").trim();
+      if (tc) gercektenAyrilanlar.set(tc, ayrilmaTarihiParsed as string);
+      continue;
+    }
 
     const tcKimlikNo = String(r["TC Kimlik No"] ?? "").trim();
     const personelKodu = sicilNormalize(String(r["Personel Kodu"] ?? ""));
@@ -276,6 +281,38 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
 
   for (const parca of parcala(yeniAtamalar, PARCA_BOYUTU)) {
     await supabase.from("personel_atama_gecmisi").insert(parca);
+  }
+
+  // Dosyada gerçek bir "İşten Ayrılma Tarihi" ile görünen kişiler, önceki bir
+  // importta "aktif" olarak eklenmiş olabilir. O satır import'a hiç alınmadığı
+  // (yukarıda "continue" ile atlandığı) için, bu kişileri burada AYRICA pasife
+  // çekmezsek veritabanında sonsuza dek "aktif" kalırlar — özellikle personel
+  // devir hızı yüksek Dönemsel/Part-Time kadroda sayının şişmesine yol açar.
+  if (gercektenAyrilanlar.size > 0) {
+    const ayrilanTcListesi = Array.from(gercektenAyrilanlar.keys());
+    for (const parca of parcala(ayrilanTcListesi, PARCA_BOYUTU)) {
+      const { data: pasifeAlinacaklar } = await supabase
+        .from("personel")
+        .select("id, tc_kimlik_no")
+        .in("tc_kimlik_no", parca)
+        .eq("durum", "aktif");
+
+      if (pasifeAlinacaklar && pasifeAlinacaklar.length > 0) {
+        const idler = pasifeAlinacaklar.map((p: any) => p.id);
+        await supabase.from("personel").update({ durum: "pasif" }).in("id", idler);
+
+        // Açık kalan atama kaydını da kapatıyoruz (norm doluluk hesabı için).
+        for (const p of pasifeAlinacaklar) {
+          const ayrilmaTarihi = gercektenAyrilanlar.get(p.tc_kimlik_no);
+          if (!ayrilmaTarihi) continue;
+          await supabase
+            .from("personel_atama_gecmisi")
+            .update({ ayrilma_tarihi: ayrilmaTarihi })
+            .eq("personel_id", p.id)
+            .is("ayrilma_tarihi", null);
+        }
+      }
+    }
   }
 
   revalidatePath("/personel");
