@@ -27,8 +27,8 @@ export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
     const donemsel = Number(r["Dönemsel Norm"]);
     const partTime = Number(r["Part-Time Norm"]);
 
-    if (!magazaKodu || !magazaAdi || !bolgeAdi) {
-      hatalar.push({ satir: satirNo, hata: "Mağaza Kodu, Mağaza Adı veya Bölge Adı eksik." });
+    if (!magazaKodu || !magazaAdi) {
+      hatalar.push({ satir: satirNo, hata: "Mağaza Kodu veya Mağaza Adı eksik." });
       continue;
     }
     if ([anaKadro, donemsel, partTime].some((v) => Number.isNaN(v) || v < 0)) {
@@ -36,31 +36,52 @@ export async function iceAktarMagazaNorm(rows: any[]): Promise<Sonuc> {
       continue;
     }
 
-    let { data: bolge } = await supabase.from("bolgeler").select("id").eq("ad", bolgeAdi).single();
-    if (!bolge) {
-      const { data: yeniBolge, error: bolgeHata } = await supabase
-        .from("bolgeler").insert({ ad: bolgeAdi }).select("id").single();
-      if (bolgeHata || !yeniBolge) {
-        hatalar.push({ satir: satirNo, hata: "Bölge oluşturulamadı: " + bolgeHata?.message });
+    // Mağaza sistemde zaten varsa, bölgesi Mağaza Performans dosyasından geldiği kabul
+    // edilir — bu dosyanın kendi Bölge Adı sütunu görmezden gelinir (aynı bölgenin farklı
+    // yazımlarla mükerrer oluşmasını önler). Mağaza gerçekten yeniyse, bölgeye ihtiyaç
+    // olduğu için bu dosyadaki Bölge Adı kullanılır.
+    const { data: mevcutMagaza } = await supabase.from("magazalar").select("id, bolge_id").eq("magaza_kodu", magazaKodu).maybeSingle();
+
+    let magazaId: string;
+    if (mevcutMagaza) {
+      const { error: guncelleHata } = await supabase.from("magazalar").update({ magaza_adi: magazaAdi }).eq("id", mevcutMagaza.id);
+      if (guncelleHata) {
+        hatalar.push({ satir: satirNo, hata: "Mağaza güncellenemedi: " + guncelleHata.message });
         continue;
       }
-      bolge = yeniBolge;
-    }
+      magazaId = mevcutMagaza.id;
+    } else {
+      if (!bolgeAdi) {
+        hatalar.push({ satir: satirNo, hata: `Mağaza (${magazaKodu}) sistemde yok ve Bölge Adı boş olduğu için oluşturulamadı.` });
+        continue;
+      }
+      let { data: bolge } = await supabase.from("bolgeler").select("id").eq("ad", bolgeAdi).single();
+      if (!bolge) {
+        const { data: yeniBolge, error: bolgeHata } = await supabase
+          .from("bolgeler").insert({ ad: bolgeAdi }).select("id").single();
+        if (bolgeHata || !yeniBolge) {
+          hatalar.push({ satir: satirNo, hata: "Bölge oluşturulamadı: " + bolgeHata?.message });
+          continue;
+        }
+        bolge = yeniBolge;
+      }
 
-    const { data: magaza, error: magazaHata } = await supabase
-      .from("magazalar")
-      .upsert({ magaza_kodu: magazaKodu, magaza_adi: magazaAdi, bolge_id: bolge.id, aktif: true }, { onConflict: "magaza_kodu" })
-      .select("id")
-      .single();
-    if (magazaHata || !magaza) {
-      hatalar.push({ satir: satirNo, hata: "Mağaza kaydedilemedi: " + magazaHata?.message });
-      continue;
+      const { data: yeniMagaza, error: magazaHata } = await supabase
+        .from("magazalar")
+        .insert({ magaza_kodu: magazaKodu, magaza_adi: magazaAdi, bolge_id: bolge.id, aktif: true })
+        .select("id")
+        .single();
+      if (magazaHata || !yeniMagaza) {
+        hatalar.push({ satir: satirNo, hata: "Mağaza kaydedilemedi: " + magazaHata?.message });
+        continue;
+      }
+      magazaId = yeniMagaza.id;
     }
 
     const { error: normHata } = await supabase
       .from("norm")
       .upsert(
-        { magaza_id: magaza.id, ana_kadro_norm: anaKadro, donemsel_norm: donemsel, part_time_norm: partTime, kaynak: "import" },
+        { magaza_id: magazaId, ana_kadro_norm: anaKadro, donemsel_norm: donemsel, part_time_norm: partTime, kaynak: "import" },
         { onConflict: "magaza_id" }
       );
     if (normHata) {
