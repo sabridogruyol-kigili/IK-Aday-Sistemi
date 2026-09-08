@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { kararVerAday, ilerletDurum, getAdaySurecGecmisi, mulakatIsaretle } from "./actions";
 import SurecTarihce, { type SurecAdimi } from "../talepler/SurecTarihce";
+import CvGoruntuleyici from "./CvGoruntuleyici";
 
 export default function AdayKarti({
   adayId, adSoyad, telefon, email, cvLink, talepNo, magaza,
@@ -15,6 +16,7 @@ export default function AdayKarti({
   durum: string; durumEtiket: string; benimKullaniciId: string; benimRolum: string;
 }) {
   const [pending, startTransition] = useTransition();
+  const [cvAcik, setCvAcik] = useState(false);
   const [redMod, setRedMod] = useState(false);
   const [aciklama, setAciklama] = useState("");
   const [tcKimlik, setTcKimlik] = useState("");
@@ -109,7 +111,12 @@ export default function AdayKarti({
           <div className="text-[11px] text-gray-400 mt-0.5">
             {telefon ?? "Telefon —"} · {email ?? "E-posta —"}
           </div>
-          {cvLink && <span className="text-xs text-success">CV kayıtlı</span>}
+          {cvLink && (
+            <button onClick={() => setCvAcik(true)} className="text-xs text-info hover:underline font-medium">
+              CV Görüntüle
+            </button>
+          )}
+          {cvAcik && cvLink && <CvGoruntuleyici cvYolu={cvLink} onClose={() => setCvAcik(false)} />}
         </div>
         <span className={`text-xs font-medium ${durumRenk[durumL] ?? ""}`}>{durumEtiketL}</span>
       </div>
