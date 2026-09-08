@@ -224,6 +224,36 @@ export default function TalepForm({
                 </ResponsiveContainer>
               )}
             </div>
+
+            {magazaBilgi.calisanlar.length > 0 && (
+              <div className="pt-3 border-t border-gray-100">
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">Mevcut Çalışanlar</div>
+                <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-md">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="bg-gray-50 text-[9px] text-gray-400 uppercase sticky top-0">
+                        <th className="text-left px-2 py-1.5">Ad Soyad</th>
+                        <th className="text-left px-2 py-1.5">Ünvan</th>
+                        <th className="text-right px-2 py-1.5">Ort. HGO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {magazaBilgi.calisanlar.map((c, i) => (
+                        <tr key={i} className="border-t border-gray-50">
+                          <td className="px-2 py-1.5 text-navy-3 font-medium">{c.ad_soyad}</td>
+                          <td className="px-2 py-1.5 text-gray-500">{c.unvan ?? "—"}</td>
+                          <td className={`px-2 py-1.5 text-right font-mono font-semibold ${
+                            c.hgo == null ? "text-gray-400" : c.hgo < 80 ? "text-danger" : "text-success"
+                          }`}>
+                            {c.hgo != null ? `%${c.hgo.toFixed(1)}` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
