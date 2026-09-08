@@ -73,6 +73,7 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
 
   const hatalar: SatirHata[] = [];
   const magazaAylikSatirlari: Record<string, any>[] = [];
+  const magazaGuncellemeleri = new Map<string, { id: string; bolge_id: string; il_adi: string | null; subetipi: string | null; net_m2: number | null }>();
 
   for (let i = 0; i < rows.length; i++) {
     const satirNo = i + 2;
@@ -93,17 +94,24 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
     const magazaAdiHam = String(r["🏬StoreFullName"] ?? "").trim();
     const magazaAdi = magazaAdiHam.startsWith(magazaKodu) ? magazaAdiHam.slice(magazaKodu.length).trim() : magazaAdiHam;
 
-    if (!magazaId) {
-      let bolgeId: string | null = null;
-      if (bolgeAdi) {
-        bolgeId = bolgeMap[bolgeAdi] ?? null;
-        if (!bolgeId) {
-          const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad: bolgeAdi }).select("id").single();
-          if (bolgeHata || !yeniBolge) { hatalar.push({ satir: satirNo, hata: `Bölge (${bolgeAdi}) oluşturulamadı: ` + bolgeHata?.message }); continue; }
-          bolgeId = yeniBolge.id;
-          bolgeMap[bolgeAdi] = bolgeId!;
-        }
+    // Bölge adını çözer (varsa haritadan, yoksa oluşturup haritaya ekler). Mağaza Performans
+    // tek yetkili bölge kaynağı olduğu için hem yeni mağaza oluştururken hem mevcut bir
+    // mağazanın bölgesini güncel tutarken aynı fonksiyon kullanılıyor.
+    async function bolgeIdCoz(ad: string): Promise<string | null> {
+      if (!ad) return null;
+      const mevcut = bolgeMap[ad];
+      if (mevcut) return mevcut;
+      const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad }).select("id").single();
+      if (bolgeHata || !yeniBolge) {
+        hatalar.push({ satir: satirNo, hata: `Bölge (${ad}) oluşturulamadı: ` + bolgeHata?.message });
+        return null;
       }
+      bolgeMap[ad] = yeniBolge.id;
+      return yeniBolge.id;
+    }
+
+    if (!magazaId) {
+      const bolgeId = await bolgeIdCoz(bolgeAdi);
       const { data: yeniMagaza, error: magazaHata } = await supabase
         .from("magazalar")
         .insert({
@@ -119,6 +127,18 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
       if (magazaHata || !yeniMagaza) { hatalar.push({ satir: satirNo, hata: `Mağaza (${magazaKodu}) oluşturulamadı: ` + magazaHata?.message }); continue; }
       magazaId = yeniMagaza.id;
       magazaMap[magazaKodu] = magazaId;
+    } else if (bolgeAdi) {
+      // Mağaza zaten var — bölgesi dosyadakinden farklıysa günceller (Mağaza Performans
+      // tek yetkili bölge kaynağı olduğu için diğer importlar buna dokunmaz).
+      const bolgeId = await bolgeIdCoz(bolgeAdi);
+      if (bolgeId) {
+        magazaGuncellemeleri.set(magazaId, {
+          id: magazaId, bolge_id: bolgeId,
+          il_adi: String(r["🏬CityName"] ?? "").trim() || null,
+          subetipi: String(r["🏬StoreSegment"] ?? "").trim() || null,
+          net_m2: sayi(r["StoreSalesArea"]),
+        });
+      }
     }
 
     const netSatis = sayi(r["Net Sales Amount(VI+OMS+ThrdCard+Cntr)"]);
@@ -138,6 +158,11 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
       magaza_ciro_hedef: ciroHedef, magaza_adet_hedef: adetHedef,
       brut_kar_marji: sayi(r["Gross Profit Margin"]), fis_sayisi: sayi(r["Gross Transaction Count"]),
     });
+  }
+
+  if (magazaGuncellemeleri.size > 0) {
+    const { error } = await supabase.rpc("magazalar_toplu_guncelle_v2", { p_guncellemeler: Array.from(magazaGuncellemeleri.values()) });
+    if (error) hatalar.push({ satir: 0, hata: "Mağaza bilgileri (bölge dahil) toplu güncellenemedi: " + error.message });
   }
 
   let basarili = 0;
