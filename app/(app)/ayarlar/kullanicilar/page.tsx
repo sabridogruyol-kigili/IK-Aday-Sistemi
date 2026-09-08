@@ -84,6 +84,7 @@ export default async function KullanicilarPage() {
               <option value="BM">BM</option>
               <option value="IK">İK</option>
               <option value="YONETIM">Yönetim</option>
+              <option value="MAGAZALAR_DIREKTORLUGU">Mağazalar Direktörlüğü</option>
             </select>
           </div>
           <div className="col-span-3">
