@@ -16,7 +16,10 @@ type TalepSure = {
   bm_adi: string; ik_adi: string; pozisyon_tipi: string | null; sure_gun: number; kapanmis_mi: boolean; created_at: string;
 };
 type MagazaRapor = { id: string; magaza_adi: string; magaza_kodu: string; bolge_id: string; bolge_adi: string; bm_adi: string; ik_adi: string; norm: number; dolu: number; hgo: number | null; talep_sayisi: number };
-type BolgeRapor = { id: string; ad: string; bm_adi: string; ik_adi: string; magaza_sayisi: number; norm: number; dolu: number; hgo: number | null; talep_sayisi: number };
+type BolgeRapor = {
+  id: string; ad: string; bm_adi: string; ik_adi: string; magaza_sayisi: number; norm: number; dolu: number; hgo: number | null;
+  talep_sayisi: number; ise_alim_sayisi: number; isten_cikarma_sayisi: number; rotasyon_sayisi: number; norm_degisiklik_sayisi: number;
+};
 type IkPerformans = { id: string; ad_soyad: string; toplamIs: number; bekleyenIs: number; toplamAday: number; aylikAdaySayisi: Record<string, number> };
 
 function DolulukRozeti({ dolu, norm }: { dolu: number; norm: number }) {
@@ -273,6 +276,64 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
       {/* ============ GENEL SEKMESİ ============ */}
       {sekme === "genel" && (
         <>
+          <div className="bg-white border border-gray-200 rounded-card p-4">
+            <div className="text-sm font-semibold text-navy-3 mb-3">
+              Özet Tablo <span className="text-[11px] text-gray-400 font-normal">— bölge, sorumlu isimleri ve talep dağılımı bir arada</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-50 text-[9px] text-gray-400 uppercase border-b-2 border-navy">
+                    <th className="text-left px-2 py-1.5">Bölge</th>
+                    <th className="text-left px-2 py-1.5">İK Sorumlusu</th>
+                    <th className="text-left px-2 py-1.5">BM</th>
+                    <th className="text-right px-2 py-1.5">Mağaza</th>
+                    <th className="text-right px-2 py-1.5">Doluluk</th>
+                    <th className="text-right px-2 py-1.5">Ort. HGO</th>
+                    <th className="text-right px-2 py-1.5">İşe Alım</th>
+                    <th className="text-right px-2 py-1.5">İşten Çık.</th>
+                    <th className="text-right px-2 py-1.5">Rotasyon</th>
+                    <th className="text-right px-2 py-1.5">Norm Değ.</th>
+                    <th className="text-right px-2 py-1.5 font-bold">Toplam Talep</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bolgeRaporVeri.map((b) => (
+                    <tr key={b.id} className="border-t border-gray-50">
+                      <td className="px-2 py-1.5 font-semibold text-navy-3">{b.ad}</td>
+                      <td className="px-2 py-1.5 text-gray-600">{b.ik_adi}</td>
+                      <td className="px-2 py-1.5 text-gray-600">{b.bm_adi}</td>
+                      <td className="px-2 py-1.5 text-right text-gray-600">{b.magaza_sayisi}</td>
+                      <td className="px-2 py-1.5 text-right"><DolulukRozeti dolu={b.dolu} norm={b.norm} /></td>
+                      <td className="px-2 py-1.5 text-right"><HgoRozeti hgo={b.hgo} /></td>
+                      <td className="px-2 py-1.5 text-right font-mono text-gray-600">{b.ise_alim_sayisi}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-gray-600">{b.isten_cikarma_sayisi}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-gray-600">{b.rotasyon_sayisi}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-gray-600">{b.norm_degisiklik_sayisi}</td>
+                      <td className="px-2 py-1.5 text-right font-mono font-bold text-navy-3">{b.talep_sayisi}</td>
+                    </tr>
+                  ))}
+                  {bolgeRaporVeri.length === 0 && <tr><td colSpan={11} className="px-2 py-6 text-center text-gray-400">Görüntülenecek veri yok.</td></tr>}
+                </tbody>
+                {bolgeRaporVeri.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-navy bg-gray-50 font-semibold">
+                      <td className="px-2 py-1.5 text-navy-3" colSpan={3}>Genel Toplam</td>
+                      <td className="px-2 py-1.5 text-right text-navy-3">{bolgeRaporVeri.reduce((s, b) => s + b.magaza_sayisi, 0)}</td>
+                      <td className="px-2 py-1.5 text-right"><DolulukRozeti dolu={bolgeRaporVeri.reduce((s, b) => s + b.dolu, 0)} norm={bolgeRaporVeri.reduce((s, b) => s + b.norm, 0)} /></td>
+                      <td className="px-2 py-1.5"></td>
+                      <td className="px-2 py-1.5 text-right font-mono text-navy-3">{bolgeRaporVeri.reduce((s, b) => s + b.ise_alim_sayisi, 0)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-navy-3">{bolgeRaporVeri.reduce((s, b) => s + b.isten_cikarma_sayisi, 0)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-navy-3">{bolgeRaporVeri.reduce((s, b) => s + b.rotasyon_sayisi, 0)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-navy-3">{bolgeRaporVeri.reduce((s, b) => s + b.norm_degisiklik_sayisi, 0)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-navy-3">{bolgeRaporVeri.reduce((s, b) => s + b.talep_sayisi, 0)}</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-card p-4">
             <div className="text-sm font-semibold text-navy-3 mb-3">Performans Görünümü</div>
             <div className="space-y-2">
