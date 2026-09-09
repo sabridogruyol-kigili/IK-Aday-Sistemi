@@ -24,11 +24,11 @@ function MiniKpi({ label, value, vurgu }: { label: string; value: string; vurgu?
 
 export default function OnayKarti({
   onayId, talepNo, talepTuru, magaza, magazaId, pozisyon, kisiSayisi, acanRol, aciklama, normSonuc,
-  cikarilacakPersonelId, cikarilacakPersonelAdi, cikarilacakPersonelUnvan, normKategori, normEski, normYeni,
+  cikarilacakPersonelId, cikarilacakPersonelAdi, cikarilacakPersonelUnvan, hedefMagaza, normKategori, normEski, normYeni,
 }: {
   onayId: string; talepNo: string; talepTuru: string; magaza?: string; magazaId?: string; pozisyon?: string;
   kisiSayisi?: number; acanRol?: string; aciklama?: string | null; normSonuc?: string | null;
-  cikarilacakPersonelId?: string; cikarilacakPersonelAdi?: string; cikarilacakPersonelUnvan?: string;
+  cikarilacakPersonelId?: string; cikarilacakPersonelAdi?: string; cikarilacakPersonelUnvan?: string; hedefMagaza?: string;
   normKategori?: string; normEski?: number; normYeni?: number;
 }) {
   const [pending, startTransition] = useTransition();
@@ -90,6 +90,7 @@ export default function OnayKarti({
           <div className="text-xs text-gray-500 mt-0.5">
             {talepTuru === "ISE_ALIM" && <>{magaza} — {pozisyon} — {kisiSayisi} kişi</>}
             {talepTuru === "ISTEN_CIKARMA" && <>{magaza} — {cikarilacakPersonelAdi} ({cikarilacakPersonelUnvan})</>}
+            {talepTuru === "ROTASYON" && <>{cikarilacakPersonelAdi} — {magaza} → {hedefMagaza}</>}
             {talepTuru === "NORM_DEGISIKLIK" && <>{magaza} — {KATEGORI_LABEL[normKategori ?? ""] ?? normKategori}: {normEski} → {normYeni}</>}
             {" "}— Açan: {acanRol}
           </div>
