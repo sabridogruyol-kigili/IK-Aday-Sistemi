@@ -4,19 +4,21 @@ import { useState, useTransition } from "react";
 import { kararVerAday, ilerletDurum, getAdaySurecGecmisi, mulakatIsaretle } from "./actions";
 import SurecTarihce, { type SurecAdimi } from "../talepler/SurecTarihce";
 import CvGoruntuleyici from "./CvGoruntuleyici";
+import AdayDetayModal from "./AdayDetayModal";
 
 export default function AdayKarti({
-  adayId, adSoyad, telefon, email, cvLink, talepNo, magaza,
+  adayId, adSoyad, telefon, email, cvLink, talepNo, magaza, tcKimlikNo,
   yonlendirenRol, yonlendirenKullaniciId, kariVerenRol, onayBm, onayIk, mulakatBm, mulakatIk,
   durum, durumEtiket, benimKullaniciId, benimRolum,
 }: {
   adayId: string; adSoyad: string; telefon: string | null; email: string | null; cvLink: string | null;
-  talepNo: string; magaza?: string; yonlendirenRol: string; yonlendirenKullaniciId: string;
+  talepNo: string; magaza?: string; tcKimlikNo: string | null; yonlendirenRol: string; yonlendirenKullaniciId: string;
   kariVerenRol: string; onayBm: string | null; onayIk: string | null; mulakatBm: string | null; mulakatIk: string | null;
   durum: string; durumEtiket: string; benimKullaniciId: string; benimRolum: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [cvAcik, setCvAcik] = useState(false);
+  const [detayAcik, setDetayAcik] = useState(false);
   const [redMod, setRedMod] = useState(false);
   const [aciklama, setAciklama] = useState("");
   const [tcKimlik, setTcKimlik] = useState("");
@@ -106,7 +108,16 @@ export default function AdayKarti({
     <div className="bg-white border border-gray-200 rounded-card p-4">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <div className="font-medium text-navy-3 text-sm">{adSoyad}</div>
+          <button onClick={() => setDetayAcik(true)} className="font-medium text-navy-3 text-sm hover:text-info hover:underline text-left">
+            {adSoyad}
+          </button>
+          {detayAcik && (
+            <AdayDetayModal
+              onClose={() => setDetayAcik(false)}
+              adSoyad={adSoyad} telefon={telefon} email={email} magaza={magaza}
+              talepNo={talepNo} durumEtiket={durumEtiket} tcKimlikNo={tcKimlikNo}
+            />
+          )}
           <div className="text-xs text-gray-500 mt-0.5">{talepNo} — {magaza} — Yönlendiren: {yonlendirenRol}</div>
           <div className="text-[11px] text-gray-400 mt-0.5">
             {telefon ?? "Telefon —"} · {email ?? "E-posta —"}
