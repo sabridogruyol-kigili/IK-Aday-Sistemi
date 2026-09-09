@@ -66,7 +66,7 @@ export async function createIseAlimTalebiToplu(formData: FormData): Promise<Sonu
     kategoriler.map(async (kategori) => {
       const [{ count: aktifSayisi }, { data: kategoriUnvanlariHam }] = await Promise.all([
         supabase.from("personel").select("*", { count: "exact", head: true })
-          .eq("guncel_magaza_id", magazaId).eq("durum", "aktif").eq("kadro_kategorisi", kategori),
+          .eq("guncel_magaza_id", magazaId).eq("durum", "aktif").not("tc_kimlik_no", "like", "PLASIYER-%").eq("kadro_kategorisi", kategori),
         supabase.from("unvan_kadro_kategorisi").select("unvan").eq("kategori", kategori),
       ]);
       const kategoriPozisyonlari = (kategoriUnvanlariHam ?? []).map((u) => u.unvan);
