@@ -79,6 +79,10 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
   const magazaGuncellemeleri = new Map<string, {
     id: string; enSonDonem: number; bolge_id: string; il_adi: string | null; subetipi: string | null; net_m2: number | null;
   }>();
+  // İsim güncellemesi RPC'den bağımsız, doğrudan yapılır (RPC'nin içeriğini
+  // değiştirmeden güvenli olsun diye) — bölge bilgisi olmasa bile isim her
+  // zaman en güncel dönemin StoreFullName değerine göre senkron tutulur.
+  const isimGuncellemeleri = new Map<string, { enSonDonem: number; magaza_adi: string }>();
 
   async function bolgeIdCoz(ad: string, satirNo: number): Promise<string | null> {
     if (!ad) return null;
@@ -157,6 +161,15 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
       }
     }
 
+    // İsim senkronu — bölge bilgisi olsun olmasın, StoreFullName her satırda
+    // gelir; en güncel döneme ait değeri kaydediyoruz.
+    if (magazaAdi) {
+      const mevcutIsimAday = isimGuncellemeleri.get(magazaId);
+      if (!mevcutIsimAday || donemKodu > mevcutIsimAday.enSonDonem) {
+        isimGuncellemeleri.set(magazaId, { enSonDonem: donemKodu, magaza_adi: magazaAdi });
+      }
+    }
+
     const netSatis = sayi(r["Net Sales Amount(VI+OMS+ThrdCard+Cntr)"]);
     const netAdet = sayi(r["Sales Quantity(+OMS+Cntr)"]);
     const ciroHedef = sayi(r["Target Net Amount- Store"]);
@@ -180,6 +193,12 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
     const guncellemeListesi = Array.from(magazaGuncellemeleri.values()).map(({ enSonDonem, ...rest }) => rest);
     const { error } = await supabase.rpc("magazalar_toplu_guncelle_v2", { p_guncellemeler: guncellemeListesi });
     if (error) hatalar.push({ satir: 0, hata: "Mağaza bilgileri (bölge dahil) toplu güncellenemedi: " + error.message });
+  }
+
+  // İsim güncellemesi RPC'ye dahil değil — doğrudan, tek tek uygulanır (bu
+  // mağaza sayısı importta genelde küçük olduğu için performans sorunu olmaz).
+  for (const [magazaId, { magaza_adi }] of isimGuncellemeleri.entries()) {
+    await supabase.from("magazalar").update({ magaza_adi }).eq("id", magazaId);
   }
 
   let basarili = 0;
