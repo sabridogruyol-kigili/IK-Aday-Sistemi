@@ -64,7 +64,7 @@ export default async function RaporlarPage() {
     tumSatirlariGetir<any>((bas, bitis) =>
       supabase
         .from("talepler")
-        .select("id, talep_no, talep_turu, durum, magaza_id, acan_rol, created_at, updated_at")
+        .select("id, talep_no, talep_turu, durum, magaza_id, acan_rol, pozisyon_tipi, created_at, updated_at")
         .range(bas, bitis)
     ),
   ]);
@@ -157,6 +157,7 @@ export default async function RaporlarPage() {
       magaza_id: t.magaza_id, magaza_adi: magazaBilgi?.magaza_adi ?? "—",
       bolge_id: magazaBilgi?.bolge_id ?? null, bolge_adi: magazaBilgi?.bolge_adi ?? "—",
       bm_adi: magazaBilgi?.bm_adi ?? "—", ik_adi: magazaBilgi?.ik_adi ?? "—",
+      pozisyon_tipi: t.pozisyon_tipi ?? null,
       sure_gun: Math.round(sureGun * 10) / 10,
       kapanmis_mi: kapanmisMi,
       created_at: t.created_at,
