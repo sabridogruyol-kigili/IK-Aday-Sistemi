@@ -1,13 +1,29 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { createRotasyonTalebi } from "./actions-rotasyon";
+import { getMagazaBilgi, type MagazaBilgi } from "./actions-magaza-bilgi";
+
+const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
 type Personel = {
-  id: string; ad_soyad: string; guncel_unvan: string | null;
-  guncel_magaza_id: string; magaza_adi: string; bolge_adi: string; kadro_kategorisi: string | null;
+  id: string; ad_soyad: string; guncel_unvan: string | null; guncel_magaza_id: string;
+  magaza_adi: string; bolge_adi: string; kadro_kategorisi: string | null;
 };
-type Magaza = { id: string; magaza_adi: string; magaza_kodu: string; bolge_id: string; bolge_adi: string };
+type Magaza = {
+  id: string; magaza_adi: string; magaza_kodu: string; bolge_id: string; bolge_adi: string;
+  ana_kadro_norm: number; donemsel_norm: number; part_time_norm: number;
+};
+
+function MiniKpi({ label, value, vurgu }: { label: string; value: string; vurgu?: boolean }) {
+  return (
+    <div className={`rounded-md px-2.5 py-2 ${vurgu ? "bg-danger-bg" : "bg-gray-50"}`}>
+      <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">{label}</div>
+      <div className={`text-sm font-mono font-semibold ${vurgu ? "text-danger" : "text-navy-3"}`}>{value}</div>
+    </div>
+  );
+}
 
 export default function RotasyonForm({ personelListesi, magazalar }: { personelListesi: Personel[]; magazalar: Magaza[] }) {
   const [pending, startTransition] = useTransition();
@@ -21,6 +37,7 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
   const [secilenPersonelId, setSecilenPersonelId] = useState("");
 
   const [hedefBolgeFiltre, setHedefBolgeFiltre] = useState("");
+  const [hedefMagazaId, setHedefMagazaId] = useState("");
 
   const filtrelenmisPersonel = useMemo(() => {
     return personelListesi.filter((p) => {
@@ -43,6 +60,24 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
     });
   }, [magazalar, secilenPersonel, hedefBolgeFiltre]);
 
+  // Hedef mağaza seçilince, o mağazanın norm/doluluk/HGO bilgisi (diğer talep
+  // formlarındaki mantığın aynısı) anlık çekilir.
+  const [magazaBilgi, setMagazaBilgi] = useState<MagazaBilgi | null>(null);
+  const [magazaBilgiYukleniyor, setMagazaBilgiYukleniyor] = useState(false);
+
+  useEffect(() => {
+    if (!hedefMagazaId) { setMagazaBilgi(null); return; }
+    setMagazaBilgiYukleniyor(true);
+    getMagazaBilgi(hedefMagazaId).then((veri) => {
+      setMagazaBilgi(veri);
+      setMagazaBilgiYukleniyor(false);
+    });
+  }, [hedefMagazaId]);
+
+  const hgoGrafikVerisi = (magazaBilgi?.hgoGecmisi ?? [])
+    .filter((h) => h.hgo !== null)
+    .map((h) => ({ etiket: `${AY_KISA[h.ay]} ${String(h.yil).slice(2)}`, hgo: h.hgo }));
+
   function handleSubmit(formData: FormData) {
     setError(null);
     formData.set("israrli", String(israrli));
@@ -55,7 +90,8 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
   }
 
   return (
-    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4 items-start">
+    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl w-full space-y-4 shrink-0">
       <div>
         <div className="text-[10px] font-semibold text-navy-3 uppercase mb-1">Personel Filtrele</div>
         <div className="flex gap-2 mb-2">
@@ -65,16 +101,23 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
             {bolgeler.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
           <input value={personelArama} onChange={(e) => setPersonelArama(e.target.value)}
-            placeholder="İsim / unvan ara..." className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1" />
+            placeholder="İsim ara..." className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1" />
         </div>
-        <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Rotasyon Yapılacak Personel *</label>
-        <select value={secilenPersonelId} onChange={(e) => setSecilenPersonelId(e.target.value)} required
+        <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
+          Rotasyon Yapılacak Personel * <span className="text-gray-400 normal-case font-normal">({filtrelenmisPersonel.length} kişi)</span>
+        </label>
+        <select value={secilenPersonelId} onChange={(e) => { setSecilenPersonelId(e.target.value); setHedefMagazaId(""); }} required
           className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm">
           <option value="">Seçin</option>
           {filtrelenmisPersonel.map((p) => (
-            <option key={p.id} value={p.id}>{p.ad_soyad} — {p.guncel_unvan} — {p.magaza_adi} ({p.bolge_adi})</option>
+            <option key={p.id} value={p.id}>{p.ad_soyad}</option>
           ))}
         </select>
+        {secilenPersonel && (
+          <div className="text-[11px] text-gray-500 mt-1.5">
+            {secilenPersonel.guncel_unvan} — {secilenPersonel.magaza_adi} ({secilenPersonel.bolge_adi})
+          </div>
+        )}
       </div>
 
       <div>
@@ -85,7 +128,7 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
           {Array.from(new Set(magazalar.map((m) => m.bolge_adi))).sort().map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Hedef Mağaza *</label>
-        <select name="hedef_magaza_id" required disabled={!secilenPersonelId}
+        <select name="hedef_magaza_id" value={hedefMagazaId} onChange={(e) => setHedefMagazaId(e.target.value)} required disabled={!secilenPersonelId}
           className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-400">
           <option value="">{secilenPersonelId ? "Seçin" : "Önce personel seçin"}</option>
           {hedefMagazalar.map((m) => (
@@ -106,14 +149,96 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
 
       <div>
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Açıklama {israrli && "*"}</label>
-        <textarea name="aciklama" rows={3} required={israrli} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
+        <textarea name="aciklama" rows={3} required={israrli} minLength={israrli ? 100 : undefined}
+          className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
       </div>
 
       {error && <div className="text-xs text-danger">{error}</div>}
 
-      <button type="submit" disabled={pending || !secilenPersonelId} className="bg-navy text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50">
-        {pending ? "Gönderiliyor..." : "Talebi Gönder"}
+      <button type="submit" disabled={pending || !secilenPersonelId || !hedefMagazaId}
+        className="bg-navy hover:bg-navy-2 text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 transition-colors">
+        {pending ? (<span className="flex items-center justify-center gap-2"><span className="yukleniyor-donen" /> Gönderiliyor</span>) : "Talebi Gönder"}
       </button>
     </form>
+
+    {hedefMagazaId && (
+      <div className="bg-white border border-gray-200 rounded-card p-4 w-full space-y-4">
+        {magazaBilgiYukleniyor ? (
+          <div className="text-xs text-gray-400 py-8 text-center flex items-center justify-center gap-2">
+            <span className="yukleniyor-donen" /> Hedef mağaza bilgisi yükleniyor...
+          </div>
+        ) : !magazaBilgi ? (
+          <div className="text-xs text-gray-400 py-8 text-center">Mağaza bilgisi bulunamadı.</div>
+        ) : (
+          <>
+            <div>
+              <div className="text-sm font-semibold text-navy-3">Hedef: {magazaBilgi.magaza_adi}</div>
+              <div className="text-[11px] text-gray-400">
+                {magazaBilgi.bolge_adi}{magazaBilgi.magaza_muduru && ` — Müdür: ${magazaBilgi.magaza_muduru}`}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <MiniKpi label="Ana Kadro" value={`${magazaBilgi.ana_dolu} / ${magazaBilgi.ana_norm}`} vurgu={magazaBilgi.ana_dolu >= magazaBilgi.ana_norm} />
+              <MiniKpi label="Dönemsel" value={`${magazaBilgi.donemsel_dolu} / ${magazaBilgi.donemsel_norm}`} vurgu={magazaBilgi.donemsel_dolu >= magazaBilgi.donemsel_norm} />
+              <MiniKpi label="Part-Time" value={`${magazaBilgi.part_dolu} / ${magazaBilgi.part_norm}`} vurgu={magazaBilgi.part_dolu >= magazaBilgi.part_norm} />
+            </div>
+            {secilenPersonel?.kadro_kategorisi && (
+              <div className="text-[10px] text-gray-400 -mt-2">
+                Taşınacak personelin kategorisi: <span className="font-medium text-navy-3">{secilenPersonel.kadro_kategorisi}</span> — bu kategorideki doluluk kırmızıysa kontenjan dolu demektir.
+              </div>
+            )}
+
+            <div>
+              <div className="text-[11px] font-semibold text-navy-3 mb-1">HGO (Ciro) — Aylık</div>
+              {hgoGrafikVerisi.length === 0 ? (
+                <div className="text-xs text-gray-400 py-6 text-center">Bu mağaza için performans verisi yok.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={hgoGrafikVerisi} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                    <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
+                    <YAxis tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 11 }} />
+                    <Line type="monotone" dataKey="hgo" stroke="#0F1B4D" strokeWidth={2} dot={{ r: 2.5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {magazaBilgi.calisanlar.length > 0 && (
+              <div className="pt-3 border-t border-gray-100">
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">Hedef Mağazadaki Mevcut Çalışanlar</div>
+                <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-md">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="bg-gray-50 text-[9px] text-gray-400 uppercase sticky top-0">
+                        <th className="text-left px-2 py-1.5">Ad Soyad</th>
+                        <th className="text-left px-2 py-1.5">Ünvan</th>
+                        <th className="text-right px-2 py-1.5">Ort. HGO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {magazaBilgi.calisanlar.map((c, i) => (
+                        <tr key={i} className="border-t border-gray-50">
+                          <td className="px-2 py-1.5 text-navy-3 font-medium">{c.ad_soyad}</td>
+                          <td className="px-2 py-1.5 text-gray-500">{c.unvan ?? "—"}</td>
+                          <td className={`px-2 py-1.5 text-right font-mono font-semibold ${
+                            c.hgo == null ? "text-gray-400" : c.hgo < 80 ? "text-danger" : "text-success"
+                          }`}>
+                            {c.hgo != null ? `%${c.hgo.toFixed(1)}` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    )}
+    </div>
   );
 }
