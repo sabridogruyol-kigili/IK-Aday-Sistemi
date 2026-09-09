@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { createNormDegisiklikTalebi } from "./actions-norm-talebi";
+import { getMagazaBilgi, type MagazaBilgi } from "./actions-magaza-bilgi";
+import MagazaGrafikPaneli from "./MagazaGrafikPaneli";
 
 type Magaza = {
   id: string;
@@ -18,6 +20,15 @@ const KATEGORI_LABEL: Record<string, string> = {
   DONEMSEL: "Dönemsel Norm",
   PART_TIME: "Part-Time Norm",
 };
+
+function MiniKpi({ label, value, vurgu }: { label: string; value: string; vurgu?: boolean }) {
+  return (
+    <div className={`rounded-md px-2.5 py-2 ${vurgu ? "bg-danger-bg" : "bg-gray-50"}`}>
+      <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">{label}</div>
+      <div className={`text-sm font-mono font-semibold ${vurgu ? "text-danger" : "text-navy-3"}`}>{value}</div>
+    </div>
+  );
+}
 
 export default function NormTalebiForm({
   magazalar, initialMagazaId, initialKategori,
@@ -48,6 +59,16 @@ export default function NormTalebiForm({
   const yeniDegerSayi = yeniDeger === "" ? null : parseInt(yeniDeger, 10);
   const fark = eskiDeger != null && yeniDegerSayi != null ? yeniDegerSayi - eskiDeger : null;
 
+  // Seçilen mağazanın norm/doluluk/performans bilgisi — diğer Yeni Talep
+  // formlarındaki mantığın aynısı, anlık (on-demand) çekilir.
+  const [magazaBilgi, setMagazaBilgi] = useState<MagazaBilgi | null>(null);
+  const [magazaBilgiYukleniyor, setMagazaBilgiYukleniyor] = useState(false);
+  useEffect(() => {
+    if (!magazaId) { setMagazaBilgi(null); return; }
+    setMagazaBilgiYukleniyor(true);
+    getMagazaBilgi(magazaId).then((veri) => { setMagazaBilgi(veri); setMagazaBilgiYukleniyor(false); });
+  }, [magazaId]);
+
   function handleSubmit(formData: FormData) {
     setError(null);
     startTransition(async () => {
@@ -57,7 +78,8 @@ export default function NormTalebiForm({
   }
 
   return (
-    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4 items-start">
+    <form action={handleSubmit} className="bg-white border border-gray-200 rounded-card p-4 max-w-xl w-full space-y-4 shrink-0">
       <div>
         <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Bölge (filtre)</label>
         <select value={bolgeFiltre} onChange={(e) => { setBolgeFiltre(e.target.value); setMagazaId(""); }}
@@ -124,9 +146,75 @@ export default function NormTalebiForm({
 
       {error && <div className="text-xs text-danger">{error}</div>}
 
-      <button type="submit" disabled={pending || fark === 0} className="bg-navy text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50">
+      <button type="submit" disabled={pending || fark === 0}
+        className="bg-navy hover:bg-navy-2 text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 transition-colors">
         {pending ? (<span className="flex items-center justify-center gap-2"><span className="yukleniyor-donen" /> Gönderiliyor</span>) : "Talebi Gönder"}
       </button>
     </form>
+
+    {magazaId && (
+      <div className="bg-white border border-gray-200 rounded-card p-4 w-full space-y-4">
+        {magazaBilgiYukleniyor ? (
+          <div className="text-xs text-gray-400 py-8 text-center flex items-center justify-center gap-2">
+            <span className="yukleniyor-donen" /> Mağaza bilgisi yükleniyor...
+          </div>
+        ) : !magazaBilgi ? (
+          <div className="text-xs text-gray-400 py-8 text-center">Mağaza bilgisi bulunamadı.</div>
+        ) : (
+          <>
+            <div>
+              <div className="text-sm font-semibold text-navy-3">{magazaBilgi.magaza_adi}</div>
+              <div className="text-[11px] text-gray-400">
+                {magazaBilgi.bolge_adi}{magazaBilgi.magaza_muduru && ` — Müdür: ${magazaBilgi.magaza_muduru}`}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <MiniKpi label="Ana Kadro" value={`${magazaBilgi.ana_dolu} / ${magazaBilgi.ana_norm}`} vurgu={magazaBilgi.ana_dolu >= magazaBilgi.ana_norm} />
+              <MiniKpi label="Dönemsel" value={`${magazaBilgi.donemsel_dolu} / ${magazaBilgi.donemsel_norm}`} vurgu={magazaBilgi.donemsel_dolu >= magazaBilgi.donemsel_norm} />
+              <MiniKpi label="Part-Time" value={`${magazaBilgi.part_dolu} / ${magazaBilgi.part_norm}`} vurgu={magazaBilgi.part_dolu >= magazaBilgi.part_norm} />
+            </div>
+            {kategori && (
+              <div className="text-[10px] text-gray-400 -mt-2">
+                Talep edilen kategori: <span className="font-medium text-navy-3">{KATEGORI_LABEL[kategori]}</span> — bu kategorideki doluluk kırmızıysa mevcut kadro zaten dolu/aşkın demektir.
+              </div>
+            )}
+
+            <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" />
+
+            {magazaBilgi.calisanlar.length > 0 && (
+              <div className="pt-3 border-t border-gray-100">
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">Mevcut Çalışanlar</div>
+                <div className="max-h-56 overflow-y-auto border border-gray-100 rounded-md">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="bg-gray-50 text-[9px] text-gray-400 uppercase sticky top-0">
+                        <th className="text-left px-2 py-1.5">Ad Soyad</th>
+                        <th className="text-left px-2 py-1.5">Ünvan</th>
+                        <th className="text-right px-2 py-1.5">Ort. HGO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {magazaBilgi.calisanlar.map((c, i) => (
+                        <tr key={i} className="border-t border-gray-50">
+                          <td className="px-2 py-1.5 text-navy-3 font-medium">{c.ad_soyad}</td>
+                          <td className="px-2 py-1.5 text-gray-500">{c.unvan ?? "—"}</td>
+                          <td className={`px-2 py-1.5 text-right font-mono font-semibold ${
+                            c.hgo == null ? "text-gray-400" : c.hgo < 80 ? "text-danger" : "text-success"
+                          }`}>
+                            {c.hgo != null ? `%${c.hgo.toFixed(1)}` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    )}
+    </div>
   );
 }
