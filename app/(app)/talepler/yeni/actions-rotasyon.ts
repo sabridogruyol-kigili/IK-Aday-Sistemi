@@ -42,7 +42,7 @@ export async function createRotasyonTalebi(formData: FormData): Promise<Sonuc> {
 
   const { count: hedefAktifSayi } = await supabase
     .from("personel").select("*", { count: "exact", head: true })
-    .eq("guncel_magaza_id", hedefMagazaId).eq("durum", "aktif").eq("kadro_kategorisi", kategori);
+    .eq("guncel_magaza_id", hedefMagazaId).eq("durum", "aktif").not("tc_kimlik_no", "like", "PLASIYER-%").eq("kadro_kategorisi", kategori);
 
   const kalanKontenjan = toplamNorm - (hedefAktifSayi ?? 0);
   const uygun = kalanKontenjan >= 1;
