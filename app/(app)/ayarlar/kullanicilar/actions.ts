@@ -26,7 +26,10 @@ export async function createKullanici(formData: FormData) {
       (() => {
         const fd = new FormData();
         fd.set("id", mevcutKullanici.id);
+        fd.set("ad_soyad", adSoyad);
+        fd.set("email", email);
         fd.set("rol", rol);
+        fd.set("aktif", "true");
         bolgeIds.forEach((id) => fd.append("bolge_ids", id));
         return fd;
       })()
@@ -53,15 +56,44 @@ export async function createKullanici(formData: FormData) {
   revalidatePath("/ayarlar/kullanicilar");
 }
 
-export async function guncelleKullanici(formData: FormData) {
+export async function guncelleKullanici(formData: FormData): Promise<{ error?: string }> {
   const supabase = createClient();
 
   const id = String(formData.get("id") ?? "");
+  const adSoyad = String(formData.get("ad_soyad") ?? "").trim();
+  const yeniEmail = String(formData.get("email") ?? "").trim().toLowerCase();
   const rol = String(formData.get("rol") ?? "");
+  const aktif = formData.get("aktif") === "true";
   const bolgeIds = formData.getAll("bolge_ids").map(String);
-  if (!id || !rol) return;
+  if (!id || !adSoyad || !yeniEmail || !rol) return { error: "Ad soyad, e-posta ve rol zorunlu." };
 
-  await supabase.from("kullanicilar").update({ rol }).eq("id", id);
+  const { data: eskiKayit } = await supabase.from("kullanicilar").select("email").eq("id", id).single();
+  if (!eskiKayit) return { error: "Kullanıcı bulunamadı." };
+  const eskiEmail = eskiKayit.email;
+
+  // E-posta değişiyorsa, Supabase Auth'taki gerçek giriş e-postası da (admin
+  // API ile) senkron güncellenir — aksi halde kullanıcı bir daha giriş
+  // yapamaz (auth e-postası ile kullanicilar.email eşleşmediği için).
+  if (yeniEmail !== eskiEmail) {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const admin = createAdminClient();
+    let sayfa = 1;
+    let authKullaniciId: string | null = null;
+    while (!authKullaniciId) {
+      const { data, error } = await admin.auth.admin.listUsers({ page: sayfa, perPage: 200 });
+      if (error || !data || data.users.length === 0) break;
+      const bulunan = data.users.find((u) => u.email?.toLowerCase() === eskiEmail.toLowerCase());
+      if (bulunan) authKullaniciId = bulunan.id;
+      else if (data.users.length < 200) break;
+      sayfa++;
+    }
+    if (authKullaniciId) {
+      const { error: authHata } = await admin.auth.admin.updateUserById(authKullaniciId, { email: yeniEmail, email_confirm: true });
+      if (authHata) return { error: "Auth e-postası güncellenemedi: " + authHata.message };
+    }
+  }
+
+  await supabase.from("kullanicilar").update({ ad_soyad: adSoyad, email: yeniEmail, rol, aktif }).eq("id", id);
 
   // Mevcut atamalar silinip yeni seçilenler baştan eklenir (basit ve güvenilir
   // "eşitleme" yöntemi — tek tek fark hesaplamaya gerek kalmaz).
@@ -71,7 +103,13 @@ export async function guncelleKullanici(formData: FormData) {
     await supabase.from("kullanici_bolge_atama").insert(rows);
   }
 
+  // Herhangi bir güncelleme sonrası, bu kişinin mevcut oturumları tamamen
+  // sonlandırılır — bir sonraki istekte otomatik çıkışa uğrar, değişen
+  // yetkileriyle tekrar giriş yapması gerekir.
+  await supabase.rpc("zorla_cikis_yaptir", { p_email: yeniEmail });
+
   revalidatePath("/ayarlar/kullanicilar");
+  return {};
 }
 
 export async function toggleAktif(formData: FormData) {
