@@ -133,6 +133,15 @@ export async function iceAktarMagazaPerformans2(rows: any[]): Promise<Sonuc> {
       if (magazaHata || !yeniMagaza) { hatalar.push({ satir: satirNo, hata: `Mağaza (${magazaKodu}) oluşturulamadı: ` + magazaHata?.message }); continue; }
       magazaId = yeniMagaza.id;
       magazaMap[magazaKodu] = magazaId;
+
+      // Norm satırı burada oluşturulmazsa mağaza kalıcı olarak normsuz kalır
+      // (Norm Excel importu "mağaza önceden var olmalı" varsayımıyla çalışır,
+      // kendisi asla yeni mağaza oluşturmaz) — ayrıca "Norm Değişikliği" talebi
+      // onaylandığında UPDATE norm ... WHERE magaza_id=X satırı hiç bulamayıp
+      // SESSİZCE hiçbir şey güncellemez. Sıfır değerlerle bir norm satırı açıp
+      // bu iki sorunu da baştan önlüyoruz; gerçek norm sayıları daha sonra Norm
+      // importu veya Norm Değişikliği talebiyle girilebilir.
+      await supabase.from("norm").insert({ magaza_id: magazaId, ana_kadro_norm: 0, donemsel_norm: 0, part_time_norm: 0 });
     } else if (bolgeAdi) {
       const mevcutAday = magazaGuncellemeleri.get(magazaId);
       if (!mevcutAday || donemKodu > mevcutAday.enSonDonem) {
