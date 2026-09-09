@@ -68,6 +68,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
       .from("personel")
       .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar!inner(magaza_adi, bolge_id, aktif, bolgeler(ad))")
       .eq("durum", "aktif")
+      .not("tc_kimlik_no", "like", "PLASIYER-%")
       .eq("magazalar.aktif", true)
       .order("ad_soyad")
       .range(bas, bitis)
