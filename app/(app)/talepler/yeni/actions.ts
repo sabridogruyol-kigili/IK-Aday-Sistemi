@@ -55,6 +55,7 @@ export async function createIseAlimTalebi(formData: FormData): Promise<Sonuc> {
     .select("*", { count: "exact", head: true })
     .eq("guncel_magaza_id", magazaId)
     .eq("durum", "aktif")
+    .not("tc_kimlik_no", "like", "PLASIYER-%")
     .eq("kadro_kategorisi", kategori);
 
   const { data: kategoriUnvanlariHam } = await supabase
