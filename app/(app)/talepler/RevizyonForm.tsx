@@ -23,7 +23,8 @@ export default function RevizyonForm({ talepId }: { talepId: string }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-xs text-info underline">
+      <button onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 text-xs font-medium text-navy bg-white border border-navy/20 rounded-md px-2.5 py-1 hover:bg-navy/5 hover:border-navy transition-colors">
         Açıklama ile tekrar gönder
       </button>
     );
