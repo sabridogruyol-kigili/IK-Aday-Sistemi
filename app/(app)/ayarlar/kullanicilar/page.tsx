@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createKullanici } from "./actions";
-import BolgeDropdown from "./BolgeDropdown";
 import KullaniciDuzenle from "./KullaniciDuzenle";
+import YeniKullaniciFormu from "./YeniKullaniciFormu";
 
 export default async function KullanicilarPage() {
   const supabase = createClient();
@@ -53,55 +52,7 @@ export default async function KullanicilarPage() {
       {/* Yeni kullanıcı formu */}
       <div className="bg-white border border-gray-200 rounded-card p-4 mb-5">
         <div className="text-sm font-semibold text-navy-3 mb-3">Yeni Kullanıcı</div>
-        <form action={createKullanici} className="grid grid-cols-12 gap-3 items-end">
-          <div className="col-span-3">
-            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
-              E-posta *
-            </label>
-            <input
-              name="email"
-              type="email"
-              required
-              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div className="col-span-3">
-            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
-              Ad Soyad *
-            </label>
-            <input
-              name="ad_soyad"
-              required
-              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">
-              Rol *
-            </label>
-            <select
-              name="rol"
-              required
-              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-            >
-              <option value="BM">BM</option>
-              <option value="IK">İK</option>
-              <option value="YONETIM">Yönetim</option>
-              <option value="MAGAZALAR_DIREKTORLUGU">Mağazalar Direktörlüğü</option>
-            </select>
-          </div>
-          <div className="col-span-3">
-            <BolgeDropdown bolgeler={bolgeler ?? []} />
-          </div>
-          <div className="col-span-1">
-            <button
-              type="submit"
-              className="w-full bg-navy text-white rounded-md py-1.5 text-sm font-medium"
-            >
-              Ekle
-            </button>
-          </div>
-        </form>
+        <YeniKullaniciFormu bolgeler={bolgeler ?? []} />
       </div>
 
       {/* Liste */}
