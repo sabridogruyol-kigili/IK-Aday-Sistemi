@@ -247,7 +247,7 @@ export default function TalepRow({
       {talepTarihceAcik && (
         <tr className="bg-gray-50/50 border-t border-gray-100">
           <td colSpan={11} className="px-6 py-3">
-            <div className="rounded-lg border border-gray-200 bg-white p-3 w-full">
+            <div className="rounded-card border border-gray-200 bg-white p-3 w-full">
               <div className="text-[11px] font-semibold text-navy-3 mb-2">Süreç Tarihçesi — {talep.talep_no}</div>
               {talepTarihcePending ? (
                 <div className="text-[11px] text-gray-400">Yükleniyor...</div>
@@ -262,7 +262,7 @@ export default function TalepRow({
       {adayAcik && (
         <tr className="bg-gray-50/70 border-t border-gray-100">
           <td colSpan={11} className="px-3 py-4">
-            <div className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+            <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
 
               <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="text-xs font-semibold text-navy-3">Adaylar</div>
@@ -452,7 +452,7 @@ export default function TalepRow({
                         {adayTarihceAcikId === a.id && (
                           <tr className="bg-gray-50/50 border-t border-gray-100">
                             <td colSpan={11} className="px-6 py-3">
-                              <div className="rounded-lg border border-gray-200 bg-white p-3 w-full">
+                              <div className="rounded-card border border-gray-200 bg-white p-3 w-full">
                                 <div className="text-[11px] font-semibold text-navy-3 mb-2">Süreç Tarihçesi — {a.ad_soyad}</div>
                                 <SurecTarihce olaylar={adayTarihce} />
                               </div>
