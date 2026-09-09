@@ -13,8 +13,10 @@ export default function KullaniciDuzenle({
   mevcutAktif: boolean; mevcutBolgeIdler: string[]; bolgeler: Bolge[];
 }) {
   const [acik, setAcik] = useState(false);
+  const [rolSecimi, setRolSecimi] = useState(mevcutRol);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const bolgeGerekli = rolSecimi === "BM" || rolSecimi === "IK";
 
   function kaydet(formData: FormData) {
     setError(null);
@@ -53,14 +55,14 @@ export default function KullaniciDuzenle({
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Rol *</label>
-                <select name="rol" defaultValue={mevcutRol} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
+                <select name="rol" value={rolSecimi} onChange={(e) => setRolSecimi(e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
                   <option value="BM">BM</option>
                   <option value="IK">İK</option>
                   <option value="YONETIM">Yönetim</option>
                   <option value="MAGAZALAR_DIREKTORLUGU">Mağazalar Direktörlüğü</option>
                 </select>
               </div>
-              <BolgeDropdown bolgeler={bolgeler} baslangicSecili={mevcutBolgeIdler} />
+              {bolgeGerekli && <BolgeDropdown bolgeler={bolgeler} baslangicSecili={mevcutBolgeIdler} />}
               <div>
                 <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Durum</label>
                 <select name="aktif" defaultValue={String(mevcutAktif)} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
