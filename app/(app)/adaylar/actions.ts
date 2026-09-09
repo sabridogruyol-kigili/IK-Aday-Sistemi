@@ -21,6 +21,52 @@ export async function getCvSignedUrl(cvYolu: string): Promise<{ url?: string; er
   return { url: data.signedUrl };
 }
 
+export type AdayDetay = {
+  eslesenPersonelVarMi: boolean;
+  performansOrtalamaHgo: number | null;
+  kidemAy: number | null;
+  ilAdi: string | null;
+  kanGrubu: string | null;
+  uyruk: string | null;
+  hgoGecmisi: { yil: number; ay: number; hgo: number | null }[];
+};
+
+// Adayın TC'siyle (varsa) personel tablosunda eşleşme aranır — eşleşme varsa
+// (örn. eski çalışan tekrar başvurmuş) performans geçmişi gösterilir. TC henüz
+// girilmemişse ya da eşleşme yoksa, sadece aday kartındaki temel bilgiler
+// (isim/telefon/e-posta/mağaza) gösterilmeye devam eder.
+export async function getAdayEslesenPersonelDetay(tcKimlikNo: string | null): Promise<AdayDetay | null> {
+  if (!tcKimlikNo) return null;
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: personel } = await supabase
+    .from("personel")
+    .select("id, performans_ortalama_hgo, kidem_ay, kan_grubu_kodu, uyruk, magazalar(il_adi)")
+    .eq("tc_kimlik_no", tcKimlikNo)
+    .maybeSingle();
+
+  if (!personel) return { eslesenPersonelVarMi: false, performansOrtalamaHgo: null, kidemAy: null, ilAdi: null, kanGrubu: null, uyruk: null, hgoGecmisi: [] };
+
+  const { data: hgoGecmisiHam } = await supabase
+    .from("performans_kisi_aylik")
+    .select("yil, ay, hgo")
+    .eq("personel_id", personel.id)
+    .order("yil", { ascending: true })
+    .order("ay", { ascending: true });
+
+  return {
+    eslesenPersonelVarMi: true,
+    performansOrtalamaHgo: personel.performans_ortalama_hgo,
+    kidemAy: personel.kidem_ay,
+    ilAdi: (personel.magazalar as any)?.il_adi ?? null,
+    kanGrubu: personel.kan_grubu_kodu,
+    uyruk: personel.uyruk,
+    hgoGecmisi: (hgoGecmisiHam ?? []).map((h: any) => ({ yil: h.yil, ay: h.ay, hgo: h.hgo })),
+  };
+}
+
 export async function yonlendirAday(formData: FormData) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
