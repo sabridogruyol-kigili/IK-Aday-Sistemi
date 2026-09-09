@@ -21,6 +21,7 @@ export default async function OnayBekleyenlerPage() {
           talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, acan_rol, magaza_id,
           norm_kategorisi, norm_eski_deger, norm_yeni_deger,
           magazalar!magaza_id(magaza_adi),
+          hedef_magaza:magazalar!hedef_magaza_id(magaza_adi),
           cikarilacak_personel:personel!cikarilacak_personel_id(id, ad_soyad, guncel_unvan)
         )
       )
@@ -53,6 +54,7 @@ export default async function OnayBekleyenlerPage() {
               cikarilacakPersonelId={t.cikarilacak_personel?.id}
               cikarilacakPersonelAdi={t.cikarilacak_personel?.ad_soyad}
               cikarilacakPersonelUnvan={t.cikarilacak_personel?.guncel_unvan}
+              hedefMagaza={t.hedef_magaza?.magaza_adi}
               normKategori={t.norm_kategorisi}
               normEski={t.norm_eski_deger}
               normYeni={t.norm_yeni_deger}
