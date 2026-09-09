@@ -27,7 +27,7 @@ export default async function AdaylarPage() {
     .from("adaylar")
     .select(`
       id, ad_soyad, telefon, email, cv_drive_link, yonlendiren_rol, yonlendiren_kullanici_id,
-      karari_veren_rol, onay_bm, onay_ik, mulakat_bm, mulakat_ik, durum, created_at,
+      karari_veren_rol, onay_bm, onay_ik, mulakat_bm, mulakat_ik, durum, created_at, tc_kimlik_no,
       talepler!inner ( talep_no, magazalar!magaza_id(magaza_adi) )
     `)
     .order("created_at", { ascending: false });
@@ -54,6 +54,7 @@ export default async function AdaylarPage() {
             cvLink={a.cv_drive_link}
             talepNo={a.talepler.talep_no}
             magaza={a.talepler.magazalar?.magaza_adi}
+            tcKimlikNo={a.tc_kimlik_no}
             yonlendirenRol={a.yonlendiren_rol}
             yonlendirenKullaniciId={a.yonlendiren_kullanici_id}
             kariVerenRol={a.karari_veren_rol}
