@@ -123,12 +123,25 @@ export default async function RaporlarPage() {
     };
   });
 
-  // ---- Zengin bölge raporu (İK Sorumlusu - BM sekmesi için) ----
+  // ---- Bölge bazlı talep türü kırılımı (özet tablo için) ----
+  const magazaBolgeIdMap: Record<string, string> = {};
+  magazaRaporVeri.forEach((m) => { magazaBolgeIdMap[m.id] = m.bolge_id; });
+  const bolgeTalepTuruMap: Record<string, Record<string, number>> = {};
+  talepler.forEach((t: any) => {
+    if (!t.magaza_id) return;
+    const bid = magazaBolgeIdMap[t.magaza_id];
+    if (!bid) return;
+    if (!bolgeTalepTuruMap[bid]) bolgeTalepTuruMap[bid] = {};
+    bolgeTalepTuruMap[bid][t.talep_turu] = (bolgeTalepTuruMap[bid][t.talep_turu] ?? 0) + 1;
+  });
+
+  // ---- Zengin bölge raporu (İK Sorumlusu - BM sekmesi + Özet Tablo için) ----
   const bolgeRaporVeri = (bolgeler ?? [])
     .filter((b) => magazalar.some((m) => m.bolge_id === b.id) || bolgeBmMap[b.id] || bolgeIkMap[b.id])
     .map((b) => {
       const kendiMagazalari = magazaRaporVeri.filter((m) => m.bolge_id === b.id);
       const hgoDegerleri = kendiMagazalari.filter((m) => m.hgo != null).map((m) => m.hgo as number);
+      const turSayaci = bolgeTalepTuruMap[b.id] ?? {};
       return {
         id: b.id, ad: b.ad,
         bm_adi: (bolgeBmMap[b.id] ?? []).map((x) => x.ad_soyad).join(", ") || "—",
@@ -138,6 +151,10 @@ export default async function RaporlarPage() {
         dolu: kendiMagazalari.reduce((s, m) => s + m.dolu, 0),
         hgo: hgoDegerleri.length > 0 ? hgoDegerleri.reduce((s, v) => s + v, 0) / hgoDegerleri.length : null,
         talep_sayisi: kendiMagazalari.reduce((s, m) => s + m.talep_sayisi, 0),
+        ise_alim_sayisi: turSayaci["ISE_ALIM"] ?? 0,
+        isten_cikarma_sayisi: turSayaci["ISTEN_CIKARMA"] ?? 0,
+        rotasyon_sayisi: turSayaci["ROTASYON"] ?? 0,
+        norm_degisiklik_sayisi: turSayaci["NORM_DEGISIKLIK"] ?? 0,
       };
     });
 
