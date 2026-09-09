@@ -73,6 +73,7 @@ function KisiGrafikPaneli({
   gecmis: PersonelAylikHgo[]; yukleniyor: boolean; varsayilanDegisken: keyof PersonelAylikHgo; hgoYuksek: boolean;
 }) {
   const [degisken, setDegisken] = useState<keyof PersonelAylikHgo>(varsayilanDegisken);
+  const [gorunum, setGorunum] = useState<"grafik" | "liste">("grafik");
   const tanim = KISI_DEGISKENLERI.find((d) => d.key === degisken)!;
 
   const veri = useMemo(
@@ -86,20 +87,51 @@ function KisiGrafikPaneli({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-1 gap-2">
         <div className="text-[11px] font-semibold text-navy-3">{tanim.label} — Aylık</div>
-        <select
-          value={degisken}
-          onChange={(e) => setDegisken(e.target.value as keyof PersonelAylikHgo)}
-          className="border border-gray-300 rounded-md px-1.5 py-1 text-[10px] bg-white"
-        >
-          {KISI_DEGISKENLERI.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
-        </select>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex rounded-md border border-gray-200 overflow-hidden">
+            <button onClick={() => setGorunum("grafik")}
+              className={`px-1.5 py-0.5 text-[9px] font-medium ${gorunum === "grafik" ? "bg-navy text-white" : "bg-white text-gray-500"}`}>
+              Grafik
+            </button>
+            <button onClick={() => setGorunum("liste")}
+              className={`px-1.5 py-0.5 text-[9px] font-medium border-l border-gray-200 ${gorunum === "liste" ? "bg-navy text-white" : "bg-white text-gray-500"}`}>
+              Liste
+            </button>
+          </div>
+          <select
+            value={degisken}
+            onChange={(e) => setDegisken(e.target.value as keyof PersonelAylikHgo)}
+            className="border border-gray-300 rounded-md px-1.5 py-1 text-[10px] bg-white"
+          >
+            {KISI_DEGISKENLERI.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+          </select>
+        </div>
       </div>
       {yukleniyor ? (
         <div className="text-xs text-gray-400 py-6 text-center">Yükleniyor...</div>
       ) : veri.length === 0 ? (
         <div className="text-xs text-gray-400 py-6 text-center">Veri yok.</div>
+      ) : gorunum === "liste" ? (
+        <div className="max-h-48 overflow-y-auto border border-gray-100 rounded-md">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="bg-gray-50 text-[9px] text-gray-400 uppercase sticky top-0">
+                <th className="text-left px-2 py-1.5">Dönem</th>
+                <th className="text-right px-2 py-1.5">{tanim.label}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {veri.slice().reverse().map((v, i) => (
+                <tr key={i} className="border-t border-gray-50">
+                  <td className="px-2 py-1.5 text-navy-3 font-medium">{v.etiket}</td>
+                  <td className="px-2 py-1.5 text-right font-mono text-gray-700">{tanim.format(v.deger)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={veri} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
