@@ -72,6 +72,7 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
       .select("*", { count: "exact", head: true })
       .eq("guncel_magaza_id", personel.guncel_magaza_id)
       .eq("durum", "aktif")
+      .not("tc_kimlik_no", "like", "PLASIYER-%")
       .eq("kadro_kategorisi", kategori);
 
     const { data: kategoriUnvanlariHam } = await supabase
