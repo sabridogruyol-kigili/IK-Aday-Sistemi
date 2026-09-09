@@ -115,7 +115,10 @@ export default function TalepForm({
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-[10px] font-semibold text-navy-3 uppercase">Pozisyonlar *</label>
-          <button onClick={satirEkle} type="button" className="text-[11px] text-info underline">+ Pozisyon Ekle</button>
+          <button onClick={satirEkle} type="button"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-navy bg-white border border-navy/20 rounded-md px-2 py-1 hover:bg-navy/5 hover:border-navy transition-colors">
+            <span className="text-[13px] leading-none">+</span> Pozisyon Ekle
+          </button>
         </div>
         <div className="space-y-2">
           {satirlar.map((satir) => (
