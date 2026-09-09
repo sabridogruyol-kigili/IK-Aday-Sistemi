@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { kararVer } from "./actions";
 import { getMagazaBilgi, type MagazaBilgi } from "../talepler/yeni/actions-magaza-bilgi";
 import { getPersonelPerformansGecmisi, getPersonelDetay, type PersonelAylikHgo, type PersonelDetay } from "../talepler/yeni/actions-cikarma";
+import MagazaGrafikPaneli from "../talepler/yeni/MagazaGrafikPaneli";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -63,9 +64,7 @@ export default function OnayKarti({
     }
   }
 
-  const hgoGrafikVerisi = talepTuru === "ISTEN_CIKARMA"
-    ? personelGecmisi.filter((h) => h.hgo !== null).map((h) => ({ etiket: `${AY_KISA[h.ay]} ${String(h.yil).slice(2)}`, hgo: h.hgo }))
-    : (magazaBilgi?.hgoGecmisi ?? []).filter((h) => h.hgo !== null).map((h) => ({ etiket: `${AY_KISA[h.ay]} ${String(h.yil).slice(2)}`, hgo: h.hgo }));
+  const hgoGrafikVerisi = personelGecmisi.filter((h) => h.hgo !== null).map((h) => ({ etiket: `${AY_KISA[h.ay]} ${String(h.yil).slice(2)}`, hgo: h.hgo }));
 
   function gonder(karar: "ONAY" | "RED") {
     setError(null);
@@ -159,20 +158,7 @@ export default function OnayKarti({
                 <MiniKpi label="Dönemsel" value={`${magazaBilgi.donemsel_dolu} / ${magazaBilgi.donemsel_norm}`} vurgu={magazaBilgi.donemsel_dolu < magazaBilgi.donemsel_norm} />
                 <MiniKpi label="Part-Time" value={`${magazaBilgi.part_dolu} / ${magazaBilgi.part_norm}`} vurgu={magazaBilgi.part_dolu < magazaBilgi.part_norm} />
               </div>
-              {hgoGrafikVerisi.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-semibold text-navy-3 mb-1">HGO (Ciro) — Aylık</div>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <LineChart data={hgoGrafikVerisi} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="etiket" tick={{ fontSize: 8 }} />
-                      <YAxis tick={{ fontSize: 8 }} />
-                      <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 10 }} />
-                      <Line type="monotone" dataKey="hgo" stroke="#0F1B4D" strokeWidth={2} dot={{ r: 2 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" />
               {magazaBilgi.calisanlar.length > 0 && (
                 <div>
                   <div className="text-[10px] font-semibold text-navy-3 mb-1">Mevcut Çalışanlar</div>
