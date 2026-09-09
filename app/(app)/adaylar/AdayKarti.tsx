@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { kararVerAday, ilerletDurum, getAdaySurecGecmisi, mulakatIsaretle } from "./actions";
+import { kararVerAday, ilerletDurum, getAdaySurecGecmisi, mulakatIsaretle, adayiHavuzaAl } from "./actions";
 import SurecTarihce, { type SurecAdimi } from "../talepler/SurecTarihce";
 import CvGoruntuleyici from "./CvGoruntuleyici";
 import AdayDetayModal from "./AdayDetayModal";
@@ -43,7 +43,7 @@ export default function AdayKarti({
       (kariVerenRol === "BM_VE_IK" && benimRolum === "IK" && !onayIkL)
     );
 
-  function karar(k: "ONAY" | "RED") {
+  function karar(k: "ONAY" | "RED" | "BEKLESIN") {
     setError(null);
     const fd = new FormData();
     fd.set("aday_id", adayId); fd.set("karar", k); fd.set("aciklama", aciklama);
@@ -57,6 +57,17 @@ export default function AdayKarti({
         setOnayBmL(res.aday.onay_bm);
         setOnayIkL(res.aday.onay_ik);
       }
+    });
+  }
+
+  function havuzaAl() {
+    setError(null);
+    const fd = new FormData();
+    fd.set("aday_id", adayId);
+    startTransition(async () => {
+      const res = await adayiHavuzaAl(fd);
+      if (res?.error) { setError(res.error); return; }
+      setDurumL("HAVUZDA");
     });
   }
 
@@ -96,11 +107,13 @@ export default function AdayKarti({
     YONLENDIRILDI: "text-accent", ONAYLANDI: "text-success", REDDEDILDI: "text-danger",
     ON_GORUSME_PLANLANDI: "text-info", GORUSULDU_OLUMLU: "text-success",
     GORUSULDU_OLUMSUZ: "text-danger", ISE_ALINDI: "text-success",
+    BEKLEMEDE: "text-gray-400", HAVUZDA: "text-gray-400",
   };
   const durumEtiketMap: Record<string, string> = {
     YONLENDIRILDI: "Yönlendirildi", ONAYLANDI: "Onaylandı", REDDEDILDI: "Reddedildi",
     ON_GORUSME_PLANLANDI: "Ön Görüşme Planlandı", GORUSULDU_OLUMLU: "Görüşüldü — Olumlu",
     GORUSULDU_OLUMSUZ: "Görüşüldü — Olumsuz", ISE_ALINDI: "İşe Alındı",
+    BEKLEMEDE: "Beklemede", HAVUZDA: "Havuzda",
   };
   const durumEtiketL = durumEtiketMap[durumL] ?? durumEtiket;
 
@@ -171,7 +184,14 @@ export default function AdayKarti({
         <div className="flex gap-2 mt-2">
           <button onClick={() => karar("ONAY")} disabled={pending} className="bg-success text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">Onayla</button>
           <button onClick={() => setRedMod(true)} disabled={pending} className="bg-danger-bg text-danger border border-danger/30 rounded-md px-3 py-1.5 text-xs font-medium">Reddet</button>
+          <button onClick={() => karar("BEKLESIN")} disabled={pending} className="bg-white border border-gray-300 text-gray-600 rounded-md px-3 py-1.5 text-xs font-medium hover:bg-gray-50">Beklesin</button>
         </div>
+      )}
+      {durumL === "BEKLEMEDE" && (
+        <button onClick={() => havuzaAl()} disabled={pending}
+          className="mt-2 bg-white border border-info/40 text-info rounded-md px-3 py-1.5 text-xs font-medium hover:bg-info/5 disabled:opacity-50">
+          {pending ? "İşleniyor..." : "Aday Havuzuna Al"}
+        </button>
       )}
       {benKararVerebilirim && redMod && (
         <div className="space-y-2 mt-2">
