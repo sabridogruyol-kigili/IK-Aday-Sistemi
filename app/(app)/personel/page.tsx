@@ -67,6 +67,7 @@ export default async function PersonelPage() {
       "id, ad_soyad, guncel_unvan, kadro_kategorisi, durum, kidem_ay, performans_ortalama_hgo, guncel_magaza_id, magazalar!inner(magaza_adi, aktif, bolgeler(ad))"
     )
     .eq("magazalar.aktif", true)
+    .not("tc_kimlik_no", "like", "PLASIYER-%")
     .order("ad_soyad");
 
   if (personelHata) {
