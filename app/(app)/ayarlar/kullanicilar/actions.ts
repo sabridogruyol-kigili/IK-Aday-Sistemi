@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function createKullanici(formData: FormData) {
+export async function createKullanici(formData: FormData): Promise<{ error?: string }> {
   const supabase = createClient();
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -11,7 +11,7 @@ export async function createKullanici(formData: FormData) {
   const rol = String(formData.get("rol") ?? "");
   const bolgeIds = formData.getAll("bolge_ids").map(String);
 
-  if (!email || !adSoyad || !rol) return;
+  if (!email || !adSoyad || !rol) return { error: "E-posta, ad soyad ve rol zorunlu." };
 
   // Bu e-posta zaten kayıtlıysa (örn. birisi var olan bir kullanıcıyı bu
   // formdan tekrar eklemeye çalıştıysa) eskiden burada SESSİZCE hiçbir şey
@@ -22,19 +22,14 @@ export async function createKullanici(formData: FormData) {
     .from("kullanicilar").select("id").eq("email", email).maybeSingle();
 
   if (mevcutKullanici) {
-    await guncelleKullanici(
-      (() => {
-        const fd = new FormData();
-        fd.set("id", mevcutKullanici.id);
-        fd.set("ad_soyad", adSoyad);
-        fd.set("email", email);
-        fd.set("rol", rol);
-        fd.set("aktif", "true");
-        bolgeIds.forEach((id) => fd.append("bolge_ids", id));
-        return fd;
-      })()
-    );
-    return;
+    const fd = new FormData();
+    fd.set("id", mevcutKullanici.id);
+    fd.set("ad_soyad", adSoyad);
+    fd.set("email", email);
+    fd.set("rol", rol);
+    fd.set("aktif", "true");
+    bolgeIds.forEach((id) => fd.append("bolge_ids", id));
+    return await guncelleKullanici(fd);
   }
 
   const { data: yeniKullanici, error } = await supabase
@@ -43,17 +38,19 @@ export async function createKullanici(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !yeniKullanici) return;
+  if (error || !yeniKullanici) return { error: error?.message ?? "Kullanıcı oluşturulamadı." };
 
   if (bolgeIds.length > 0) {
     const rows = bolgeIds.map((bolge_id) => ({
       kullanici_id: yeniKullanici.id,
       bolge_id,
     }));
-    await supabase.from("kullanici_bolge_atama").insert(rows);
+    const { error: bolgeHata } = await supabase.from("kullanici_bolge_atama").insert(rows);
+    if (bolgeHata) return { error: "Kullanıcı oluşturuldu ama bölge ataması kaydedilemedi: " + bolgeHata.message };
   }
 
   revalidatePath("/ayarlar/kullanicilar");
+  return {};
 }
 
 export async function guncelleKullanici(formData: FormData): Promise<{ error?: string }> {
@@ -100,7 +97,11 @@ export async function guncelleKullanici(formData: FormData): Promise<{ error?: s
   await supabase.from("kullanici_bolge_atama").delete().eq("kullanici_id", id);
   if (bolgeIds.length > 0) {
     const rows = bolgeIds.map((bolge_id) => ({ kullanici_id: id, bolge_id }));
-    await supabase.from("kullanici_bolge_atama").insert(rows);
+    const { error: bolgeHata } = await supabase.from("kullanici_bolge_atama").insert(rows);
+    // Önceden bu hata sessizce yutuluyordu — bölge kaydı başarısız olsa da
+    // (örn. "bir bölgeye en fazla 1 BM" kısıtına çarpılırsa) kullanıcıya
+    // hiçbir şey görünmüyordu. Artık hata doğrudan gösteriliyor.
+    if (bolgeHata) return { error: "Bölge ataması kaydedilemedi: " + bolgeHata.message };
   }
 
   // Herhangi bir güncelleme sonrası, bu kişinin mevcut oturumları tamamen
