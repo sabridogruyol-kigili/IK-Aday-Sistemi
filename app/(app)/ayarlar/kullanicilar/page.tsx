@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createKullanici, toggleAktif } from "./actions";
+import { createKullanici } from "./actions";
 import BolgeDropdown from "./BolgeDropdown";
 import KullaniciDuzenle from "./KullaniciDuzenle";
 
@@ -134,21 +134,15 @@ export default async function KullanicilarPage() {
                   )}
                 </td>
                 <td className="px-3 py-2">
-                  <div className="flex flex-col items-start gap-1.5">
-                    <KullaniciDuzenle
-                      kullaniciId={k.id}
-                      mevcutRol={k.rol}
-                      mevcutBolgeIdler={bolgeIdMap[k.id] ?? []}
-                      bolgeler={bolgeler ?? []}
-                    />
-                    <form action={toggleAktif}>
-                      <input type="hidden" name="id" value={k.id} />
-                      <input type="hidden" name="aktif" value={String(!k.aktif)} />
-                      <button className="text-xs text-info underline">
-                        {k.aktif ? "Pasife al" : "Aktif et"}
-                      </button>
-                    </form>
-                  </div>
+                  <KullaniciDuzenle
+                    kullaniciId={k.id}
+                    mevcutAdSoyad={k.ad_soyad}
+                    mevcutEmail={k.email}
+                    mevcutRol={k.rol}
+                    mevcutAktif={k.aktif}
+                    mevcutBolgeIdler={bolgeIdMap[k.id] ?? []}
+                    bolgeler={bolgeler ?? []}
+                  />
                 </td>
               </tr>
             ))}
