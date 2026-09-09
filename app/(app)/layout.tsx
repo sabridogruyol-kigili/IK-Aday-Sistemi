@@ -12,6 +12,7 @@ const navItems = [
   { href: "/personel", label: "Personel Listesi", icon: "personel" },
   { href: "/adaylar", label: "Aday Havuzu", icon: "adaylar" },
   { href: "/raporlar", label: "Raporlar", icon: "raporlar" },
+  { href: "/terfi-degerlendirme", label: "Terfi-Jüri Değerlendirme", icon: "terfi", disHref: "https://kigili-insankaynaklaridirektorlugu-terfi2026.streamlit.app/" },
   { href: "/ayarlar/kullanicilar", label: "Ayarlar", icon: "ayarlar" },
 ];
 
@@ -39,7 +40,7 @@ export default async function AppLayout({
   // Mağazalar Direktörlüğü: sadece performans/norm izleme ve onay — talep açma,
   // aday süreci ve sistem ayarlarına erişimi yok.
   const DIREKTOR_GORUNUR_HREFLER = new Set([
-    "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel",
+    "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel", "/terfi-degerlendirme",
   ]);
 
   const visibleNavItems = navItems.filter((item) => {
