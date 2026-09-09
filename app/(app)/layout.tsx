@@ -39,7 +39,7 @@ export default async function AppLayout({
   // Mağazalar Direktörlüğü: sadece performans/norm izleme ve onay — talep açma,
   // aday süreci ve sistem ayarlarına erişimi yok.
   const DIREKTOR_GORUNUR_HREFLER = new Set([
-    "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel", "/raporlar",
+    "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel",
   ]);
 
   const visibleNavItems = navItems.filter((item) => {
