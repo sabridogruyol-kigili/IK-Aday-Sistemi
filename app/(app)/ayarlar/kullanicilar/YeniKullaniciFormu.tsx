@@ -1,4 +1,4 @@
-
+"use client";
 
 import { useState, useTransition } from "react";
 import { createKullanici } from "./actions";
