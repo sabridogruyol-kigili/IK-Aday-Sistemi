@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RaporlarClient from "./RaporlarClient";
 
-// Supabase tek sorguda en fazla 1000 satır döndürür.
 async function tumSatirlariGetir<T>(sorguOlustur: (bas: number, bitis: number) => any): Promise<T[]> {
   const PARCA = 1000;
   let tumSatirlar: T[] = [];
@@ -25,7 +24,6 @@ export default async function RaporlarPage() {
 
   const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) redirect("/login");
-  // Mağazalar Direktörlüğü'nün bu sayfaya hiç erişimi yok.
   if (me.rol === "MAGAZALAR_DIREKTORLUGU") redirect("/dashboard");
 
   const [{ data: bolgeler }, { data: atamalarHam }, { data: magazalarHam }] = await Promise.all([
@@ -59,8 +57,7 @@ export default async function RaporlarPage() {
             .from("performans_magaza_aylik")
             .select("magaza_id, yil, ay, hgo")
             .in("magaza_id", magazaIdleri)
-            .order("yil")
-            .order("ay")
+            .order("yil").order("ay")
             .range(bas, bitis)
         )
       : Promise.resolve([]),
@@ -72,7 +69,7 @@ export default async function RaporlarPage() {
     ),
   ]);
 
-  // ---- Bölge -> BM / İK haritası ----
+  // ---- Bölge -> BM / İK haritası (isim dahil) ----
   const bolgeBmMap: Record<string, { id: string; ad_soyad: string }[]> = {};
   const bolgeIkMap: Record<string, { id: string; ad_soyad: string }[]> = {};
   atamalar.forEach((a) => {
@@ -81,6 +78,8 @@ export default async function RaporlarPage() {
     if (k.rol === "BM") bolgeBmMap[a.bolge_id] = [...(bolgeBmMap[a.bolge_id] ?? []), { id: k.id, ad_soyad: k.ad_soyad }];
     if (k.rol === "IK") bolgeIkMap[a.bolge_id] = [...(bolgeIkMap[a.bolge_id] ?? []), { id: k.id, ad_soyad: k.ad_soyad }];
   });
+  const bolgeAdiMap: Record<string, string> = {};
+  (bolgeler ?? []).forEach((b) => { bolgeAdiMap[b.id] = b.ad; });
 
   // ---- Norm / doluluk / HGO (mağaza bazlı) ----
   const normMap: Record<string, number> = {};
@@ -88,58 +87,86 @@ export default async function RaporlarPage() {
     normMap[n.magaza_id] = (n.ana_kadro_norm ?? 0) + (n.donemsel_norm ?? 0) + (n.part_time_norm ?? 0);
   });
   const doluMap: Record<string, number> = {};
-  const hgoToplamMap: Record<string, { toplam: number; sayi: number }> = {};
   (personelListesi ?? []).forEach((p: any) => {
     if (["ANA_KADRO", "DONEMSEL", "PART_TIME"].includes(p.kadro_kategorisi)) {
       doluMap[p.guncel_magaza_id] = (doluMap[p.guncel_magaza_id] ?? 0) + 1;
     }
-    if (p.performans_ortalama_hgo != null) {
-      if (!hgoToplamMap[p.guncel_magaza_id]) hgoToplamMap[p.guncel_magaza_id] = { toplam: 0, sayi: 0 };
-      hgoToplamMap[p.guncel_magaza_id].toplam += p.performans_ortalama_hgo;
-      hgoToplamMap[p.guncel_magaza_id].sayi += 1;
-    }
   });
-
-  // Mağazanın kendi (mağaza bazlı) en son HGO'su — kişi ortalaması değil, mağaza HGO'su.
-  const magazaEnSonHgoMap: Record<string, { yil: number; ay: number; hgo: number | null }> = {};
+  const magazaEnSonHgoMap: Record<string, number | null> = {};
+  const magazaEnSonDonemMap: Record<string, number> = {};
   (performansMagazaListesi ?? []).forEach((s: any) => {
-    const mevcut = magazaEnSonHgoMap[s.magaza_id];
-    if (!mevcut || s.yil * 100 + s.ay > mevcut.yil * 100 + mevcut.ay) {
-      magazaEnSonHgoMap[s.magaza_id] = { yil: s.yil, ay: s.ay, hgo: s.hgo };
+    const donemKodu = s.yil * 100 + s.ay;
+    if (!magazaEnSonDonemMap[s.magaza_id] || donemKodu > magazaEnSonDonemMap[s.magaza_id]) {
+      magazaEnSonDonemMap[s.magaza_id] = donemKodu;
+      magazaEnSonHgoMap[s.magaza_id] = s.hgo;
     }
   });
 
-  const magazaVeri = magazalar.map((m) => ({
-    id: m.id, magaza_adi: m.magaza_adi, magaza_kodu: m.magaza_kodu, bolge_id: m.bolge_id,
-    norm: normMap[m.id] ?? 0, dolu: doluMap[m.id] ?? 0,
-    hgo: magazaEnSonHgoMap[m.id]?.hgo ?? null,
-  }));
+  // ---- Mağaza bazlı talep sayısı ----
+  const magazaTalepSayisiMap: Record<string, number> = {};
+  talepler.forEach((t: any) => {
+    if (t.magaza_id) magazaTalepSayisiMap[t.magaza_id] = (magazaTalepSayisiMap[t.magaza_id] ?? 0) + 1;
+  });
 
-  // ---- Talep süreç süresi ----
+  // ---- Zengin mağaza raporu (Bölge/BM/İK isimleri + talep sayısı dahil) ----
+  const magazaRaporVeri = magazalar.map((m) => {
+    const bmler = bolgeBmMap[m.bolge_id] ?? [];
+    const ikler = bolgeIkMap[m.bolge_id] ?? [];
+    return {
+      id: m.id, magaza_adi: m.magaza_adi, magaza_kodu: m.magaza_kodu,
+      bolge_id: m.bolge_id, bolge_adi: bolgeAdiMap[m.bolge_id] ?? "Tanımsız",
+      bm_adi: bmler.map((b) => b.ad_soyad).join(", ") || "—",
+      ik_adi: ikler.map((i) => i.ad_soyad).join(", ") || "—",
+      norm: normMap[m.id] ?? 0, dolu: doluMap[m.id] ?? 0,
+      hgo: magazaEnSonHgoMap[m.id] ?? null,
+      talep_sayisi: magazaTalepSayisiMap[m.id] ?? 0,
+    };
+  });
+
+  // ---- Zengin bölge raporu (İK Sorumlusu - BM sekmesi için) ----
+  const bolgeRaporVeri = (bolgeler ?? [])
+    .filter((b) => magazalar.some((m) => m.bolge_id === b.id) || bolgeBmMap[b.id] || bolgeIkMap[b.id])
+    .map((b) => {
+      const kendiMagazalari = magazaRaporVeri.filter((m) => m.bolge_id === b.id);
+      const hgoDegerleri = kendiMagazalari.filter((m) => m.hgo != null).map((m) => m.hgo as number);
+      return {
+        id: b.id, ad: b.ad,
+        bm_adi: (bolgeBmMap[b.id] ?? []).map((x) => x.ad_soyad).join(", ") || "—",
+        ik_adi: (bolgeIkMap[b.id] ?? []).map((x) => x.ad_soyad).join(", ") || "—",
+        magaza_sayisi: kendiMagazalari.length,
+        norm: kendiMagazalari.reduce((s, m) => s + m.norm, 0),
+        dolu: kendiMagazalari.reduce((s, m) => s + m.dolu, 0),
+        hgo: hgoDegerleri.length > 0 ? hgoDegerleri.reduce((s, v) => s + v, 0) / hgoDegerleri.length : null,
+        talep_sayisi: kendiMagazalari.reduce((s, m) => s + m.talep_sayisi, 0),
+      };
+    });
+
+  // ---- Talep süreç süresi (mağaza/bölge/BM/İK isimleri dahil) ----
   const KAPANIS_DURUMLARI = ["KABUL_EDILDI", "KAPANDI_RED"];
-  const magazaBolgeMap: Record<string, string> = {};
-  magazalar.forEach((m) => { magazaBolgeMap[m.id] = m.bolge_id; });
+  const magazaBilgiMap: Record<string, typeof magazaRaporVeri[number]> = {};
+  magazaRaporVeri.forEach((m) => { magazaBilgiMap[m.id] = m; });
 
   const talepSureVeri = talepler.map((t: any) => {
     const acilis = new Date(t.created_at);
     const kapanmisMi = KAPANIS_DURUMLARI.includes(t.durum);
     const bitisTarihi = kapanmisMi ? new Date(t.updated_at) : new Date();
     const sureGun = (bitisTarihi.getTime() - acilis.getTime()) / (1000 * 60 * 60 * 24);
+    const magazaBilgi = t.magaza_id ? magazaBilgiMap[t.magaza_id] : null;
     return {
       id: t.id, talep_no: t.talep_no, talep_turu: t.talep_turu, durum: t.durum,
-      bolge_id: magazaBolgeMap[t.magaza_id] ?? null,
+      magaza_id: t.magaza_id, magaza_adi: magazaBilgi?.magaza_adi ?? "—",
+      bolge_id: magazaBilgi?.bolge_id ?? null, bolge_adi: magazaBilgi?.bolge_adi ?? "—",
+      bm_adi: magazaBilgi?.bm_adi ?? "—", ik_adi: magazaBilgi?.ik_adi ?? "—",
       sure_gun: Math.round(sureGun * 10) / 10,
       kapanmis_mi: kapanmisMi,
       created_at: t.created_at,
     };
   });
 
-  // ---- Rol bazlı hiyerarşi kurulumu ----
-  // Yönetim: her İK -> o İK'nın bölgeleri -> her bölgenin BM'i + mağazaları
-  // İK: sadece kendi bölgeleri -> BM + mağazalar
-  // BM: sadece kendi bölgesi/mağazaları (düz liste)
-  let hiyerarsi: any = null;
+  // ---- Rol bazlı hiyerarşi (Genel sekmesi için) ----
+  const magazaVeriBasit = magazaRaporVeri.map((m) => ({ id: m.id, magaza_adi: m.magaza_adi, magaza_kodu: m.magaza_kodu, bolge_id: m.bolge_id, norm: m.norm, dolu: m.dolu, hgo: m.hgo }));
 
+  let hiyerarsi: any = null;
   if (me.rol === "YONETIM") {
     const ikler = Array.from(new Map(atamalar.filter((a) => a.kullanicilar?.rol === "IK" && a.kullanicilar.aktif).map((a) => [a.kullanicilar.id, a.kullanicilar])).values());
     hiyerarsi = {
@@ -149,10 +176,9 @@ export default async function RaporlarPage() {
         return {
           id: ik.id, ad_soyad: ik.ad_soyad,
           bolgeler: bolgeIdler.map((bid) => ({
-            id: bid,
-            ad: bolgeler?.find((b) => b.id === bid)?.ad ?? "?",
+            id: bid, ad: bolgeAdiMap[bid] ?? "?",
             bmler: bolgeBmMap[bid] ?? [],
-            magazalar: magazaVeri.filter((m) => m.bolge_id === bid),
+            magazalar: magazaVeriBasit.filter((m) => m.bolge_id === bid),
           })),
         };
       }),
@@ -162,19 +188,53 @@ export default async function RaporlarPage() {
     hiyerarsi = {
       tip: "IK",
       bolgeler: kendiBolgeIdler.map((bid) => ({
-        id: bid,
-        ad: bolgeler?.find((b) => b.id === bid)?.ad ?? "?",
+        id: bid, ad: bolgeAdiMap[bid] ?? "?",
         bmler: bolgeBmMap[bid] ?? [],
-        magazalar: magazaVeri.filter((m) => m.bolge_id === bid),
+        magazalar: magazaVeriBasit.filter((m) => m.bolge_id === bid),
       })),
     };
   } else {
-    // BM
     const kendiBolgeIdler = atamalar.filter((a) => a.kullanici_id === me.id).map((a) => a.bolge_id);
-    hiyerarsi = {
-      tip: "BM",
-      magazalar: magazaVeri.filter((m) => kendiBolgeIdler.includes(m.bolge_id)),
+    hiyerarsi = { tip: "BM", magazalar: magazaVeriBasit.filter((m) => kendiBolgeIdler.includes(m.bolge_id)) };
+  }
+
+  // ---- İK Personeli Performans Karşılaştırması (sadece Yönetim görür) ----
+  let ikPerformans: any = null;
+  if (me.rol === "YONETIM") {
+    const iklerListesi = Array.from(
+      new Map(atamalar.filter((a) => a.kullanicilar?.rol === "IK" && a.kullanicilar.aktif).map((a) => [a.kullanicilar.id, a.kullanicilar])).values()
+    ) as { id: string; ad_soyad: string }[];
+
+    const [{ data: onaylarHam }, { data: adaylarHam }] = await Promise.all([
+      iklerListesi.length > 0
+        ? supabase.from("talep_onaylari").select("onaylayici_kullanici_id, karar").in("onaylayici_kullanici_id", iklerListesi.map((i) => i.id))
+        : Promise.resolve({ data: [] as any[] }),
+      iklerListesi.length > 0
+        ? supabase.from("adaylar").select("yonlendiren_kullanici_id, created_at").in("yonlendiren_kullanici_id", iklerListesi.map((i) => i.id))
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const AY_ANAHTAR = (tarih: string) => {
+      const d = new Date(tarih);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     };
+
+    ikPerformans = iklerListesi.map((ik) => {
+      const kendiOnaylari = (onaylarHam ?? []).filter((o: any) => o.onaylayici_kullanici_id === ik.id);
+      const kendiAdaylari = (adaylarHam ?? []).filter((a: any) => a.yonlendiren_kullanici_id === ik.id);
+      const aylikAdaySayisi: Record<string, number> = {};
+      kendiAdaylari.forEach((a: any) => {
+        const ay = AY_ANAHTAR(a.created_at);
+        aylikAdaySayisi[ay] = (aylikAdaySayisi[ay] ?? 0) + 1;
+      });
+      return {
+        id: ik.id, ad_soyad: ik.ad_soyad,
+        toplamIs: kendiOnaylari.length,
+        bekleyenIs: kendiOnaylari.filter((o: any) => o.karar === null).length,
+        toplamAday: kendiAdaylari.length,
+        aylikAdaySayisi,
+      };
+    });
   }
 
   return (
@@ -182,6 +242,10 @@ export default async function RaporlarPage() {
       hiyerarsi={hiyerarsi}
       talepSureVeri={talepSureVeri}
       bolgeler={bolgeler ?? []}
+      ikPerformans={ikPerformans}
+      magazaRaporVeri={magazaRaporVeri}
+      bolgeRaporVeri={bolgeRaporVeri}
+      benimRolum={me.rol}
     />
   );
 }
