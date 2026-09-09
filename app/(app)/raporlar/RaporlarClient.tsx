@@ -28,6 +28,26 @@ function HgoRozeti({ hgo }: { hgo: number | null }) {
   return <span className={`font-mono text-xs font-semibold ${hgo < 80 ? "text-danger" : hgo > 100 ? "text-success" : "text-navy-3"}`}>%{hgo.toFixed(1)}</span>;
 }
 
+// Eksen/ızgara olmadan, orantılı ince çubuklarla kompakt sıralama listesi —
+// büyük Recharts grafiklerinin yerini alır, çok daha az yer kaplar.
+function MiniSiralama({ veri, renk = "#0F1B4D" }: { veri: { etiket: string; adet: number }[]; renk?: string }) {
+  if (veri.length === 0) return <div className="text-xs text-gray-400 py-3 text-center">Veri yok.</div>;
+  const maxDeger = Math.max(...veri.map((v) => v.adet), 1);
+  return (
+    <div className="space-y-1.5">
+      {veri.map((v, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="text-[11px] text-navy-3 w-32 truncate shrink-0" title={v.etiket}>{v.etiket}</div>
+          <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${(v.adet / maxDeger) * 100}%`, backgroundColor: renk }} />
+          </div>
+          <div className="text-[11px] font-mono font-semibold text-navy-3 w-6 text-right shrink-0">{v.adet}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function MagazaSatiri({ m }: { m: Magaza }) {
   return (
     <div className="flex items-center justify-between px-3 py-1.5 border-t border-gray-50 text-xs">
@@ -174,7 +194,7 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
     if (alan === magazaSiralaAlan) setMagazaSiralaYon(magazaSiralaYon === "asc" ? "desc" : "asc");
     else { setMagazaSiralaAlan(alan); setMagazaSiralaYon("desc"); }
   }
-  const enYuksekTalepliMagazalar = useMemo(() => magazaRaporVeri.slice().sort((a, b) => b.talep_sayisi - a.talep_sayisi).slice(0, 10), [magazaRaporVeri]);
+  const enYuksekTalepliMagazalar = useMemo(() => magazaRaporVeri.slice().sort((a, b) => b.talep_sayisi - a.talep_sayisi).slice(0, 8), [magazaRaporVeri]);
 
   // ---- Ünvan bazlı analiz (İşe Alım talepleri üzerinden) ----
   const iseAlimTalepleri = useMemo(() => talepSureVeri.filter((t) => t.talep_turu === "ISE_ALIM" && t.pozisyon_tipi), [talepSureVeri]);
@@ -182,7 +202,7 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
   const unvanGenelDagilim = useMemo(() => {
     const sayac: Record<string, number> = {};
     iseAlimTalepleri.forEach((t) => { sayac[t.pozisyon_tipi!] = (sayac[t.pozisyon_tipi!] ?? 0) + 1; });
-    return Object.entries(sayac).map(([unvan, adet]) => ({ unvan, adet })).sort((a, b) => b.adet - a.adet).slice(0, 12);
+    return Object.entries(sayac).map(([unvan, adet]) => ({ unvan, adet })).sort((a, b) => b.adet - a.adet).slice(0, 8);
   }, [iseAlimTalepleri]);
 
   // Her İK için en çok aldığı ünvan (kendi bölgelerindeki İşe Alım talepleri üzerinden).
@@ -221,7 +241,7 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
         sayac[t.magaza_adi] = (sayac[t.magaza_adi] ?? 0) + 1;
       }
     });
-    return Object.entries(sayac).map(([magaza_adi, adet]) => ({ magaza_adi, adet })).sort((a, b) => b.adet - a.adet).slice(0, 10);
+    return Object.entries(sayac).map(([magaza_adi, adet]) => ({ magaza_adi, adet })).sort((a, b) => b.adet - a.adet).slice(0, 6);
   }, [talepSureVeri]);
 
   const devirEnCokBolge = useMemo(() => {
@@ -269,84 +289,61 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
           <div className="bg-white border border-gray-200 rounded-card p-4">
             <div className="text-sm font-semibold text-navy-3 mb-3">Ünvan ve Devir Analizi</div>
 
-            <div className="mb-4">
-              <div className="text-[11px] font-semibold text-navy-3 mb-1">En Çok Talep Edilen Ünvanlar (İşe Alım)</div>
-              {unvanGenelDagilim.length === 0 ? (
-                <div className="text-xs text-gray-400 py-4 text-center">Veri yok.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={Math.max(140, unvanGenelDagilim.length * 26)}>
-                  <BarChart data={unvanGenelDagilim} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
-                    <YAxis type="category" dataKey="unvan" tick={{ fontSize: 9 }} width={150} />
-                    <Tooltip />
-                    <Bar dataKey="adet" name="Talep Sayısı" fill="#3E7CB1" radius={[0, 3, 3, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <div className="text-[11px] font-semibold text-navy-3 mb-1.5">İK Bazında En Çok Alınan Ünvan</div>
-                <div className="space-y-1 max-h-56 overflow-y-auto">
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">En Çok Talep Edilen Ünvanlar</div>
+                <MiniSiralama veri={unvanGenelDagilim.map((u) => ({ etiket: u.unvan, adet: u.adet }))} renk="#3E7CB1" />
+              </div>
+
+              <div>
+                <div className="text-[11px] font-semibold text-danger mb-2">Devir En Çok Nerede (Onaylanmış Çıkış)</div>
+                <MiniSiralama veri={devirEnCokMagaza.map((d) => ({ etiket: d.magaza_adi, adet: d.adet }))} renk="#B0402E" />
+                {devirEnCokBolge.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                    {devirEnCokBolge.map((b) => (
+                      <span key={b.bolge_adi} className="text-[10px] bg-danger-bg text-danger px-2 py-0.5 rounded-full">{b.bolge_adi}: {b.adet}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">İK Bazında En Çok Alınan Ünvan</div>
+                <div className="space-y-1 max-h-52 overflow-y-auto">
                   {ikUnvanEnCok.map((r) => (
-                    <div key={r.ik_adi} className="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1.5">
-                      <div>
-                        <div className="text-navy-3 font-medium">{r.ik_adi}</div>
-                        <div className="text-[10px] text-gray-400">{r.toplamIseAlim} işe alım toplam</div>
+                    <div key={r.ik_adi} className="flex items-center justify-between text-[11px] bg-gray-50 rounded px-2 py-1.5">
+                      <div className="truncate">
+                        <span className="text-navy-3 font-medium">{r.ik_adi}</span>
+                        <span className="text-gray-400"> · {r.toplamIseAlim} işe alım</span>
                       </div>
-                      <div className="text-right">
-                        <div className="text-navy-3">{r.enCokUnvan}</div>
-                        <div className="text-[10px] text-info font-mono">{r.adet} kez</div>
+                      <div className="text-right shrink-0 pl-2">
+                        <span className="text-navy-3">{r.enCokUnvan}</span>
+                        <span className="text-info font-mono ml-1">({r.adet})</span>
                       </div>
                     </div>
                   ))}
                   {ikUnvanEnCok.length === 0 && <div className="text-[11px] text-gray-400">Veri yok.</div>}
                 </div>
               </div>
+
               <div>
-                <div className="text-[11px] font-semibold text-navy-3 mb-1.5">Bölge Bazında En Çok İhtiyaç Duyulan Ünvan</div>
-                <div className="space-y-1 max-h-56 overflow-y-auto">
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">Bölge Bazında En Çok İhtiyaç Duyulan Ünvan</div>
+                <div className="space-y-1 max-h-52 overflow-y-auto">
                   {bolgeUnvanEnCok.map((r) => (
-                    <div key={r.bolge_adi} className="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1.5">
-                      <div>
-                        <div className="text-navy-3 font-medium">{r.bolge_adi}</div>
-                        <div className="text-[10px] text-gray-400">{r.toplamIseAlim} işe alım toplam</div>
+                    <div key={r.bolge_adi} className="flex items-center justify-between text-[11px] bg-gray-50 rounded px-2 py-1.5">
+                      <div className="truncate">
+                        <span className="text-navy-3 font-medium">{r.bolge_adi}</span>
+                        <span className="text-gray-400"> · {r.toplamIseAlim} işe alım</span>
                       </div>
-                      <div className="text-right">
-                        <div className="text-navy-3">{r.enCokUnvan}</div>
-                        <div className="text-[10px] text-info font-mono">{r.adet} kez</div>
+                      <div className="text-right shrink-0 pl-2">
+                        <span className="text-navy-3">{r.enCokUnvan}</span>
+                        <span className="text-info font-mono ml-1">({r.adet})</span>
                       </div>
                     </div>
                   ))}
                   {bolgeUnvanEnCok.length === 0 && <div className="text-[11px] text-gray-400">Veri yok.</div>}
                 </div>
               </div>
-            </div>
-
-            <div className="pt-3 border-t border-gray-100">
-              <div className="text-[11px] font-semibold text-danger mb-1.5">Devir (Onaylanmış İşten Çıkarma) En Çok Nerede</div>
-              {devirEnCokMagaza.length === 0 ? (
-                <div className="text-xs text-gray-400 py-4 text-center">Kayıtlı devir yok.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={Math.max(140, devirEnCokMagaza.length * 26)}>
-                  <BarChart data={devirEnCokMagaza} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
-                    <YAxis type="category" dataKey="magaza_adi" tick={{ fontSize: 9 }} width={150} />
-                    <Tooltip />
-                    <Bar dataKey="adet" name="Devir Sayısı" fill="#B0402E" radius={[0, 3, 3, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-              {devirEnCokBolge.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {devirEnCokBolge.map((b) => (
-                    <span key={b.bolge_adi} className="text-[10px] bg-danger-bg text-danger px-2 py-0.5 rounded-full">{b.bolge_adi}: {b.adet}</span>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -548,15 +545,7 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
         <>
           <div className="bg-white border border-gray-200 rounded-card p-4">
             <div className="text-sm font-semibold text-navy-3 mb-3">En Yüksek Talepli Mağazalar</div>
-            <ResponsiveContainer width="100%" height={Math.max(180, enYuksekTalepliMagazalar.length * 32)}>
-              <BarChart data={enYuksekTalepliMagazalar} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eee" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="magaza_adi" tick={{ fontSize: 9 }} width={160} />
-                <Tooltip />
-                <Bar dataKey="talep_sayisi" name="Talep Sayısı" fill="#0F1B4D" radius={[0, 3, 3, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <MiniSiralama veri={enYuksekTalepliMagazalar.map((m) => ({ etiket: m.magaza_adi, adet: m.talep_sayisi }))} renk="#0F1B4D" />
           </div>
 
           <div className="bg-white border border-gray-200 rounded-card p-4">
