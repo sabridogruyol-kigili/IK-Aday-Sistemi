@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import TalepForm from "./TalepForm";
 import CikarmaForm from "./CikarmaForm";
 import NormTalebiForm from "./NormTalebiForm";
+import RotasyonForm from "./RotasyonForm";
 
 // Supabase tek sorguda en fazla 1000 satır döndürür — personel sayımız bunu
 // aşabileceği için sayfalayarak (1000'erlik parçalar hâlinde) çekiyoruz.
@@ -29,7 +30,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
   if (me?.rol === "MAGAZALAR_DIREKTORLUGU") redirect("/talepler");
 
-  const tur = ["ise_alim", "cikarma", "norm_degisiklik"].includes(searchParams.tur ?? "") ? searchParams.tur! : "ise_alim";
+  const tur = ["ise_alim", "cikarma", "rotasyon", "norm_degisiklik"].includes(searchParams.tur ?? "") ? searchParams.tur! : "ise_alim";
 
   const { data: magazalar } = await supabase
     .from("magazalar").select("id, magaza_adi, magaza_kodu").eq("aktif", true).order("magaza_adi");
@@ -39,7 +40,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
 
   const { data: magazalarNormHam } = await supabase
     .from("magazalar")
-    .select("id, magaza_adi, magaza_kodu, bolgeler(ad), norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
+    .select("id, magaza_adi, magaza_kodu, bolge_id, bolgeler(ad), norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
     .eq("aktif", true)
     .order("magaza_adi");
   const magazalarNorm = (magazalarNormHam ?? []).map((m: any) => {
@@ -48,6 +49,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
       id: m.id,
       magaza_adi: m.magaza_adi,
       magaza_kodu: m.magaza_kodu,
+      bolge_id: m.bolge_id,
       bolge_adi: m.bolgeler?.ad ?? "",
       ana_kadro_norm: n?.ana_kadro_norm ?? 0,
       donemsel_norm: n?.donemsel_norm ?? 0,
@@ -66,7 +68,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const personelHam = await tumSatirlariGetir<any>((bas, bitis) =>
     supabase
       .from("personel")
-      .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar!inner(magaza_adi, bolge_id, aktif, bolgeler(ad))")
+      .select("id, ad_soyad, guncel_unvan, guncel_magaza_id, kadro_kategorisi, performans_ortalama_hgo, performans_80_alti_sayisi, performans_80_100_arasi_sayisi, performans_100_ustu_sayisi, magazalar!inner(magaza_adi, bolge_id, aktif, bolgeler(ad))")
       .eq("durum", "aktif")
       .not("tc_kimlik_no", "like", "PLASIYER-%")
       .eq("magazalar.aktif", true)
@@ -78,6 +80,8 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
     id: p.id,
     ad_soyad: p.ad_soyad,
     guncel_unvan: p.guncel_unvan,
+    guncel_magaza_id: p.guncel_magaza_id,
+    kadro_kategorisi: p.kadro_kategorisi,
     magaza_adi: p.magazalar?.magaza_adi ?? "",
     bolge_adi: p.magazalar?.bolgeler?.ad ?? "",
     performans_ortalama_hgo: p.performans_ortalama_hgo,
@@ -89,6 +93,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
   const sekmeler = [
     { key: "ise_alim", label: "İşe Alım" },
     { key: "cikarma", label: "İşten Çıkarma" },
+    { key: "rotasyon", label: "Rotasyon" },
     { key: "norm_degisiklik", label: "Norm Değişikliği" },
   ];
 
@@ -108,6 +113,7 @@ export default async function YeniTalepPage({ searchParams }: { searchParams: { 
       </div>
       {tur === "ise_alim" && <TalepForm magazalar={magazalar ?? []} pozisyonlar={pozisyonlar} bolgeler={bolgeler ?? []} />}
       {tur === "cikarma" && <CikarmaForm personelListesi={personelListesi} pozisyonlar={pozisyonlar} />}
+      {tur === "rotasyon" && <RotasyonForm personelListesi={personelListesi as any} magazalar={magazalarNorm} />}
       {tur === "norm_degisiklik" && (
         <NormTalebiForm
           magazalar={magazalarNorm}
