@@ -13,7 +13,7 @@ type Bolge = { id: string; ad: string; bmler: { id: string; ad_soyad: string }[]
 type TalepSure = {
   id: string; talep_no: string; talep_turu: string; durum: string;
   magaza_id: string | null; magaza_adi: string; bolge_id: string | null; bolge_adi: string;
-  bm_adi: string; ik_adi: string; sure_gun: number; kapanmis_mi: boolean; created_at: string;
+  bm_adi: string; ik_adi: string; pozisyon_tipi: string | null; sure_gun: number; kapanmis_mi: boolean; created_at: string;
 };
 type MagazaRapor = { id: string; magaza_adi: string; magaza_kodu: string; bolge_id: string; bolge_adi: string; bm_adi: string; ik_adi: string; norm: number; dolu: number; hgo: number | null; talep_sayisi: number };
 type BolgeRapor = { id: string; ad: string; bm_adi: string; ik_adi: string; magaza_sayisi: number; norm: number; dolu: number; hgo: number | null; talep_sayisi: number };
@@ -176,6 +176,64 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
   }
   const enYuksekTalepliMagazalar = useMemo(() => magazaRaporVeri.slice().sort((a, b) => b.talep_sayisi - a.talep_sayisi).slice(0, 10), [magazaRaporVeri]);
 
+  // ---- Ünvan bazlı analiz (İşe Alım talepleri üzerinden) ----
+  const iseAlimTalepleri = useMemo(() => talepSureVeri.filter((t) => t.talep_turu === "ISE_ALIM" && t.pozisyon_tipi), [talepSureVeri]);
+
+  const unvanGenelDagilim = useMemo(() => {
+    const sayac: Record<string, number> = {};
+    iseAlimTalepleri.forEach((t) => { sayac[t.pozisyon_tipi!] = (sayac[t.pozisyon_tipi!] ?? 0) + 1; });
+    return Object.entries(sayac).map(([unvan, adet]) => ({ unvan, adet })).sort((a, b) => b.adet - a.adet).slice(0, 12);
+  }, [iseAlimTalepleri]);
+
+  // Her İK için en çok aldığı ünvan (kendi bölgelerindeki İşe Alım talepleri üzerinden).
+  const ikUnvanEnCok = useMemo(() => {
+    const ikBazinda: Record<string, Record<string, number>> = {};
+    iseAlimTalepleri.forEach((t) => {
+      if (t.ik_adi === "—") return;
+      if (!ikBazinda[t.ik_adi]) ikBazinda[t.ik_adi] = {};
+      ikBazinda[t.ik_adi][t.pozisyon_tipi!] = (ikBazinda[t.ik_adi][t.pozisyon_tipi!] ?? 0) + 1;
+    });
+    return Object.entries(ikBazinda).map(([ik_adi, unvanlar]) => {
+      const siraliUnvanlar = Object.entries(unvanlar).sort((a, b) => b[1] - a[1]);
+      return { ik_adi, enCokUnvan: siraliUnvanlar[0]?.[0] ?? "—", adet: siraliUnvanlar[0]?.[1] ?? 0, toplamIseAlim: Object.values(unvanlar).reduce((s, v) => s + v, 0) };
+    }).sort((a, b) => b.toplamIseAlim - a.toplamIseAlim);
+  }, [iseAlimTalepleri]);
+
+  // Her bölge için en çok ihtiyaç duyulan ünvan.
+  const bolgeUnvanEnCok = useMemo(() => {
+    const bolgeBazinda: Record<string, Record<string, number>> = {};
+    iseAlimTalepleri.forEach((t) => {
+      if (t.bolge_adi === "—") return;
+      if (!bolgeBazinda[t.bolge_adi]) bolgeBazinda[t.bolge_adi] = {};
+      bolgeBazinda[t.bolge_adi][t.pozisyon_tipi!] = (bolgeBazinda[t.bolge_adi][t.pozisyon_tipi!] ?? 0) + 1;
+    });
+    return Object.entries(bolgeBazinda).map(([bolge_adi, unvanlar]) => {
+      const siraliUnvanlar = Object.entries(unvanlar).sort((a, b) => b[1] - a[1]);
+      return { bolge_adi, enCokUnvan: siraliUnvanlar[0]?.[0] ?? "—", adet: siraliUnvanlar[0]?.[1] ?? 0, toplamIseAlim: Object.values(unvanlar).reduce((s, v) => s + v, 0) };
+    }).sort((a, b) => b.toplamIseAlim - a.toplamIseAlim);
+  }, [iseAlimTalepleri]);
+
+  // ---- Devir (turnover) — onaylanmış İşten Çıkarma talepleri, mağaza bazlı ----
+  const devirEnCokMagaza = useMemo(() => {
+    const sayac: Record<string, number> = {};
+    talepSureVeri.forEach((t) => {
+      if (t.talep_turu === "ISTEN_CIKARMA" && t.durum === "KABUL_EDILDI") {
+        sayac[t.magaza_adi] = (sayac[t.magaza_adi] ?? 0) + 1;
+      }
+    });
+    return Object.entries(sayac).map(([magaza_adi, adet]) => ({ magaza_adi, adet })).sort((a, b) => b.adet - a.adet).slice(0, 10);
+  }, [talepSureVeri]);
+
+  const devirEnCokBolge = useMemo(() => {
+    const sayac: Record<string, number> = {};
+    talepSureVeri.forEach((t) => {
+      if (t.talep_turu === "ISTEN_CIKARMA" && t.durum === "KABUL_EDILDI") {
+        sayac[t.bolge_adi] = (sayac[t.bolge_adi] ?? 0) + 1;
+      }
+    });
+    return Object.entries(sayac).map(([bolge_adi, adet]) => ({ bolge_adi, adet })).sort((a, b) => b.adet - a.adet);
+  }, [talepSureVeri]);
+
   return (
     <div className="space-y-5">
       <div>
@@ -203,6 +261,90 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
               {hiyerarsi.tip === "BM" && (
                 <div className="border border-gray-100 rounded-md overflow-hidden">
                   {hiyerarsi.magazalar.map((m: Magaza) => <MagazaSatiri key={m.id} m={m} />)}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-card p-4">
+            <div className="text-sm font-semibold text-navy-3 mb-3">Ünvan ve Devir Analizi</div>
+
+            <div className="mb-4">
+              <div className="text-[11px] font-semibold text-navy-3 mb-1">En Çok Talep Edilen Ünvanlar (İşe Alım)</div>
+              {unvanGenelDagilim.length === 0 ? (
+                <div className="text-xs text-gray-400 py-4 text-center">Veri yok.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(140, unvanGenelDagilim.length * 26)}>
+                  <BarChart data={unvanGenelDagilim} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="unvan" tick={{ fontSize: 9 }} width={150} />
+                    <Tooltip />
+                    <Bar dataKey="adet" name="Talep Sayısı" fill="#3E7CB1" radius={[0, 3, 3, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="text-[11px] font-semibold text-navy-3 mb-1.5">İK Bazında En Çok Alınan Ünvan</div>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {ikUnvanEnCok.map((r) => (
+                    <div key={r.ik_adi} className="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1.5">
+                      <div>
+                        <div className="text-navy-3 font-medium">{r.ik_adi}</div>
+                        <div className="text-[10px] text-gray-400">{r.toplamIseAlim} işe alım toplam</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-navy-3">{r.enCokUnvan}</div>
+                        <div className="text-[10px] text-info font-mono">{r.adet} kez</div>
+                      </div>
+                    </div>
+                  ))}
+                  {ikUnvanEnCok.length === 0 && <div className="text-[11px] text-gray-400">Veri yok.</div>}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-navy-3 mb-1.5">Bölge Bazında En Çok İhtiyaç Duyulan Ünvan</div>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {bolgeUnvanEnCok.map((r) => (
+                    <div key={r.bolge_adi} className="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1.5">
+                      <div>
+                        <div className="text-navy-3 font-medium">{r.bolge_adi}</div>
+                        <div className="text-[10px] text-gray-400">{r.toplamIseAlim} işe alım toplam</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-navy-3">{r.enCokUnvan}</div>
+                        <div className="text-[10px] text-info font-mono">{r.adet} kez</div>
+                      </div>
+                    </div>
+                  ))}
+                  {bolgeUnvanEnCok.length === 0 && <div className="text-[11px] text-gray-400">Veri yok.</div>}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-gray-100">
+              <div className="text-[11px] font-semibold text-danger mb-1.5">Devir (Onaylanmış İşten Çıkarma) En Çok Nerede</div>
+              {devirEnCokMagaza.length === 0 ? (
+                <div className="text-xs text-gray-400 py-4 text-center">Kayıtlı devir yok.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(140, devirEnCokMagaza.length * 26)}>
+                  <BarChart data={devirEnCokMagaza} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="magaza_adi" tick={{ fontSize: 9 }} width={150} />
+                    <Tooltip />
+                    <Bar dataKey="adet" name="Devir Sayısı" fill="#B0402E" radius={[0, 3, 3, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {devirEnCokBolge.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {devirEnCokBolge.map((b) => (
+                    <span key={b.bolge_adi} className="text-[10px] bg-danger-bg text-danger px-2 py-0.5 rounded-full">{b.bolge_adi}: {b.adet}</span>
+                  ))}
                 </div>
               )}
             </div>
