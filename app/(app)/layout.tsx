@@ -54,11 +54,12 @@ export default async function AppLayout({
         <div className="px-4 pt-5 pb-4 border-b border-white/10 flex flex-col items-center text-center gap-2">
           <img src="/logo.png" alt="Kiğılı İK" className="h-16 w-auto" />
           <div className="text-white text-[13px] font-medium leading-tight tracking-wide">
-            İK Aday ve Süreç Takip Sistemi
+            İnsan Kaynakları Aday ve Süreç Takip Sistemi
           </div>
         </div>
         <SidebarNav items={visibleNavItems} />
         <div className="px-4 py-3 border-t border-white/10 space-y-2.5">
+          <div className="text-white/40 text-[9px] uppercase tracking-wide text-center">Organizasyonel Gelişim</div>
           <CikisButonu />
           <div className="flex items-center gap-2.5">
             <div className="w-[30px] h-[30px] rounded-full bg-accent border border-white/20 flex items-center justify-center text-[11px] font-semibold text-navy-3 shrink-0">
