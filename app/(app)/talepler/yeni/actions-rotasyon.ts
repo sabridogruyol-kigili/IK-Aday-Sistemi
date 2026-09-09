@@ -104,6 +104,11 @@ export async function createRotasyonTalebi(formData: FormData): Promise<Sonuc> {
   const { data: yonetimler } = await supabase.from("kullanicilar").select("id").eq("rol", "YONETIM").eq("aktif", true);
   (yonetimler ?? []).forEach((y) => { if (!roleMap.has(y.id)) roleMap.set(y.id, "YONETIM"); });
 
+  // Mağazalar Direktörlüğü — bölge sınırı yok, tüm aktif direktörler eklenir
+  // (aynı rolden birinin onayı diğerlerini otomatik tamamlar).
+  const { data: direktorler } = await supabase.from("kullanicilar").select("id").eq("rol", "MAGAZALAR_DIREKTORLUGU").eq("aktif", true);
+  (direktorler ?? []).forEach((d) => { if (!roleMap.has(d.id)) roleMap.set(d.id, "MAGAZALAR_DIREKTORLUGU"); });
+
   roleMap.delete(me.id); // açan taraf kendi talebini onaylamaz
 
   const onaySatirlari = Array.from(roleMap.entries()).map(([kullanici_id, rol]) => ({
