@@ -146,6 +146,21 @@ export async function mulakatIsaretle(formData: FormData) {
 
 type KararSonuc = { error?: string; aday?: { durum: string; onay_bm: string | null; onay_ik: string | null } };
 
+export async function adayiHavuzaAl(formData: FormData): Promise<{ error?: string }> {
+  const supabase = createClient();
+  const adayId = String(formData.get("aday_id"));
+  const { error } = await supabase.rpc("aday_havuza_al", { p_aday_id: adayId });
+  return { error: error?.message };
+}
+
+export async function adayiHavuzdanYonlendir(formData: FormData): Promise<{ error?: string }> {
+  const supabase = createClient();
+  const adayId = String(formData.get("aday_id"));
+  const yeniTalepId = String(formData.get("yeni_talep_id"));
+  const { error } = await supabase.rpc("aday_havuzdan_yonlendir", { p_aday_id: adayId, p_yeni_talep_id: yeniTalepId });
+  return { error: error?.message };
+}
+
 export async function kararVerAday(formData: FormData): Promise<KararSonuc> {
   const supabase = createClient();
   const adayId = String(formData.get("aday_id"));
