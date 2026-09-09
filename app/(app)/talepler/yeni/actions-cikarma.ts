@@ -214,6 +214,9 @@ export type PersonelDetay = {
   tc_kimlik_no: string | null;
   personel_kodu: string | null;
   kidem_ay: number | null;
+  brut_maas: number | null;
+  kidem_tazminati_tavani: number | null;
+  kidem_tazminati_tahmini: number | null;
 };
 
 // Personel Listesi sayfasındaki (app/(app)/personel/page.tsx) mantıkla birebir
@@ -249,7 +252,7 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
 
   const { data } = await supabase
     .from("personel")
-    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, magazalar(il_adi)")
+    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, brut_maas, magazalar(il_adi)")
     .eq("id", personelId)
     .single();
 
@@ -260,7 +263,22 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     .select("baslama_tarihi, ayrilma_tarihi")
     .eq("personel_id", personelId);
 
+  const { data: ayar } = await supabase.from("sistem_ayarlari").select("kidem_tazminati_tavani").eq("id", 1).single();
+  const tavan = ayar?.kidem_tazminati_tavani ?? null;
+
   const magazaHam = data as any;
+  const kidemAy = kidemAyHesapla(atamalar ?? []);
+  const brutMaas = magazaHam.brut_maas as number | null;
+
+  // Basit tahmini kıdem tazminatı: (tavanı aşmayan brüt maaş) × kıdem yılı.
+  // "Giydirilmiş ücret" değil, sade brüt maaş kullanılır — prim ve ek ücretler
+  // hariçtir, bu yüzden gerçek tutardan farklı (genelde daha düşük) çıkabilir.
+  let kidemTazminatiTahmini: number | null = null;
+  if (brutMaas != null && tavan != null && kidemAy != null) {
+    const esasAlinanMaas = Math.min(brutMaas, tavan);
+    kidemTazminatiTahmini = Math.round(esasAlinanMaas * (kidemAy / 12) * 100) / 100;
+  }
+
   return {
     dogum_tarihi: magazaHam.dogum_tarihi,
     kan_grubu_kodu: magazaHam.kan_grubu_kodu,
@@ -276,6 +294,9 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     savunma: magazaHam.savunma,
     notlar: magazaHam.notlar,
     il_adi: magazaHam.magazalar?.il_adi ?? null,
-    kidem_ay: kidemAyHesapla(atamalar ?? []),
+    kidem_ay: kidemAy,
+    brut_maas: brutMaas,
+    kidem_tazminati_tavani: tavan,
+    kidem_tazminati_tahmini: kidemTazminatiTahmini,
   };
 }
