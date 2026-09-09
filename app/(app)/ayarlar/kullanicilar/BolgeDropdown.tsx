@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 type Bolge = { id: string; ad: string };
 
-export default function BolgeDropdown({ bolgeler }: { bolgeler: Bolge[] }) {
+export default function BolgeDropdown({ bolgeler, baslangicSecili }: { bolgeler: Bolge[]; baslangicSecili?: string[] }) {
   const [acik, setAcik] = useState(false);
-  const [secili, setSecili] = useState<Set<string>>(new Set());
+  const [secili, setSecili] = useState<Set<string>>(new Set(baslangicSecili ?? []));
   const kutuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
