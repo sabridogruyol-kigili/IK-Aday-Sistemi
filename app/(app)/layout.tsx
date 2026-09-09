@@ -10,7 +10,7 @@ const navItems = [
   { href: "/talepler", label: "Talepler", icon: "talepler" },
   { href: "/onay-bekleyenler", label: "Onay Bekleyenler", icon: "onay" },
   { href: "/personel", label: "Personel Listesi", icon: "personel" },
-  { href: "/adaylar", label: "Adaylar", icon: "adaylar" },
+  { href: "/adaylar", label: "Aday Havuzu", icon: "adaylar" },
   { href: "/raporlar", label: "Raporlar", icon: "raporlar" },
   { href: "/ayarlar/kullanicilar", label: "Ayarlar", icon: "ayarlar" },
 ];
