@@ -2,6 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 
+export type MagazaAylikSatiri = {
+  yil: number; ay: number; hgo: number | null; adet_hgo: number | null;
+  sepet_ortalamasi: number | null; sepet_derinligi: number | null;
+  donusum_orani: number | null; giren_musteri_sayisi: number | null;
+  toplam_ciro_kdv_dahil: number | null; satis_adeti: number | null;
+};
+
 export type MagazaBilgi = {
   magaza_adi: string;
   bolge_adi: string;
@@ -9,13 +16,13 @@ export type MagazaBilgi = {
   ana_norm: number; ana_dolu: number;
   donemsel_norm: number; donemsel_dolu: number;
   part_norm: number; part_dolu: number;
-  hgoGecmisi: { yil: number; ay: number; hgo: number | null }[];
+  aylikVeri: MagazaAylikSatiri[];
   calisanlar: { ad_soyad: string; unvan: string | null; kategori: string | null; hgo: number | null }[];
 };
 
-// Yeni Talep formunda bir mağaza seçilince, o mağazanın norm/doluluk ve son
-// HGO geçmişini anlık (on-demand) getirir — tüm mağazaların verisini önceden
-// yüklemek yerine sadece seçilen mağazanınki çekilir (performans için).
+// Yeni Talep formunda bir mağaza seçilince, o mağazanın norm/doluluk ve aylık
+// performans geçmişini anlık (on-demand) getirir — tüm mağazaların verisini
+// önceden yüklemek yerine sadece seçilen mağazanınki çekilir (performans için).
 export async function getMagazaBilgi(magazaId: string): Promise<MagazaBilgi | null> {
   if (!magazaId) return null;
   const supabase = createClient();
@@ -48,9 +55,9 @@ export async function getMagazaBilgi(magazaId: string): Promise<MagazaBilgi | nu
     }
   });
 
-  const { data: hgoGecmisiHam } = await supabase
+  const { data: aylikVeriHam } = await supabase
     .from("performans_magaza_aylik")
-    .select("yil, ay, hgo")
+    .select("yil, ay, hgo, adet_hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, toplam_ciro_kdv_dahil, satis_adeti")
     .eq("magaza_id", magazaId)
     .order("yil", { ascending: true })
     .order("ay", { ascending: true });
@@ -71,7 +78,7 @@ export async function getMagazaBilgi(magazaId: string): Promise<MagazaBilgi | nu
     ana_norm: normSatiri?.ana_kadro_norm ?? 0, ana_dolu: dolu.ANA_KADRO,
     donemsel_norm: normSatiri?.donemsel_norm ?? 0, donemsel_dolu: dolu.DONEMSEL,
     part_norm: normSatiri?.part_time_norm ?? 0, part_dolu: dolu.PART_TIME,
-    hgoGecmisi: (hgoGecmisiHam ?? []).map((h: any) => ({ yil: h.yil, ay: h.ay, hgo: h.hgo })),
+    aylikVeri: (aylikVeriHam ?? []) as MagazaAylikSatiri[],
     calisanlar,
   };
 }
