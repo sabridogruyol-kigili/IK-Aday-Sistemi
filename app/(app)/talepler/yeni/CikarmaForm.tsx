@@ -404,6 +404,31 @@ export default function CikarmaForm({
                 </div>
               </div>
 
+              <div className="pt-2 border-t border-gray-100">
+                <div className="text-[9px] text-gray-400 uppercase mb-1.5">
+                  Kıdem Tazminatı Tahmini <span className="normal-case text-gray-400">(prim ve ek ücretler hariç)</span>
+                </div>
+                {detay.brut_maas == null ? (
+                  <div className="text-[11px] text-gray-400 bg-gray-50 rounded-md px-2.5 py-2">
+                    Bu personel için maaş bilgisi girilmemiş — Ayarlar &gt; Maaş Bilgileri'nden ekleyebilirsiniz.
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-md px-2.5 py-2">
+                    <div className="text-sm font-mono font-semibold text-navy-3">
+                      {detay.kidem_tazminati_tahmini != null
+                        ? `${detay.kidem_tazminati_tahmini.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
+                        : "—"}
+                    </div>
+                    <div className="text-[10px] text-gray-400 mt-0.5">
+                      Brüt maaş: {detay.brut_maas.toLocaleString("tr-TR")} TL
+                      {detay.kidem_tazminati_tavani != null && detay.brut_maas > detay.kidem_tazminati_tavani && (
+                        <> — tavan aşıldığı için {detay.kidem_tazminati_tavani.toLocaleString("tr-TR")} TL üzerinden hesaplandı</>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {detay.notlar && (
                 <div className="bg-gray-50 rounded-md p-2">
                   <div className="text-[9px] text-gray-500 uppercase font-semibold mb-0.5">Not</div>
