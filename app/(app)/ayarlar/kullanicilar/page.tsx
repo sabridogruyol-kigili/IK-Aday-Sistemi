@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createKullanici, toggleAktif } from "./actions";
 import BolgeDropdown from "./BolgeDropdown";
+import KullaniciDuzenle from "./KullaniciDuzenle";
 
 export default async function KullanicilarPage() {
   const supabase = createClient();
@@ -33,9 +34,11 @@ export default async function KullanicilarPage() {
     ]);
 
   const bolgeAdMap: Record<string, string[]> = {};
+  const bolgeIdMap: Record<string, string[]> = {};
   (atamalar ?? []).forEach((a: any) => {
     const ad = a.bolgeler?.ad ?? "?";
     bolgeAdMap[a.kullanici_id] = [...(bolgeAdMap[a.kullanici_id] ?? []), ad];
+    bolgeIdMap[a.kullanici_id] = [...(bolgeIdMap[a.kullanici_id] ?? []), a.bolge_id];
   });
 
   return (
@@ -131,13 +134,21 @@ export default async function KullanicilarPage() {
                   )}
                 </td>
                 <td className="px-3 py-2">
-                  <form action={toggleAktif}>
-                    <input type="hidden" name="id" value={k.id} />
-                    <input type="hidden" name="aktif" value={String(!k.aktif)} />
-                    <button className="text-xs text-info underline">
-                      {k.aktif ? "Pasife al" : "Aktif et"}
-                    </button>
-                  </form>
+                  <div className="flex flex-col items-start gap-1.5">
+                    <KullaniciDuzenle
+                      kullaniciId={k.id}
+                      mevcutRol={k.rol}
+                      mevcutBolgeIdler={bolgeIdMap[k.id] ?? []}
+                      bolgeler={bolgeler ?? []}
+                    />
+                    <form action={toggleAktif}>
+                      <input type="hidden" name="id" value={k.id} />
+                      <input type="hidden" name="aktif" value={String(!k.aktif)} />
+                      <button className="text-xs text-info underline">
+                        {k.aktif ? "Pasife al" : "Aktif et"}
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}
