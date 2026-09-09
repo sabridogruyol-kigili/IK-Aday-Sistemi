@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { createRotasyonTalebi } from "./actions-rotasyon";
 import { getMagazaBilgi, type MagazaBilgi } from "./actions-magaza-bilgi";
+import MagazaGrafikPaneli from "./MagazaGrafikPaneli";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -73,10 +73,6 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
       setMagazaBilgiYukleniyor(false);
     });
   }, [hedefMagazaId]);
-
-  const hgoGrafikVerisi = (magazaBilgi?.hgoGecmisi ?? [])
-    .filter((h) => h.hgo !== null)
-    .map((h) => ({ etiket: `${AY_KISA[h.ay]} ${String(h.yil).slice(2)}`, hgo: h.hgo }));
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -190,20 +186,7 @@ export default function RotasyonForm({ personelListesi, magazalar }: { personelL
             )}
 
             <div>
-              <div className="text-[11px] font-semibold text-navy-3 mb-1">HGO (Ciro) — Aylık</div>
-              {hgoGrafikVerisi.length === 0 ? (
-                <div className="text-xs text-gray-400 py-6 text-center">Bu mağaza için performans verisi yok.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={hgoGrafikVerisi} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
-                    <YAxis tick={{ fontSize: 9 }} />
-                    <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="hgo" stroke="#0F1B4D" strokeWidth={2} dot={{ r: 2.5 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
+              <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" />
             </div>
 
             {magazaBilgi.calisanlar.length > 0 && (
