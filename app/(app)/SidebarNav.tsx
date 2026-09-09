@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavItem = { href: string; label: string; icon: string };
+type NavItem = { href: string; label: string; icon: string; disHref?: string };
 
 // Bağımlılık eklemeden, tek bir çizgi kalınlığı ve stiliyle tutarlı outline
 // ikon seti — önceki karışık Unicode sembol + emoji karışımının yerine.
@@ -38,6 +38,9 @@ const ICONS: Record<string, React.ReactNode> = {
   ayarlar: (
     <><circle cx="12" cy="12" r="3" /><path d="M19.4 13a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1-1.55V4a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10c.14.42.42.8 1.55 1H20a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" /></>
   ),
+  terfi: (
+    <><path d="M12 2l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 8.2l5.9-.9L12 2Z" /><path d="M12 22v-4" /></>
+  ),
 };
 
 function NavIcon({ name }: { name: string }) {
@@ -54,6 +57,26 @@ export default function SidebarNav({ items }: { items: NavItem[] }) {
   return (
     <nav className="py-2 flex-1 overflow-y-auto">
       {items.map((item) => {
+        // Dış bağlantılar (örn. Streamlit uygulaması) Next.js yönlendirmesinden
+        // geçmez, yeni sekmede düz bir <a> ile açılır — aktif/pasif durumu yok.
+        if (item.disHref) {
+          return (
+            <a
+              key={item.href}
+              href={item.disHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 px-4 py-2 text-[13px] border-l-[3px] border-l-transparent text-white/55 hover:bg-white/10 hover:text-white/90 transition-colors"
+            >
+              <span className="w-4 shrink-0 flex items-center justify-center">
+                <NavIcon name={item.icon} />
+              </span>
+              {item.label}
+              <span className="text-[9px] text-white/30 ml-auto">↗</span>
+            </a>
+          );
+        }
+
         // "/talepler" tam eşleşmesin diye "/talepler/yeni" öncelikli kontrol edilir.
         const aktif = item.href === "/talepler"
           ? pathname === "/talepler"
