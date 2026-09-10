@@ -111,6 +111,7 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
   const [detay, setDetay] = useState<EvrakDetay | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hatirlatmaGonderildi, setHatirlatmaGonderildi] = useState(false);
+  const [hatirlatmaHata, setHatirlatmaHata] = useState<string | null>(null);
 
   useEffect(() => {
     getEvrakDetay(personelId).then((d) => { setDetay(d); setYukleniyor(false); });
@@ -128,9 +129,13 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
   }
 
   function hatirlat() {
+    setHatirlatmaHata(null);
     const fd = new FormData();
     fd.set("personel_id", personelId);
-    hatirlatmaGonder(fd).then((res) => { if (!res?.error) setHatirlatmaGonderildi(true); });
+    hatirlatmaGonder(fd).then((res) => {
+      if (res?.error) setHatirlatmaHata(res.error);
+      else setHatirlatmaGonderildi(true);
+    });
   }
 
   function yasHesapla(dogumTarihi: string | null): number | null {
@@ -181,7 +186,7 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                 </div>
               </div>
 
-              <div className="flex justify-end mb-1">
+              <div className="flex flex-col items-end gap-1 mb-1">
                 <button onClick={hatirlat} disabled={hatirlatmaGonderildi}
                   className={`text-[11px] font-medium rounded-md px-3 py-1.5 transition-colors ${
                     hatirlatmaGonderildi
@@ -190,6 +195,7 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                   }`}>
                   {hatirlatmaGonderildi ? "Hatırlatma Gönderildi ✓" : "Adaya Hatırlatma Gönder"}
                 </button>
+                {hatirlatmaHata && <div className="text-[11px] text-danger">{hatirlatmaHata}</div>}
               </div>
               {gorunurBelgeler.map((tanim) => (
                 <BelgeSatiri
