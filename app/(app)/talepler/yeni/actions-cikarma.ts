@@ -278,7 +278,7 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
 
   const { data } = await supabase
     .from("personel")
-    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, brut_maas, magazalar(il_adi)")
+    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, guncel_unvan, magazalar(il_adi)")
     .eq("id", personelId)
     .single();
 
@@ -294,7 +294,18 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
 
   const magazaHam = data as any;
   const kidemAy = kidemAyHesapla(atamalar ?? []);
-  const brutMaas = magazaHam.brut_maas as number | null;
+
+  // Maaş artık kişi bazlı değil, ünvan bazlı tek bir tabloda tutuluyor —
+  // kişinin güncel ünvanına göre karşılık gelen maaş burada aranır.
+  let brutMaas: number | null = null;
+  if (magazaHam.guncel_unvan) {
+    const { data: unvanMaasKaydi } = await supabase
+      .from("unvan_maas")
+      .select("brut_maas")
+      .eq("unvan", magazaHam.guncel_unvan)
+      .maybeSingle();
+    brutMaas = unvanMaasKaydi?.brut_maas ?? null;
+  }
 
   // Basit tahmini kıdem tazminatı: (tavanı aşmayan brüt maaş) × kıdem yılı.
   // "Giydirilmiş ücret" değil, sade brüt maaş kullanılır — prim ve ek ücretler
