@@ -41,6 +41,9 @@ const ICONS: Record<string, React.ReactNode> = {
   terfi: (
     <><path d="M12 2l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 8.2l5.9-.9L12 2Z" /><path d="M12 22v-4" /></>
   ),
+  evrak: (
+    <><path d="M8 3h5l5 5v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M13 3v5h5" /><path d="M9 13h6" /><path d="M9 17h4" /></>
+  ),
 };
 
 function NavIcon({ name }: { name: string }) {
