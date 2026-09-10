@@ -140,6 +140,13 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
       hatalar.push({ satir: satirNo, hata: "TC Kimlik No, Adı-Soyadı, Departman Kodu veya İş Ünvanı Açıklaması eksik." });
       continue;
     }
+    // Bazı dosyalarda özet/junk satırlar isim yerine tek karakterlik bir
+    // yer tutucu ("-", "–", ".") içerebiliyor — bunlar gerçek bir isim
+    // sayılmaz, satır atlanır (Çalışan Performans importundaki aynı mantık).
+    if (/^[-–—.]+$/.test(adSoyad)) {
+      hatalar.push({ satir: satirNo, hata: `TC ${tcKimlikNo}: isim geçersiz ("${adSoyad}") — özet/junk satır olarak atlandı.` });
+      continue;
+    }
     const magazaId = magazaMap[departmanKodu];
     if (!magazaId) {
       hatalar.push({ satir: satirNo, hata: `Departman Kodu (${departmanKodu}) sistemde tanımlı bir mağaza koduna karşılık gelmiyor.` });
