@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
+import { uygulamaUrl } from "@/lib/appUrl";
 
 // "cv-dosyalar" bucket'ı private olduğu için CV'yi görüntülemek geçici
 // (süreli) bir signed URL gerektirir. 5 dakikalık süre, bir kişinin CV'yi
@@ -221,6 +222,37 @@ export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
       subject: "İşe Alım Süreciniz Tamamlandı",
       text: `Sayın ${aday.ad_soyad},\n\nİşe alım süreciniz başarıyla tamamlanmıştır. Aramıza hoş geldiniz.\n\nİyi günler dileriz.`,
     }).catch(() => {});
+
+    // Aday Evrak Portalı: TC ile eşleşen (az önce oluşturulmuş) personel
+    // kaydı bulunup, işe giriş evraklarını tamamlaması için süreli bir
+    // bağlantı üretilip e-postayla gönderilir.
+    if (aday.tc_kimlik_no) {
+      const { data: yeniPersonel } = await supabase
+        .from("personel")
+        .select("id")
+        .eq("tc_kimlik_no", aday.tc_kimlik_no)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (yeniPersonel) {
+        const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+        const { error: tokenHata } = await supabase.from("evrak_erisim_tokenlari").insert({
+          personel_id: yeniPersonel.id,
+          token,
+          email: aday.email,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+        if (!tokenHata) {
+          const link = `${uygulamaUrl()}/evrak-portali/${token}`;
+          sendMail({
+            to: aday.email,
+            subject: "İşe Giriş Evraklarınızı Tamamlayın",
+            text: `Sayın ${aday.ad_soyad},\n\nİşe giriş evraklarınızı aşağıdaki bağlantı üzerinden kolayca tamamlayabilirsiniz:\n\n${link}\n\nSüreci istediğiniz zaman yarıda bırakıp aynı bağlantıdan devam edebilirsiniz.\n\nİyi günler dileriz.`,
+          }).catch(() => {});
+        }
+      }
+    }
   }
 
   return {
