@@ -6,7 +6,13 @@ import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
 
 export type EvrakDetay = {
+  ad_soyad: string;
+  email: string | null;
+  telefon: string | null;
   cinsiyet: string | null;
+  dogum_tarihi: string | null;
+  medeni_hal: string | null;
+  iban: string | null;
   belgeler: { id: string; belge_tipi: string; dosya_yollari: string[]; durum: string; red_nedeni: string | null; red_aciklama: string | null; ik_notu: string | null }[];
 };
 
@@ -15,13 +21,39 @@ export async function getEvrakDetay(personelId: string): Promise<EvrakDetay | nu
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: bilgi }, { data: belgeler }] = await Promise.all([
-    supabase.from("personel_evrak_bilgileri").select("cinsiyet").eq("personel_id", personelId).maybeSingle(),
+  const [{ data: personel }, { data: bilgi }, { data: token }, { data: belgeler }] = await Promise.all([
+    supabase.from("personel").select("ad_soyad, tc_kimlik_no, cinsiyet, dogum_tarihi").eq("id", personelId).maybeSingle(),
+    supabase.from("personel_evrak_bilgileri").select("cinsiyet, medeni_hal, iban").eq("personel_id", personelId).maybeSingle(),
+    supabase.from("evrak_erisim_tokenlari").select("email").eq("personel_id", personelId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("personel_evrak_belgeleri").select("id, belge_tipi, dosya_yollari, durum, red_nedeni, red_aciklama, ik_notu").eq("personel_id", personelId),
   ]);
 
+  // personel.cinsiyet/dogum_tarihi genelde Personel Şablonu importundan gelir;
+  // "İşe Al" ile oluşan yeni kayıtlarda boş olabilir — bu durumda, aynı TC
+  // Kimlik No'ya sahip orijinal aday kaydındaki (aday eklerken girilen)
+  // değerlere geri dönülür.
+  let cinsiyet = personel?.cinsiyet ?? bilgi?.cinsiyet ?? null;
+  let dogumTarihi = personel?.dogum_tarihi ?? null;
+  if ((!cinsiyet || !dogumTarihi) && personel?.tc_kimlik_no) {
+    const { data: aday } = await supabase
+      .from("adaylar")
+      .select("cinsiyet, dogum_tarihi")
+      .eq("tc_kimlik_no", personel.tc_kimlik_no)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    cinsiyet = cinsiyet ?? aday?.cinsiyet ?? null;
+    dogumTarihi = dogumTarihi ?? aday?.dogum_tarihi ?? null;
+  }
+
   return {
-    cinsiyet: bilgi?.cinsiyet ?? null,
+    ad_soyad: personel?.ad_soyad ?? "",
+    email: token?.email ?? null,
+    telefon: null,
+    cinsiyet,
+    dogum_tarihi: dogumTarihi,
+    medeni_hal: bilgi?.medeni_hal ?? null,
+    iban: bilgi?.iban ?? null,
     belgeler: belgeler ?? [],
   };
 }
