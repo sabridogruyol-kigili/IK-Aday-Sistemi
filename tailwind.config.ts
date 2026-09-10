@@ -28,6 +28,17 @@ const config: Config = {
       borderRadius: {
         card: "6px",
       },
+      boxShadow: {
+        card: "0 1px 2px rgba(15, 27, 77, 0.04)",
+        "card-hover": "0 4px 12px -4px rgba(15, 27, 77, 0.18)",
+        button: "0 4px 10px -4px rgba(15, 27, 77, 0.35)",
+      },
+      backgroundImage: {
+        // Düz laciverdin yerine, sadece belirgin vurgu alanlarında (örn.
+        // panel başlıkları, evrak portalı üst şeridi) kullanılacak ince bir
+        // gradyan — her yere sürülmüyor, sadece bir "kahraman" alanda.
+        "navy-gradient": "linear-gradient(135deg, #0F1B4D 0%, #1B2E6B 100%)",
+      },
     },
   },
   plugins: [],
