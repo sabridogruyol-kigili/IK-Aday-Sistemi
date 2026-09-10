@@ -14,6 +14,7 @@ export default function AdayEkleModal({ talepId, onClose, onDone }: {
   const [telefon, setTelefon] = useState("");
   const [email, setEmail] = useState("");
   const [cinsiyet, setCinsiyet] = useState("");
+  const [dogumTarihi, setDogumTarihi] = useState("");
   const [hata, setHata] = useState<string | null>(null);
 
   const [cvYolu, setCvYolu] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export default function AdayEkleModal({ talepId, onClose, onDone }: {
     fd.set("telefon", telefon);
     fd.set("email", email);
     fd.set("cinsiyet", cinsiyet);
+    fd.set("dogum_tarihi", dogumTarihi);
     fd.set("cv_yolu", cvYolu);
     startTransition(async () => {
       const res = await yonlendirAday(fd);
@@ -102,6 +104,11 @@ export default function AdayEkleModal({ talepId, onClose, onDone }: {
               <option value="Erkek">Erkek</option>
               <option value="Belirtilmedi">Belirtilmedi</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Doğum Tarihi</label>
+            <input type="date" value={dogumTarihi} onChange={(e) => setDogumTarihi(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
           </div>
 
           <div>
