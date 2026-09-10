@@ -3,18 +3,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function guncelleMaas(formData: FormData): Promise<{ error?: string }> {
+export async function guncelleUnvanMaasi(formData: FormData): Promise<{ error?: string }> {
   const supabase = createClient();
-  const personelId = String(formData.get("personel_id") ?? "");
+  const unvan = String(formData.get("unvan") ?? "");
   const brutMaasHam = String(formData.get("brut_maas") ?? "").trim();
-  if (!personelId) return { error: "Personel bulunamadı." };
+  if (!unvan) return { error: "Ünvan bulunamadı." };
 
   const brutMaas = brutMaasHam === "" ? null : Number(brutMaasHam.replace(",", "."));
   if (brutMaasHam !== "" && (brutMaas === null || isNaN(brutMaas) || brutMaas < 0)) {
     return { error: "Geçerli bir maaş tutarı girin." };
   }
 
-  const { error } = await supabase.from("personel").update({ brut_maas: brutMaas }).eq("id", personelId);
+  const { error } = await supabase
+    .from("unvan_maas")
+    .upsert({ unvan, brut_maas: brutMaas, updated_at: new Date().toISOString() });
   if (error) return { error: error.message };
 
   revalidatePath("/ayarlar/maas-bilgileri");
