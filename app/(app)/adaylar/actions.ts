@@ -81,6 +81,7 @@ export async function yonlendirAday(formData: FormData) {
   const telefon = String(formData.get("telefon") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const cinsiyet = String(formData.get("cinsiyet") ?? "").trim();
+  const dogumTarihi = String(formData.get("dogum_tarihi") ?? "").trim();
   const cvYolu = String(formData.get("cv_yolu") ?? "").trim();
 
   if (!adSoyad) return { error: "Aday adı zorunlu." };
@@ -95,6 +96,7 @@ export async function yonlendirAday(formData: FormData) {
     telefon: telefon || null,
     email: email,
     cinsiyet: cinsiyet || null,
+    dogum_tarihi: dogumTarihi || null,
     cv_drive_link: cvYolu,
     yonlendiren_kullanici_id: me.id,
     yonlendiren_rol: me.rol,
