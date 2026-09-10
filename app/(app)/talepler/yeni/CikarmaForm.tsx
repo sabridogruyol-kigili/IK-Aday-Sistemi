@@ -320,7 +320,7 @@ export default function CikarmaForm({
                 </div>
                 {detay.brut_maas == null ? (
                   <div className="text-[11px] text-gray-400 bg-gray-50 rounded-md px-2.5 py-2">
-                    Bu personel için maaş bilgisi girilmemiş — Ayarlar &gt; Maaş Bilgileri'nden ekleyebilirsiniz.
+                    Bu personelin ünvanı için maaş bilgisi girilmemiş — Ayarlar &gt; Maaş Bilgileri'nden ekleyebilirsiniz.
                   </div>
                 ) : (
                   <div className="bg-gray-50 rounded-md px-2.5 py-2">
