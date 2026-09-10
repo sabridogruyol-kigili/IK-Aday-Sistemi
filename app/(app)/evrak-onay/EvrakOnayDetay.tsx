@@ -133,7 +133,26 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
     hatirlatmaGonder(fd).then((res) => { if (!res?.error) setHatirlatmaGonderildi(true); });
   }
 
+  function yasHesapla(dogumTarihi: string | null): number | null {
+    if (!dogumTarihi) return null;
+    const dogum = new Date(dogumTarihi);
+    if (isNaN(dogum.getTime())) return null;
+    const simdi = new Date();
+    let yas = simdi.getFullYear() - dogum.getFullYear();
+    const ayFarki = simdi.getMonth() - dogum.getMonth();
+    if (ayFarki < 0 || (ayFarki === 0 && simdi.getDate() < dogum.getDate())) yas--;
+    return yas;
+  }
+
+  function tarihFormat(t: string | null): string {
+    if (!t) return "—";
+    const d = new Date(t);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
   const gorunurBelgeler = BELGE_LISTESI.filter((b) => belgeGorunurMu(b, detay?.cinsiyet ?? null));
+  const yas = yasHesapla(detay?.dogum_tarihi ?? null);
 
   return (
     <div className="fixed inset-0 bg-navy-3/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -150,10 +169,26 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
             </div>
           ) : (
             <>
+              <div className="bg-gray-50 rounded-md p-3 mb-1">
+                <div className="text-[10px] font-semibold text-navy-3 uppercase mb-2">Kişi Bilgileri</div>
+                <div className="grid grid-cols-2 gap-2.5 text-[11px]">
+                  <div><span className="text-gray-400">E-posta: </span><span className="text-navy-3">{detay?.email ?? "—"}</span></div>
+                  <div><span className="text-gray-400">Cinsiyet: </span><span className="text-navy-3">{detay?.cinsiyet ?? "—"}</span></div>
+                  <div><span className="text-gray-400">Doğum Tarihi: </span><span className="text-navy-3">{tarihFormat(detay?.dogum_tarihi ?? null)}</span></div>
+                  <div><span className="text-gray-400">Yaş: </span><span className="text-navy-3">{yas ?? "—"}</span></div>
+                  <div><span className="text-gray-400">Medeni Hal: </span><span className="text-navy-3">{detay?.medeni_hal ?? "—"}</span></div>
+                  <div><span className="text-gray-400">IBAN: </span><span className="text-navy-3 font-mono">{detay?.iban ?? "—"}</span></div>
+                </div>
+              </div>
+
               <div className="flex justify-end mb-1">
                 <button onClick={hatirlat} disabled={hatirlatmaGonderildi}
-                  className="text-[11px] text-info hover:underline disabled:opacity-50 disabled:no-underline">
-                  {hatirlatmaGonderildi ? "Hatırlatma gönderildi ✓" : "Adaya Hatırlatma Gönder"}
+                  className={`text-[11px] font-medium rounded-md px-3 py-1.5 transition-colors ${
+                    hatirlatmaGonderildi
+                      ? "bg-success-bg text-success cursor-default"
+                      : "bg-white border border-info/40 text-info hover:bg-info/5"
+                  }`}>
+                  {hatirlatmaGonderildi ? "Hatırlatma Gönderildi ✓" : "Adaya Hatırlatma Gönder"}
                 </button>
               </div>
               {gorunurBelgeler.map((tanim) => (
