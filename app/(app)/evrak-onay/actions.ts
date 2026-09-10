@@ -126,11 +126,17 @@ export async function hatirlatmaGonder(formData: FormData): Promise<{ error?: st
 
   if (token.email) {
     const link = `${uygulamaUrl()}/evrak-portali/${token.token}`;
-    await sendMail({
+    const sonuc = await sendMail({
       to: token.email,
       subject: "İşe Giriş Evraklarınız — Hatırlatma",
       text: `Sayın ${personel?.ad_soyad ?? ""},\n\nİşe giriş evrak sürecinizde eksik belgeler bulunuyor. Aşağıdaki bağlantıdan devam edebilirsiniz:\n\n${link}\n\nİyi günler dileriz.`,
-    }).catch(() => {});
+    });
+    // sendMail hata fırlatmıyor, {error} döndürüyor — önceden bu hiç
+    // kontrol edilmiyordu, mail gerçekten gitmese bile "gönderildi"
+    // görünüyordu. Artık gerçek hata varsa gösteriliyor.
+    if (sonuc.error) return { error: "Mail gönderilemedi: " + sonuc.error };
+  } else {
+    return { error: "Bu kişi için kayıtlı bir e-posta adresi yok." };
   }
 
   revalidatePath("/evrak-onay");
