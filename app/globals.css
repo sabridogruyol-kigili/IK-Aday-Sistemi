@@ -56,3 +56,77 @@ input:focus, select:focus, textarea:focus {
   border-radius: 50%;
   animation: donme 0.7s linear infinite;
 }
+
+/* ============================================================
+   ETKİLEŞİM CİLASI — sistemin genelinde, tek yerden.
+   İlke: sadece GERÇEKTEN etkileşimli öğeler tepki verir (buton, sekme,
+   tıklanabilir satır) — statik kartlara/panellere genel bir hover eklenmedi,
+   bu "her yere aynı efekt" görünümüne kaçmamak içindir.
+   ============================================================ */
+
+/* Her buton, link ve tıklanabilir öğe artık anında değil, yumuşak geçişle
+   renk/gölge/konum değiştiriyor — sayfalardaki tüm mevcut hover: sınıfları
+   (bg-navy hover:bg-navy-2 gibi) tek bu kuralla akıcı hâle geliyor,
+   bileşenlere tek tek dokunmaya gerek kalmadan. */
+button, a, [role="button"], select {
+  transition: background-color 150ms ease, border-color 150ms ease,
+    color 150ms ease, box-shadow 150ms ease, transform 100ms ease,
+    opacity 150ms ease;
+}
+
+/* Dolu (birincil) butonlara gerçek bir basma/kalkma hissi — sadece renk
+   değil, hafif bir yükselme ve gölge. Disabled ve ghost/outline butonlar
+   bu efekti almaz (zaten arka planları yok, tutarsız görünürdü). */
+button:not(:disabled)[class*="bg-navy"]:hover,
+button:not(:disabled)[class*="bg-success"]:hover,
+button:not(:disabled)[class*="bg-danger"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -4px rgba(15, 27, 77, 0.35);
+}
+button:not(:disabled)[class*="bg-"]:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Kartlara ("rounded-card" ile işaretli, sistemin standart kart birimi)
+   önceden hiç yoktu; artık ince bir derinlik var — genel SaaS kitindeki
+   düz gri gölge yerine, markanın lacivertine yaslanan, çok hafif bir ton. */
+.rounded-card {
+  box-shadow: 0 1px 2px rgba(15, 27, 77, 0.04);
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+/* Tablo satırları — çoğu listede satırlar tıklanabilir bir "Detay" butonu
+   içeriyor; satırın kendisi de hafifçe aydınlanınca nereye tıklanacağı
+   daha belirgin oluyor. */
+table tbody tr {
+  transition: background-color 120ms ease;
+}
+table tbody tr:hover {
+  background-color: #FAFAF8;
+}
+
+/* Durum rozetleri (Onaylandı/Reddedildi/Beklemede gibi "rounded-full" veya
+   "rounded" küçük etiketler) artık biraz daha canlı — kenarlarına ait
+   renkte ince bir çerçeve eklenince, düz dolgu yerine daha "mürekkep"
+   hissi veriyor. */
+span[class*="rounded-full"][class*="bg-success-bg"],
+span[class*="rounded"][class*="bg-success-bg"] {
+  box-shadow: inset 0 0 0 1px rgba(47, 111, 78, 0.18);
+}
+span[class*="rounded-full"][class*="bg-danger-bg"],
+span[class*="rounded"][class*="bg-danger-bg"] {
+  box-shadow: inset 0 0 0 1px rgba(176, 64, 46, 0.18);
+}
+span[class*="rounded-full"][class*="bg-info-bg"],
+span[class*="rounded"][class*="bg-info-bg"] {
+  box-shadow: inset 0 0 0 1px rgba(62, 124, 177, 0.18);
+}
+
+/* Hareketi azaltmayı tercih eden kullanıcılar için tüm geçişler kapanır. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+  }
+}
