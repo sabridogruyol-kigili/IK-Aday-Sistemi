@@ -244,6 +244,32 @@ function kidemAyHesapla(donemler: { baslama_tarihi: string | null; ayrilma_tarih
   return Math.max((simdi.getFullYear() - donemBaslangic.getFullYear()) * 12 + (simdi.getMonth() - donemBaslangic.getMonth()), 0);
 }
 
+export type PersonelIsGecmisiSatiri = {
+  magaza_adi: string;
+  baslama_tarihi: string | null;
+  ayrilma_tarihi: string | null;
+};
+
+// Kişinin geçmişte çalıştığı tüm mağazaları (mevcut dahil), başlama/ayrılma
+// tarihleriyle birlikte döndürür — en yeni atama en üstte.
+export async function getPersonelIsGecmisi(personelId: string): Promise<PersonelIsGecmisiSatiri[]> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("personel_atama_gecmisi")
+    .select("baslama_tarihi, ayrilma_tarihi, magazalar!magaza_id(magaza_adi)")
+    .eq("personel_id", personelId)
+    .order("baslama_tarihi", { ascending: false });
+
+  return (data ?? []).map((d: any) => ({
+    magaza_adi: d.magazalar?.magaza_adi ?? "—",
+    baslama_tarihi: d.baslama_tarihi,
+    ayrilma_tarihi: d.ayrilma_tarihi,
+  }));
+}
+
 export async function getPersonelDetay(personelId: string): Promise<PersonelDetay | null> {
   if (!personelId) return null;
   const supabase = createClient();
