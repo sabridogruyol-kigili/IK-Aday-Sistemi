@@ -11,6 +11,7 @@ const navItems = [
   { href: "/onay-bekleyenler", label: "Onay Bekleyenler", icon: "onay" },
   { href: "/personel", label: "Personel Listesi", icon: "personel" },
   { href: "/adaylar", label: "Aday Havuzu", icon: "adaylar" },
+  { href: "/evrak-onay", label: "Evrak Onay", icon: "evrak" },
   { href: "/raporlar", label: "Raporlar", icon: "raporlar" },
   { href: "/terfi-degerlendirme", label: "Terfi-Jüri Değerlendirme", icon: "terfi", disHref: "https://kigili-insankaynaklaridirektorlugu-terfi2026.streamlit.app/" },
   { href: "/ayarlar/kullanicilar", label: "Ayarlar", icon: "ayarlar" },
@@ -45,6 +46,7 @@ export default async function AppLayout({
 
   const visibleNavItems = navItems.filter((item) => {
     if (item.href === "/ayarlar/kullanicilar" && profile?.rol !== "YONETIM") return false;
+    if (item.href === "/evrak-onay" && profile?.rol !== "IK" && profile?.rol !== "YONETIM") return false;
     if (profile?.rol === "MAGAZALAR_DIREKTORLUGU" && !DIREKTOR_GORUNUR_HREFLER.has(item.href)) return false;
     return true;
   });
