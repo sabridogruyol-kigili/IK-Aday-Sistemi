@@ -103,6 +103,7 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 text-[10px] text-navy-3/70 uppercase tracking-wide border-b-2 border-navy">
+              <th className="text-left p-3"></th>
               <th className="text-left p-3">Ad Soyad</th>
               <th className="text-left p-3">Ünvan</th>
               <th className="text-left p-3">Kategori</th>
@@ -116,7 +117,7 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
           <tbody>
             {filtrelenmis.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-gray-400 text-xs">
+                <td colSpan={9} className="p-8 text-center text-gray-400 text-xs">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-2 opacity-50">
                     <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
                   </svg>
@@ -126,11 +127,13 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
             )}
             {filtrelenmis.map((s) => (
               <tr key={s.id} className="border-t border-gray-100">
-                <td className="p-3 font-medium">
-                  <button onClick={() => setSecili(s)} className="text-navy-3 hover:text-info hover:underline text-left">
-                    {s.ad_soyad}
+                <td className="p-3">
+                  <button onClick={() => setSecili(s)}
+                    className="text-[10px] bg-white border border-gray-300 text-gray-600 rounded-md px-2 py-1 hover:bg-gray-50 hover:border-navy hover:text-navy transition-colors">
+                    Detay
                   </button>
                 </td>
+                <td className="p-3 font-medium text-navy-3">{s.ad_soyad}</td>
                 <td className="p-3 text-xs text-gray-600">{s.guncel_unvan || "—"}</td>
                 <td className="p-3 text-xs text-gray-500">{KATEGORI_LABEL[s.kadro_kategorisi] ?? "—"}</td>
                 <td className="p-3 text-xs text-gray-600">{s.magaza_adi || "—"}</td>
