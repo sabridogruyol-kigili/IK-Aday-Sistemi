@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
+import PersonelDetayModal from "./PersonelDetayModal";
 
 type Satir = {
   id: string;
@@ -30,6 +31,7 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
   const [magazaFiltre, setMagazaFiltre] = useState("");
   const [kategoriFiltre, setKategoriFiltre] = useState("");
   const [durumFiltre, setDurumFiltre] = useState<"aktif" | "tumu">("aktif");
+  const [secili, setSecili] = useState<Satir | null>(null);
 
   const bolgeler = useMemo(
     () => Array.from(new Set(satirlar.map((s) => s.bolge_adi).filter(Boolean))).sort(),
@@ -124,7 +126,11 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
             )}
             {filtrelenmis.map((s) => (
               <tr key={s.id} className="border-t border-gray-100">
-                <td className="p-3 font-medium text-navy-3">{s.ad_soyad}</td>
+                <td className="p-3 font-medium">
+                  <button onClick={() => setSecili(s)} className="text-navy-3 hover:text-info hover:underline text-left">
+                    {s.ad_soyad}
+                  </button>
+                </td>
                 <td className="p-3 text-xs text-gray-600">{s.guncel_unvan || "—"}</td>
                 <td className="p-3 text-xs text-gray-500">{KATEGORI_LABEL[s.kadro_kategorisi] ?? "—"}</td>
                 <td className="p-3 text-xs text-gray-600">{s.magaza_adi || "—"}</td>
@@ -145,6 +151,15 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
           </tbody>
         </table>
       </div>
+      {secili && (
+        <PersonelDetayModal
+          personelId={secili.id}
+          adSoyad={secili.ad_soyad}
+          guncelUnvan={secili.guncel_unvan}
+          magazaAdi={secili.magaza_adi}
+          onClose={() => setSecili(null)}
+        />
+      )}
     </div>
   );
 }
