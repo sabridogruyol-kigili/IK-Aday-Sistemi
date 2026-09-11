@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
+import { mailIskelet, tarihTr, evrakSonTarih } from "@/lib/mailSablon";
 
 // "cv-dosyalar" bucket'ı private olduğu için CV'yi görüntülemek geçici
 // (süreli) bir signed URL gerektirir. 5 dakikalık süre, bir kişinin CV'yi
@@ -219,15 +220,12 @@ export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
 
   // Mail gönderimini beklemeden (arka planda) tetikle — SMTP round-trip'i kullanıcıyı bekletmesin.
   if (yeniDurum === "ISE_ALINDI" && aday?.email) {
-    sendMail({
-      to: aday.email,
-      subject: "İşe Alım Süreciniz Tamamlandı",
-      text: `Sayın ${aday.ad_soyad},\n\nİşe alım süreciniz başarıyla tamamlanmıştır. Aramıza hoş geldiniz.\n\nİyi günler dileriz.`,
-    }).catch(() => {});
+    // Önce evrak portalı token'ı oluşturulur (varsa), sonra TEK, zengin bir
+    // mailde hem onay hem işe başlama tarihi hem evrak son tarihi hem de
+    // portal bağlantısı buton olarak birlikte gönderilir — önceden iki ayrı
+    // mail gidiyordu, artık tek ve daha bilgilendirici bir mail gidiyor.
+    let portalLink: string | null = null;
 
-    // Aday Evrak Portalı: TC ile eşleşen (az önce oluşturulmuş) personel
-    // kaydı bulunup, işe giriş evraklarını tamamlaması için süreli bir
-    // bağlantı üretilip e-postayla gönderilir.
     if (aday.tc_kimlik_no) {
       const { data: yeniPersonel } = await supabase
         .from("personel")
@@ -245,16 +243,32 @@ export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
           email: aday.email,
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         });
-        if (!tokenHata) {
-          const link = `${uygulamaUrl()}/evrak-portali/${token}`;
-          sendMail({
-            to: aday.email,
-            subject: "İşe Giriş Evraklarınızı Tamamlayın",
-            text: `Sayın ${aday.ad_soyad},\n\nİşe giriş evraklarınızı aşağıdaki bağlantı üzerinden kolayca tamamlayabilirsiniz:\n\n${link}\n\nSüreci istediğiniz zaman yarıda bırakıp aynı bağlantıdan devam edebilirsiniz.\n\nİyi günler dileriz.`,
-          }).catch(() => {});
-        }
+        if (!tokenHata) portalLink = `${uygulamaUrl()}/evrak-portali/${token}`;
       }
     }
+
+    const baslamaTarihiMetni = tarihTr(aday.ise_baslama_tarihi);
+    const evrakSonTarihMetni = evrakSonTarih(aday.ise_baslama_tarihi);
+
+    const govde = `
+      <p style="margin: 0 0 14px;">Sayın <strong>${aday.ad_soyad}</strong>,</p>
+      <p style="margin: 0 0 14px;">İşe alım süreciniz başarıyla <strong>onaylanmıştır</strong>. Aramıza katılacağınız için çok mutluyuz — birlikte çalışmak için sabırsızlanıyoruz!</p>
+      <p style="margin: 0 0 6px;"><strong>İşe başlama tarihiniz:</strong> ${baslamaTarihiMetni}</p>
+      ${portalLink ? `<p style="margin: 0 0 14px;"><strong>İşe giriş evraklarınızı</strong> aşağıdaki bağlantı üzerinden, <strong>${evrakSonTarihMetni}</strong> tamamlamanız gerekmektedir.</p>` : ""}
+      <p style="margin: 14px 0 0;">Süreci istediğiniz zaman yarıda bırakıp aynı bağlantıdan devam edebilirsiniz.</p>
+    `;
+
+    sendMail({
+      to: aday.email,
+      subject: "İşe Alımınız Onaylandı — Aramıza Hoş Geldiniz",
+      text: `Sayın ${aday.ad_soyad},\n\nİşe alım süreciniz başarıyla onaylanmıştır. İşe başlama tarihiniz: ${baslamaTarihiMetni}.${portalLink ? ` İşe giriş evraklarınızı ${evrakSonTarihMetni} şu bağlantıdan tamamlayın: ${portalLink}` : ""}\n\nBirlikte çalışmak için sabırsızlanıyoruz!`,
+      html: mailIskelet({
+        baslik: "İşe Alımınız Onaylandı 🎉",
+        govdeHtml: govde,
+        butonMetni: portalLink ? "İşe Giriş Evraklarını Tamamla" : undefined,
+        butonLink: portalLink ?? undefined,
+      }),
+    }).catch(() => {});
   }
 
   return {
