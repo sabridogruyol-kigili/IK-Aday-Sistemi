@@ -33,11 +33,16 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user && !request.nextUrl.pathname.startsWith("/login")) {
+  // /evrak-portali, adayların personel hesabı olmadan (sadece e-posta ile
+  // gönderilen süreli token'la) girdiği herkese açık bir alan — sistem
+  // girişinden (bu middleware'in koruduğu alan) tamamen ayrı, buraya hiç
+  // yönlendirme uygulanmaz.
+  const herkeseAcikYollar = ["/login", "/evrak-portali"];
+  const herkeseAcikMi = herkeseAcikYollar.some((yol) => request.nextUrl.pathname.startsWith(yol));
+
+  if (!user && !herkeseAcikMi) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
