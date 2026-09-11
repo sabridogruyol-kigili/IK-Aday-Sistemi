@@ -96,6 +96,9 @@ export type PortalVerisi = {
   email: string | null;
   bilgiler: any | null;
   belgeler: Record<BelgeTipi, { dosya_yollari: string[]; durum: string; red_nedeni: string | null; red_aciklama: string | null }>;
+  ikTelefon: string | null;
+  ikEmail: string | null;
+  ikCalismaSaatleri: string | null;
 };
 
 export async function getPortalVerisi(token: string, kod: string): Promise<PortalVerisi | { error: string }> {
@@ -120,6 +123,12 @@ export async function getPortalVerisi(token: string, kod: string): Promise<Porta
     .select("belge_tipi, dosya_yollari, durum, red_nedeni, red_aciklama")
     .eq("personel_id", dogrulama.personelId);
 
+  const { data: ayarlar } = await admin
+    .from("sistem_ayarlari")
+    .select("ik_telefon, ik_email, ik_calisma_saatleri")
+    .eq("id", 1)
+    .maybeSingle();
+
   const belgeler: any = {};
   BELGE_LISTESI.forEach((b) => {
     const satir = (belgelerHam ?? []).find((s: any) => s.belge_tipi === b.id);
@@ -135,6 +144,9 @@ export async function getPortalVerisi(token: string, kod: string): Promise<Porta
     telefon: bilgiler?.telefon ?? null,
     email: bilgiler?.email ?? null,
     bilgiler: bilgiler ?? null,
+    ikTelefon: ayarlar?.ik_telefon ?? null,
+    ikEmail: ayarlar?.ik_email ?? null,
+    ikCalismaSaatleri: ayarlar?.ik_calisma_saatleri ?? null,
     belgeler,
   };
 }
