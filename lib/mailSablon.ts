@@ -17,16 +17,16 @@ export function mailIskelet(opts: {
   ` : "";
 
   return `
-<div style="font-family: 'IBM Plex Sans', -apple-system, 'Segoe UI', Arial, sans-serif; background-color: #FAFAF8; padding: 40px 20px;">
+<div style="font-family: 'IBM Plex Sans', -apple-system, 'Segoe UI', Arial, sans-serif; padding: 40px 20px;">
   <div style="max-width: 460px; margin: 0 auto; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #e5e5e0;">
 
     <div style="background-color: #0F1B4D; padding: 24px 28px;">
       <div style="color: #ffffff; font-size: 15px; font-weight: 600; line-height: 1.4;">
-        İnsan Kaynakları<br />Aday ve Süreç Takip Sistemi
+        Kiğılı İnsan Kaynakları ve KYS Direktörlüğü
       </div>
     </div>
 
-    <div style="padding: 32px 28px;">
+    <div style="padding: 32px 28px; background-color: #ffffff;">
       <div style="color: #1C2430; font-size: 17px; font-weight: 600; margin-bottom: 16px;">
         ${opts.baslik}
       </div>
