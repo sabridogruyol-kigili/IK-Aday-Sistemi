@@ -12,6 +12,45 @@ const DURUM_ROZET: Record<string, { etiket: string; sinif: string }> = {
   REDDEDILDI: { etiket: "Reddedildi — Tekrar Yükleyin", sinif: "bg-danger-bg text-danger" },
 };
 
+const ADIM_LISTESI = [
+  { key: "bilgiler", no: 1, label: "Bilgileriniz" },
+  { key: "belgeler", no: 2, label: "Belgeler" },
+  { key: "hosgeldin", no: 3, label: "Hoş Geldiniz" },
+] as const;
+type AdimKey = typeof ADIM_LISTESI[number]["key"];
+
+function AdimGostergesi({ aktif, tamamlanan, onGit }: { aktif: AdimKey; tamamlanan: AdimKey[]; onGit: (a: AdimKey) => void }) {
+  return (
+    <div className="flex items-center justify-center gap-1.5 mb-4">
+      {ADIM_LISTESI.map((a, i) => {
+        const durum = a.key === aktif ? "aktif" : tamamlanan.includes(a.key) ? "tamam" : "bekliyor";
+        const tiklanabilir = durum === "tamam";
+        return (
+          <div key={a.key} className="flex items-center gap-1.5">
+            <button
+              onClick={() => tiklanabilir && onGit(a.key)}
+              disabled={!tiklanabilir}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors ${
+                durum === "aktif" ? "bg-navy text-white"
+                : durum === "tamam" ? "bg-success-bg text-success cursor-pointer hover:opacity-80"
+                : "bg-gray-100 text-gray-400 cursor-default"
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                durum === "aktif" ? "bg-white text-navy" : durum === "tamam" ? "bg-success text-white" : "bg-gray-300 text-white"
+              }`}>
+                {durum === "tamam" ? "✓" : a.no}
+              </span>
+              <span className="text-[10px] font-semibold hidden sm:inline">{a.label}</span>
+            </button>
+            {i < ADIM_LISTESI.length - 1 && <div className="w-3 h-px bg-gray-300" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BelgeKarti({
   tanim, durum, onYukle, yukleniyorMu,
 }: {
@@ -76,10 +115,17 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
   const [yukleyenBelge, setYukleyenBelge] = useState<BelgeTipi | null>(null);
   const [yuklemeHata, setYuklemeHata] = useState<string | null>(null);
 
+  const [adim, setAdim] = useState<AdimKey>("bilgiler");
+
   const cinsiyet = bilgiler.cinsiyet ?? null;
   const gorunurBelgeler = useMemo(() => BELGE_LISTESI.filter((b) => belgeGorunurMu(b, cinsiyet)), [cinsiyet]);
   const zorunluBelgeler = useMemo(() => gorunurBelgeler.filter((b) => !b.istegeBagli), [gorunurBelgeler]);
   const tamamlananSayisi = zorunluBelgeler.filter((b) => belgeler[b.id]?.durum === "ONAYLANDI" || belgeler[b.id]?.durum === "INCELEMEDE").length;
+  const belgelerTamam = zorunluBelgeler.length > 0 && tamamlananSayisi === zorunluBelgeler.length;
+
+  const tamamlananAdimlar: AdimKey[] = [];
+  if (bilgilerKaydedildi) tamamlananAdimlar.push("bilgiler");
+  if (belgelerTamam) tamamlananAdimlar.push("belgeler");
 
   function kvkkOnaylaTikla() {
     setKvkkPending(true);
@@ -99,6 +145,7 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
       formData.forEach((v, k) => { yeni[k] = v; });
       setBilgiler((b: any) => ({ ...b, ...yeni }));
       setBilgilerKaydedildi(true);
+      setAdim("belgeler");
     });
   }
 
@@ -148,6 +195,8 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
     <div className="min-h-screen bg-[#FAFAF8] p-4">
       <div className="max-w-md mx-auto space-y-4 pb-8">
         <PortalBaslik />
+        <AdimGostergesi aktif={adim} tamamlanan={tamamlananAdimlar} onGit={setAdim} />
+
         <div className="bg-navy rounded-card p-4 text-white">
           <div className="text-sm font-semibold">Merhaba {veri.ad_soyad}</div>
           <div className="text-[11px] text-white/60 mt-0.5">İşe giriş evrak süreciniz</div>
@@ -162,105 +211,156 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
           </div>
         </div>
 
-        {/* Kişisel Bilgiler / Durum Soruları / Adres */}
-        <div className="bg-white border border-gray-200 rounded-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-semibold text-navy-3">Bilgileriniz</div>
-            {bilgilerKaydedildi && <span className="text-[10px] bg-success-bg text-success px-2 py-0.5 rounded-full">Kaydedildi</span>}
-          </div>
-
-          <form action={bilgileriKaydetTikla} className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Cinsiyet *</label>
-                <select name="cinsiyet" required defaultValue={bilgiler.cinsiyet ?? ""} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
-                  <option value="">Seçin</option>
-                  <option value="Kadın">Kadın</option>
-                  <option value="Erkek">Erkek</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Medeni Hal *</label>
-                <select name="medeni_hal" required defaultValue={bilgiler.medeni_hal ?? ""} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
-                  <option value="">Seçin</option>
-                  <option value="Bekâr">Bekâr</option>
-                  <option value="Evli">Evli</option>
-                </select>
-              </div>
+        {adim === "bilgiler" && (
+          <div className="bg-white border border-gray-200 rounded-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-semibold text-navy-3">Bilgileriniz</div>
+              {bilgilerKaydedildi && <span className="text-[10px] bg-success-bg text-success px-2 py-0.5 rounded-full">Kaydedildi</span>}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Emeklilik Durumu</label>
-                <select name="emekli" defaultValue={String(bilgiler.emekli ?? false)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
-                  <option value="false">Emekli değilim</option>
-                  <option value="true">Emekliyim</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Engellilik Durumu</label>
-                <select name="engelli" defaultValue={String(bilgiler.engelli ?? false)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
-                  <option value="false">Yok</option>
-                  <option value="true">Var</option>
-                </select>
-                <div className="text-[10px] text-gray-400 mt-1">Cevabınız işe alım kararınızı etkilemez.</div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">IBAN</label>
-              <input name="iban" defaultValue={bilgiler.iban ?? ""} placeholder="TR.. .. .... .... .... .... .."
-                className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm font-mono" />
-            </div>
-
-            <div className="pt-2 border-t border-gray-100">
-              <div className="text-[11px] font-semibold text-navy-3 mb-2">İkamet Adresi</div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <select name="il" required defaultValue={bilgiler.il ?? ""} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
-                  <option value="">İl seçin</option>
-                  {ILLER.map((il) => <option key={il} value={il}>{il}</option>)}
-                </select>
-                <select name="ilce" required defaultValue={bilgiler.ilce ?? ""} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
-                  <option value="">İlçe seçin</option>
-                  {(ILCE[bilgiler.il] ?? "").split(",").filter(Boolean).map((i: string) => <option key={i} value={i}>{i}</option>)}
-                </select>
-              </div>
-              <input name="mahalle" defaultValue={bilgiler.mahalle ?? ""} placeholder="Mahalle / Köy" className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm mb-2" />
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <input name="cadde" defaultValue={bilgiler.cadde ?? ""} placeholder="Cadde" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
-                <input name="sokak" defaultValue={bilgiler.sokak ?? ""} placeholder="Sokak" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
-              </div>
+            <form action={bilgileriKaydetTikla} className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
-                <input name="bina_no" defaultValue={bilgiler.bina_no ?? ""} placeholder="Bina No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
-                <input name="daire_no" defaultValue={bilgiler.daire_no ?? ""} placeholder="Daire No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                <div>
+                  <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Cinsiyet *</label>
+                  <select name="cinsiyet" required defaultValue={bilgiler.cinsiyet ?? ""} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                    <option value="">Seçin</option>
+                    <option value="Kadın">Kadın</option>
+                    <option value="Erkek">Erkek</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Medeni Hal *</label>
+                  <select name="medeni_hal" required defaultValue={bilgiler.medeni_hal ?? ""} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                    <option value="">Seçin</option>
+                    <option value="Bekâr">Bekâr</option>
+                    <option value="Evli">Evli</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Emeklilik Durumu</label>
+                  <select name="emekli" defaultValue={String(bilgiler.emekli ?? false)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                    <option value="false">Emekli değilim</option>
+                    <option value="true">Emekliyim</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Engellilik Durumu</label>
+                  <select name="engelli" defaultValue={String(bilgiler.engelli ?? false)} className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                    <option value="false">Yok</option>
+                    <option value="true">Var</option>
+                  </select>
+                  <div className="text-[10px] text-gray-400 mt-1">Cevabınız işe alım kararınızı etkilemez.</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">IBAN</label>
+                <input name="iban" defaultValue={bilgiler.iban ?? ""} placeholder="TR.. .. .... .... .... .... .."
+                  className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm font-mono" />
+              </div>
+
+              <div className="pt-2 border-t border-gray-100">
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">İkamet Adresi</div>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <select name="il" required defaultValue={bilgiler.il ?? ""} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                    <option value="">İl seçin</option>
+                    {ILLER.map((il) => <option key={il} value={il}>{il}</option>)}
+                  </select>
+                  <select name="ilce" required defaultValue={bilgiler.ilce ?? ""} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                    <option value="">İlçe seçin</option>
+                    {(ILCE[bilgiler.il] ?? "").split(",").filter(Boolean).map((i: string) => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                </div>
+                <input name="mahalle" defaultValue={bilgiler.mahalle ?? ""} placeholder="Mahalle / Köy" className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm mb-2" />
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <input name="cadde" defaultValue={bilgiler.cadde ?? ""} placeholder="Cadde" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                  <input name="sokak" defaultValue={bilgiler.sokak ?? ""} placeholder="Sokak" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input name="bina_no" defaultValue={bilgiler.bina_no ?? ""} placeholder="Bina No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                  <input name="daire_no" defaultValue={bilgiler.daire_no ?? ""} placeholder="Daire No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                </div>
+              </div>
+
+              {bilgilerHata && <div className="text-xs text-danger">{bilgilerHata}</div>}
+
+              <button type="submit" disabled={bilgilerKaydediliyor}
+                className="w-full bg-navy hover:bg-navy-2 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50 transition-colors">
+                {bilgilerKaydediliyor ? "Kaydediliyor..." : bilgilerKaydedildi ? "Kaydet ve Devam Et →" : "Bilgileri Kaydet ve Devam Et"}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {adim === "belgeler" && (
+          <>
+            <div>
+              <div className="text-sm font-semibold text-navy-3 mb-2 px-1">Belgeler</div>
+              <div className="space-y-2.5">
+                {gorunurBelgeler.map((tanim) => (
+                  <BelgeKarti
+                    key={tanim.id}
+                    tanim={tanim}
+                    durum={belgeler[tanim.id]}
+                    onYukle={(dosyalar) => belgeYukleTikla(tanim.id, dosyalar)}
+                    yukleniyorMu={yukleyenBelge === tanim.id}
+                  />
+                ))}
+              </div>
+              {yuklemeHata && <div className="text-xs text-danger mt-2">{yuklemeHata}</div>}
+            </div>
+
+            <button onClick={() => setAdim("hosgeldin")} disabled={!belgelerTamam}
+              className="w-full bg-navy hover:bg-navy-2 text-white rounded-md py-2.5 text-sm font-medium disabled:opacity-40 transition-colors">
+              {belgelerTamam ? "Devam Et →" : `Devam etmek için tüm zorunlu belgeleri yükleyin (${tamamlananSayisi}/${zorunluBelgeler.length})`}
+            </button>
+          </>
+        )}
+
+        {adim === "hosgeldin" && (
+          <>
+            <div className="bg-white border border-gray-200 rounded-card p-6 text-center">
+              <div className="text-2xl mb-2">🎉</div>
+              <div className="text-base font-semibold text-navy-3 mb-1">Hayırlı Olsun!</div>
+              <div className="text-xs text-gray-500 leading-relaxed">
+                Aramıza katılacağınız için çok mutluyuz. Süreciniz tamamlandı — aşağıdaki bilgiler işe başlangıcınız için size yardımcı olacak.
               </div>
             </div>
 
-            {bilgilerHata && <div className="text-xs text-danger">{bilgilerHata}</div>}
+            {(veri.magazaAdi || veri.magazaAdres) && (
+              <div className="bg-white border border-gray-200 rounded-card p-4">
+                <div className="text-sm font-semibold text-navy-3 mb-2">Başlayacağınız Mağaza</div>
+                {veri.magazaAdi && <div className="text-sm text-navy-3 font-medium mb-1">{veri.magazaAdi}</div>}
+                {veri.magazaAdres && <div className="text-[12px] text-gray-500 leading-relaxed mb-2">{veri.magazaAdres}</div>}
+                {veri.magazaKonumLink && (
+                  <a href={veri.magazaKonumLink} target="_blank" rel="noopener noreferrer"
+                    className="inline-block bg-navy hover:bg-navy-2 text-white text-[12px] font-medium rounded-md px-3 py-1.5 transition-colors">
+                    Konumu Haritada Gör
+                  </a>
+                )}
+              </div>
+            )}
 
-            <button type="submit" disabled={bilgilerKaydediliyor}
-              className="w-full bg-navy hover:bg-navy-2 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50 transition-colors">
-              {bilgilerKaydediliyor ? "Kaydediliyor..." : "Bilgileri Kaydet"}
-            </button>
-          </form>
-        </div>
-
-        {/* Belgeler */}
-        <div>
-          <div className="text-sm font-semibold text-navy-3 mb-2 px-1">Belgeler</div>
-          <div className="space-y-2.5">
-            {gorunurBelgeler.map((tanim) => (
-              <BelgeKarti
-                key={tanim.id}
-                tanim={tanim}
-                durum={belgeler[tanim.id]}
-                onYukle={(dosyalar) => belgeYukleTikla(tanim.id, dosyalar)}
-                yukleniyorMu={yukleyenBelge === tanim.id}
-              />
-            ))}
-          </div>
-          {yuklemeHata && <div className="text-xs text-danger mt-2">{yuklemeHata}</div>}
-        </div>
+            {veri.egitimLinkleri.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-card p-4">
+                <div className="text-sm font-semibold text-navy-3 mb-1">Zorunlu Eğitimler</div>
+                <div className="text-[11px] text-gray-500 mb-3">İşe başlamadan önce izlemeniz gereken zorunlu eğitimler.</div>
+                <div className="space-y-2">
+                  {veri.egitimLinkleri.map((e) => (
+                    <a key={e.id} href={e.link} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 rounded-md px-3 py-2.5 text-[13px] text-navy-3 font-medium transition-colors">
+                      {e.baslik}
+                      <span className="text-info text-[11px]">İzle →</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         <div className="text-center text-[10px] text-gray-400 pt-2">
           Bu sayfayı istediğiniz zaman kapatıp aynı bağlantıdan devam edebilirsiniz.
