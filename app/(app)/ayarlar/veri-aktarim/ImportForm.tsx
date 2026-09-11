@@ -7,6 +7,7 @@ import { iceAktarPersonel } from "./actions-personel";
 import { iceAktarTurnover } from "./actions-turnover";
 import { iceAktarMagazaPerformans2 } from "./actions-magaza-perf";
 import { iceAktarCalisanPerformans } from "./actions-calisan-perf";
+import { iceAktarMagazaAdresKonum } from "./actions-magaza-adres";
 import { getSonImportlar, kaydetImportGecmisi, type SonImport } from "./actions-gecmis";
 
 type Sonuc = { basarili: number; hatalar: { satir: number; hata: string }[]; yetkiHatasi?: string; eslenemeyenSutunlar?: string[] };
@@ -58,6 +59,13 @@ const SABLONLAR: Sablon[] = [
       "Sütunlar: Year, MonthName, StoreCode, SalespersonCode, SalesPersonName, TitleName (tam ünvan, kısaltma yok), Target Net Amount- SalesPerson, Target Sales Quantity-SalesPerson, Net Sales Amount(...), Sales Quantity(...), GrossSalesQuantity, Gross Profit Margin. Not: Mağaza (StoreCode) sistemde önceden kayıtlı olmalı — önce Mağaza Performans dosyasını içe aktarın. Sicili sistemde olmayan kişiler otomatik oluşturulur.",
     action: iceAktarCalisanPerformans,
     parcaBoyutu: 3000,
+  },
+  {
+    key: "magaza_adres",
+    label: "Mağaza Adres / Konum",
+    aciklama: "Şablon sütunları: Mağaza Kodu, Mağaza Adı (bilgi amaçlı), Mağaza Adresi, Mağaza Konumu (Google Maps bağlantısı). Mağaza sistemde önceden kayıtlı olmalı — Evrak Portalı'nın Hoş Geldin sayfasında adaya gösterilir.",
+    action: iceAktarMagazaAdresKonum,
+    parcaBoyutu: 2000,
   },
 ];
 
