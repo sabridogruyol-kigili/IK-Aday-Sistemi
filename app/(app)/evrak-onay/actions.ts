@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
-import { mailIskelet } from "@/lib/mailSablon";
+import { mailIskelet, tarihTr } from "@/lib/mailSablon";
 
 export type EvrakDetay = {
   ad_soyad: string;
@@ -118,7 +118,32 @@ export async function hatirlatmaGonder(formData: FormData): Promise<{ error?: st
 
   if (!token) return { error: "Bu personel için evrak bağlantısı bulunamadı." };
 
-  const { data: personel } = await supabase.from("personel").select("ad_soyad").eq("id", personelId).maybeSingle();
+  const { data: personel } = await supabase.from("personel").select("ad_soyad, tc_kimlik_no").eq("id", personelId).maybeSingle();
+
+  // İşe alım bilgileri (tarih, pozisyon, mağaza) personel kaydında tutulmuyor
+  // — aynı TC Kimlik No'ya sahip orijinal aday/talep kaydından bulunur.
+  let baslamaTarihiMetni = "—";
+  let pozisyonMetni: string | null = null;
+  let magazaMetni: string | null = null;
+  if (personel?.tc_kimlik_no) {
+    const { data: aday } = await supabase
+      .from("adaylar")
+      .select("ise_baslama_tarihi, talep_id")
+      .eq("tc_kimlik_no", personel.tc_kimlik_no)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (aday?.ise_baslama_tarihi) baslamaTarihiMetni = tarihTr(aday.ise_baslama_tarihi);
+    if (aday?.talep_id) {
+      const { data: talep } = await supabase
+        .from("talepler")
+        .select("pozisyon_tipi, magazalar!magaza_id(magaza_adi)")
+        .eq("id", aday.talep_id)
+        .maybeSingle();
+      pozisyonMetni = talep?.pozisyon_tipi ?? null;
+      magazaMetni = (talep as any)?.magazalar?.magaza_adi ?? null;
+    }
+  }
 
   await supabase
     .from("evrak_erisim_tokenlari")
@@ -135,6 +160,9 @@ export async function hatirlatmaGonder(formData: FormData): Promise<{ error?: st
         baslik: "İşe Giriş Evraklarınız Bekleniyor",
         govdeHtml: `
           <p style="margin: 0 0 14px;">Sayın <strong>${personel?.ad_soyad ?? ""}</strong>,</p>
+          <p style="margin: 0 0 4px;"><strong>İşe başlama tarihiniz:</strong> ${baslamaTarihiMetni}</p>
+          ${pozisyonMetni ? `<p style="margin: 0 0 4px;"><strong>Pozisyonunuz:</strong> ${pozisyonMetni}</p>` : ""}
+          ${magazaMetni ? `<p style="margin: 0 0 14px;"><strong>Başlayacağınız şube:</strong> ${magazaMetni}</p>` : ""}
           <p style="margin: 0;">İşe giriş evrak sürecinizde henüz tamamlanmamış belgeler bulunuyor. Aşağıdaki bağlantıdan kaldığınız yerden devam edebilirsiniz.</p>
         `,
         butonMetni: "Evraklarımı Tamamla",
