@@ -65,7 +65,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-navy-3">
       <div className="bg-white border border-white/10 rounded-card p-8 w-[380px]">
-        <img src="/logo.png" alt="Kiğılı İK" className="h-9 w-auto mb-5" />
+        <img src="/logo2.png" alt="Kiğılı İK" className="h-14 w-auto mb-5" />
         <div className="text-lg font-semibold text-navy-3 mb-1">Giriş Yap</div>
         <div className="text-xs text-gray-400 mb-5">
           {step === "email"
