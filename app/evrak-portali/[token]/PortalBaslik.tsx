@@ -3,7 +3,7 @@
 export default function PortalBaslik() {
   return (
     <div className="flex justify-center mb-5">
-      <img src="/logo.png" alt="Kiğılı" className="h-11 w-auto" />
+      <img src="/logo2.png" alt="Kiğılı" className="h-16 w-auto" />
     </div>
   );
 }
