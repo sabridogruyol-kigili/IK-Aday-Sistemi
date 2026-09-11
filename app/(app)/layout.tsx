@@ -55,7 +55,7 @@ export default async function AppLayout({
     <div className="flex h-screen">
       <aside className="w-[210px] min-w-[210px] bg-navy flex flex-col">
         <div className="px-4 pt-5 pb-4 border-b border-white/10 flex flex-col items-center text-center gap-2 bg-navy-gradient">
-          <img src="/logo.png" alt="Kiğılı İK" className="h-16 w-auto" />
+          <img src="/logo2.png" alt="Kiğılı İK" className="h-20 w-auto" />
           <div className="text-white text-[13px] font-medium leading-tight tracking-wide">
             İnsan Kaynakları Aday ve Süreç Takip Sistemi
           </div>
