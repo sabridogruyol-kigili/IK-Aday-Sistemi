@@ -96,7 +96,8 @@ export type PortalVerisi = {
   email: string | null;
   bilgiler: any | null;
   belgeler: Record<BelgeTipi, { dosya_yollari: string[]; durum: string; red_nedeni: string | null; red_aciklama: string | null }>;
-  ikTelefon: string | null;
+  ikWebsite: string | null;
+  ikAdres: string | null;
   ikEmail: string | null;
   ikCalismaSaatleri: string | null;
 };
@@ -125,7 +126,7 @@ export async function getPortalVerisi(token: string, kod: string): Promise<Porta
 
   const { data: ayarlar } = await admin
     .from("sistem_ayarlari")
-    .select("ik_telefon, ik_email, ik_calisma_saatleri")
+    .select("ik_website, ik_email, ik_adres, ik_calisma_saatleri")
     .eq("id", 1)
     .maybeSingle();
 
@@ -144,7 +145,8 @@ export async function getPortalVerisi(token: string, kod: string): Promise<Porta
     telefon: bilgiler?.telefon ?? null,
     email: bilgiler?.email ?? null,
     bilgiler: bilgiler ?? null,
-    ikTelefon: ayarlar?.ik_telefon ?? null,
+    ikWebsite: ayarlar?.ik_website ?? null,
+    ikAdres: ayarlar?.ik_adres ?? null,
     ikEmail: ayarlar?.ik_email ?? null,
     ikCalismaSaatleri: ayarlar?.ik_calisma_saatleri ?? null,
     belgeler,
