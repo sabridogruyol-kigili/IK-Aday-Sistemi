@@ -266,18 +266,41 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
           Bu sayfayı istediğiniz zaman kapatıp aynı bağlantıdan devam edebilirsiniz.
         </div>
 
-        <div className="border-t border-gray-200 pt-4 text-center">
-          <div className="text-[11px] text-gray-500 mb-1">
-            Takıldığınız bir yer olursa İnsan Kaynakları'na ulaşın.
+        <div className="bg-navy rounded-card overflow-hidden">
+          <div className="bg-white/10 px-4 py-2.5 text-center">
+            <div className="text-[10px] text-white/70 uppercase tracking-wide font-semibold">Yardıma mı ihtiyacınız var?</div>
           </div>
-          <div className="text-[11px] text-navy-3 font-medium">
-            {veri.ikTelefon ?? "—"} · {veri.ikEmail ?? "—"}
-          </div>
-          {veri.ikCalismaSaatleri && (
-            <div className="text-[10px] text-gray-400 mt-0.5">
-              {veri.ikCalismaSaatleri}
+          <div className="px-5 py-4">
+            <div className="text-[11px] text-white/80 text-center mb-3">
+              Takıldığınız bir yer olursa İnsan Kaynakları'na ulaşın.
             </div>
-          )}
+            <div className="space-y-2">
+              {veri.ikWebsite && (
+                <div className="flex items-start gap-2">
+                  <span className="text-[9px] text-white/50 uppercase tracking-wide w-12 shrink-0 pt-0.5">Web</span>
+                  <span className="text-[12px] text-white font-medium">{veri.ikWebsite}</span>
+                </div>
+              )}
+              {veri.ikEmail && (
+                <div className="flex items-start gap-2">
+                  <span className="text-[9px] text-white/50 uppercase tracking-wide w-12 shrink-0 pt-0.5">Mail</span>
+                  <span className="text-[12px] text-white font-medium">{veri.ikEmail}</span>
+                </div>
+              )}
+              {veri.ikAdres && (
+                <div className="flex items-start gap-2">
+                  <span className="text-[9px] text-white/50 uppercase tracking-wide w-12 shrink-0 pt-0.5">Adres</span>
+                  <span className="text-[11.5px] text-white/90 leading-relaxed">{veri.ikAdres}</span>
+                </div>
+              )}
+              {veri.ikCalismaSaatleri && (
+                <div className="flex items-start gap-2">
+                  <span className="text-[9px] text-white/50 uppercase tracking-wide w-12 shrink-0 pt-0.5">Saatler</span>
+                  <span className="text-[11.5px] text-white/90">{veri.ikCalismaSaatleri}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
