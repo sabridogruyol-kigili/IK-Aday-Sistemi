@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
+import { mailIskelet } from "@/lib/mailSablon";
 
 export type EvrakDetay = {
   ad_soyad: string;
@@ -130,6 +131,15 @@ export async function hatirlatmaGonder(formData: FormData): Promise<{ error?: st
       to: token.email,
       subject: "İşe Giriş Evraklarınız — Hatırlatma",
       text: `Sayın ${personel?.ad_soyad ?? ""},\n\nİşe giriş evrak sürecinizde eksik belgeler bulunuyor. Aşağıdaki bağlantıdan devam edebilirsiniz:\n\n${link}\n\nİyi günler dileriz.`,
+      html: mailIskelet({
+        baslik: "İşe Giriş Evraklarınız Bekleniyor",
+        govdeHtml: `
+          <p style="margin: 0 0 14px;">Sayın <strong>${personel?.ad_soyad ?? ""}</strong>,</p>
+          <p style="margin: 0;">İşe giriş evrak sürecinizde henüz tamamlanmamış belgeler bulunuyor. Aşağıdaki bağlantıdan kaldığınız yerden devam edebilirsiniz.</p>
+        `,
+        butonMetni: "Evraklarımı Tamamla",
+        butonLink: link,
+      }),
     });
     // sendMail hata fırlatmıyor, {error} döndürüyor — önceden bu hiç
     // kontrol edilmiyordu, mail gerçekten gitmese bile "gönderildi"
