@@ -214,7 +214,7 @@ export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
 
   const { data: aday } = await supabase
     .from("adaylar")
-    .select("ad_soyad, email, durum, tc_kimlik_no, ise_baslama_tarihi")
+    .select("ad_soyad, email, durum, tc_kimlik_no, ise_baslama_tarihi, talep_id")
     .eq("id", adayId)
     .single();
 
@@ -250,18 +250,35 @@ export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
     const baslamaTarihiMetni = tarihTr(aday.ise_baslama_tarihi);
     const evrakSonTarihMetni = evrakSonTarih(aday.ise_baslama_tarihi);
 
+    // Talepten pozisyon ve mağaza bilgisi çekilir — kişiye nereye/hangi
+    // pozisyona başlayacağı net şekilde yazılsın diye.
+    let pozisyonMetni: string | null = null;
+    let magazaMetni: string | null = null;
+    if (aday.talep_id) {
+      const { data: talep } = await supabase
+        .from("talepler")
+        .select("pozisyon_tipi, magazalar!magaza_id(magaza_adi)")
+        .eq("id", aday.talep_id)
+        .maybeSingle();
+      pozisyonMetni = talep?.pozisyon_tipi ?? null;
+      magazaMetni = (talep as any)?.magazalar?.magaza_adi ?? null;
+    }
+
     const govde = `
       <p style="margin: 0 0 14px;">Sayın <strong>${aday.ad_soyad}</strong>,</p>
       <p style="margin: 0 0 14px;">İşe alım süreciniz başarıyla <strong>onaylanmıştır</strong>. Aramıza katılacağınız için çok mutluyuz — birlikte çalışmak için sabırsızlanıyoruz!</p>
-      <p style="margin: 0 0 6px;"><strong>İşe başlama tarihiniz:</strong> ${baslamaTarihiMetni}</p>
+      <p style="margin: 0 0 4px;"><strong>İşe başlama tarihiniz:</strong> ${baslamaTarihiMetni}</p>
+      ${pozisyonMetni ? `<p style="margin: 0 0 4px;"><strong>Pozisyonunuz:</strong> ${pozisyonMetni}</p>` : ""}
+      ${magazaMetni ? `<p style="margin: 0 0 14px;"><strong>Başlayacağınız şube:</strong> ${magazaMetni}</p>` : `<p style="margin: 0 0 14px;"></p>`}
       ${portalLink ? `<p style="margin: 0 0 14px;"><strong>İşe giriş evraklarınızı</strong> aşağıdaki bağlantı üzerinden, <strong>${evrakSonTarihMetni}</strong> tamamlamanız gerekmektedir.</p>` : ""}
       <p style="margin: 14px 0 0;">Süreci istediğiniz zaman yarıda bırakıp aynı bağlantıdan devam edebilirsiniz.</p>
+      <p style="margin: 18px 0 0; font-weight: 600; color: #1C2430;">Hayırlı olsun! 🎉</p>
     `;
 
     sendMail({
       to: aday.email,
       subject: "İşe Alımınız Onaylandı — Aramıza Hoş Geldiniz",
-      text: `Sayın ${aday.ad_soyad},\n\nİşe alım süreciniz başarıyla onaylanmıştır. İşe başlama tarihiniz: ${baslamaTarihiMetni}.${portalLink ? ` İşe giriş evraklarınızı ${evrakSonTarihMetni} şu bağlantıdan tamamlayın: ${portalLink}` : ""}\n\nBirlikte çalışmak için sabırsızlanıyoruz!`,
+      text: `Sayın ${aday.ad_soyad},\n\nİşe alım süreciniz başarıyla onaylanmıştır. İşe başlama tarihiniz: ${baslamaTarihiMetni}.${pozisyonMetni ? ` Pozisyon: ${pozisyonMetni}.` : ""}${magazaMetni ? ` Şube: ${magazaMetni}.` : ""}${portalLink ? ` İşe giriş evraklarınızı ${evrakSonTarihMetni} şu bağlantıdan tamamlayın: ${portalLink}` : ""}\n\nBirlikte çalışmak için sabırsızlanıyoruz! Hayırlı olsun.`,
       html: mailIskelet({
         baslik: "İşe Alımınız Onaylandı 🎉",
         govdeHtml: govde,
