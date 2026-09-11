@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { kvkkOnayla, bilgileriKaydet, belgeYukle, type PortalVerisi } from "./actions";
 import { BELGE_LISTESI, belgeGorunurMu, ILLER, ILCE, RED_NEDENLERI, type BelgeTipi } from "@/lib/evrakSabitleri";
+import PortalBaslik from "./PortalBaslik";
 
 const DURUM_ROZET: Record<string, { etiket: string; sinif: string }> = {
   BEKLENIYOR: { etiket: "Bekleniyor", sinif: "bg-gray-100 text-gray-500" },
@@ -117,7 +118,9 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
   if (!kvkkOnaylandi) {
     return (
       <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center p-4">
-        <div className="bg-white border border-gray-200 rounded-card p-5 max-w-md w-full">
+        <div className="max-w-md w-full">
+          <PortalBaslik />
+          <div className="bg-white border border-gray-200 rounded-card p-6">
           <div className="text-sm font-semibold text-navy-3 mb-1">Merhaba {veri.ad_soyad},</div>
           <div className="text-xs text-gray-500 mb-4">İşe giriş evraklarınızı buradan kolayca tamamlayabilirsiniz. Devam etmeden önce aşağıdaki metni okuyup onaylamanız gerekiyor.</div>
 
@@ -135,6 +138,7 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
             className="w-full bg-navy hover:bg-navy-2 text-white rounded-md py-2.5 text-sm font-medium disabled:opacity-40 transition-colors">
             {kvkkPending ? "Kaydediliyor..." : "Onaylıyorum, Devam Et"}
           </button>
+          </div>
         </div>
       </div>
     );
@@ -143,6 +147,7 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
   return (
     <div className="min-h-screen bg-[#FAFAF8] p-4">
       <div className="max-w-md mx-auto space-y-4 pb-8">
+        <PortalBaslik />
         <div className="bg-navy rounded-card p-4 text-white">
           <div className="text-sm font-semibold">Merhaba {veri.ad_soyad}</div>
           <div className="text-[11px] text-white/60 mt-0.5">İşe giriş evrak süreciniz</div>
@@ -259,6 +264,20 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
 
         <div className="text-center text-[10px] text-gray-400 pt-2">
           Bu sayfayı istediğiniz zaman kapatıp aynı bağlantıdan devam edebilirsiniz.
+        </div>
+
+        <div className="border-t border-gray-200 pt-4 text-center">
+          <div className="text-[11px] text-gray-500 mb-1">
+            Takıldığınız bir yer olursa İnsan Kaynakları'na ulaşın.
+          </div>
+          <div className="text-[11px] text-navy-3 font-medium">
+            {veri.ikTelefon ?? "—"} · {veri.ikEmail ?? "—"}
+          </div>
+          {veri.ikCalismaSaatleri && (
+            <div className="text-[10px] text-gray-400 mt-0.5">
+              {veri.ikCalismaSaatleri}
+            </div>
+          )}
         </div>
       </div>
     </div>
