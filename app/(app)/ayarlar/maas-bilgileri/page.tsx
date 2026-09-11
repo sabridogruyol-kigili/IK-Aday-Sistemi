@@ -7,7 +7,7 @@ export default async function MaasBilgileriPage() {
   const supabase = createClient();
 
   const [{ data: ayar }, { data: unvanlarHam }, { data: maaslar }] = await Promise.all([
-    supabase.from("sistem_ayarlari").select("kidem_tazminati_tavani, ik_telefon, ik_email, ik_calisma_saatleri").eq("id", 1).single(),
+    supabase.from("sistem_ayarlari").select("kidem_tazminati_tavani, ik_website, ik_email, ik_adres, ik_calisma_saatleri").eq("id", 1).single(),
     supabase.from("unvan_kadro_kategorisi").select("unvan, kategori").eq("kategori", "ANA_KADRO").order("unvan"),
     supabase.from("unvan_maas").select("unvan, brut_maas"),
   ]);
@@ -37,8 +37,9 @@ export default async function MaasBilgileriPage() {
           Adayların gördüğü <strong>Evrak Portalı</strong>'nın alt kısmında gösterilen iletişim bilgileri — buradan güncelleyin.
         </div>
         <IkIletisimFormu
-          mevcutTelefon={ayar?.ik_telefon ?? ""}
+          mevcutWebsite={ayar?.ik_website ?? ""}
           mevcutEmail={ayar?.ik_email ?? ""}
+          mevcutAdres={ayar?.ik_adres ?? ""}
           mevcutCalismaSaatleri={ayar?.ik_calisma_saatleri ?? ""}
         />
       </div>
