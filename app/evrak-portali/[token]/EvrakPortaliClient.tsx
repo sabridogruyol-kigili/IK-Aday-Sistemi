@@ -61,7 +61,7 @@ function BelgeKarti({
   );
 }
 
-export default function EvrakPortaliClient({ token, veri }: { token: string; veri: PortalVerisi }) {
+export default function EvrakPortaliClient({ token, kod, veri }: { token: string; kod: string; veri: PortalVerisi }) {
   const [bilgiler, setBilgiler] = useState(veri.bilgiler ?? {});
   const [belgeler, setBelgeler] = useState(veri.belgeler);
   const [kvkkOnaylandi, setKvkkOnaylandi] = useState(!!veri.bilgiler?.kvkk_onay_tarihi);
@@ -82,7 +82,7 @@ export default function EvrakPortaliClient({ token, veri }: { token: string; ver
 
   function kvkkOnaylaTikla() {
     setKvkkPending(true);
-    kvkkOnayla(token).then((res) => {
+    kvkkOnayla(token, kod).then((res) => {
       setKvkkPending(false);
       if (!res?.error) setKvkkOnaylandi(true);
     });
@@ -91,7 +91,7 @@ export default function EvrakPortaliClient({ token, veri }: { token: string; ver
   function bilgileriKaydetTikla(formData: FormData) {
     setBilgilerHata(null);
     setBilgilerKaydediliyor(true);
-    bilgileriKaydet(token, formData).then((res) => {
+    bilgileriKaydet(token, kod, formData).then((res) => {
       setBilgilerKaydediliyor(false);
       if (res?.error) { setBilgilerHata(res.error); return; }
       const yeni: any = {};
@@ -107,7 +107,7 @@ export default function EvrakPortaliClient({ token, veri }: { token: string; ver
     const fd = new FormData();
     fd.set("belge_tipi", belgeTipi);
     Array.from(dosyalar).forEach((f) => fd.append("dosyalar", f));
-    belgeYukle(token, fd).then((res) => {
+    belgeYukle(token, kod, fd).then((res) => {
       setYukleyenBelge(null);
       if (res?.error) { setYuklemeHata(res.error); return; }
       setBelgeler((b) => ({ ...b, [belgeTipi]: { ...b[belgeTipi], durum: "INCELEMEDE", dosya_yollari: ["yuklendi"] } }));
