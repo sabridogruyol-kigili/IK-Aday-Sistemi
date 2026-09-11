@@ -100,6 +100,10 @@ export type PortalVerisi = {
   ikAdres: string | null;
   ikEmail: string | null;
   ikCalismaSaatleri: string | null;
+  magazaAdi: string | null;
+  magazaAdres: string | null;
+  magazaKonumLink: string | null;
+  egitimLinkleri: { id: string; baslik: string; link: string }[];
 };
 
 export async function getPortalVerisi(token: string, kod: string): Promise<PortalVerisi | { error: string }> {
@@ -130,6 +134,35 @@ export async function getPortalVerisi(token: string, kod: string): Promise<Porta
     .eq("id", 1)
     .maybeSingle();
 
+  // Mağaza bilgisi: personel.tc_kimlik_no ile eşleşen orijinal aday kaydı
+  // üzerinden, bağlı olduğu talebin mağazasına ulaşılır (aynı desen, mail
+  // gönderiminde de kullanılıyor).
+  let magazaAdi: string | null = null;
+  let magazaAdres: string | null = null;
+  let magazaKonumLink: string | null = null;
+  if (personel?.tc_kimlik_no) {
+    const { data: aday } = await admin
+      .from("adaylar")
+      .select("talep_id")
+      .eq("tc_kimlik_no", personel.tc_kimlik_no)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (aday?.talep_id) {
+      const { data: talep } = await admin
+        .from("talepler")
+        .select("magazalar!magaza_id(magaza_adi, adres, konum_link)")
+        .eq("id", aday.talep_id)
+        .maybeSingle();
+      const magaza = (talep as any)?.magazalar;
+      magazaAdi = magaza?.magaza_adi ?? null;
+      magazaAdres = magaza?.adres ?? null;
+      magazaKonumLink = magaza?.konum_link ?? null;
+    }
+  }
+
+  const { data: egitimlerHam } = await admin.from("egitim_linkleri").select("id, baslik, link").order("sira");
+
   const belgeler: any = {};
   BELGE_LISTESI.forEach((b) => {
     const satir = (belgelerHam ?? []).find((s: any) => s.belge_tipi === b.id);
@@ -149,6 +182,8 @@ export async function getPortalVerisi(token: string, kod: string): Promise<Porta
     ikAdres: ayarlar?.ik_adres ?? null,
     ikEmail: ayarlar?.ik_email ?? null,
     ikCalismaSaatleri: ayarlar?.ik_calisma_saatleri ?? null,
+    magazaAdi, magazaAdres, magazaKonumLink,
+    egitimLinkleri: egitimlerHam ?? [],
     belgeler,
   };
 }
