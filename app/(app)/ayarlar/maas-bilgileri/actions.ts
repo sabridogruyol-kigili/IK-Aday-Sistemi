@@ -23,6 +23,24 @@ export async function guncelleUnvanMaasi(formData: FormData): Promise<{ error?: 
   return {};
 }
 
+export async function guncelleIkIletisim(formData: FormData): Promise<{ error?: string }> {
+  const supabase = createClient();
+  const telefon = String(formData.get("ik_telefon") ?? "").trim();
+  const email = String(formData.get("ik_email") ?? "").trim();
+  const calismaSaatleri = String(formData.get("ik_calisma_saatleri") ?? "").trim();
+
+  if (!telefon || !email) return { error: "Telefon ve e-posta zorunlu." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Geçerli bir e-posta adresi girin." };
+
+  const { error } = await supabase
+    .from("sistem_ayarlari")
+    .update({ ik_telefon: telefon, ik_email: email, ik_calisma_saatleri: calismaSaatleri || null })
+    .eq("id", 1);
+  if (error) return { error: error.message };
+
+  revalidatePath("/ayarlar/maas-bilgileri");
+  return {};
+}
 export async function guncelleKidemTavani(formData: FormData): Promise<{ error?: string }> {
   const supabase = createClient();
   const tavanHam = String(formData.get("tavan") ?? "").trim().replace(",", ".");
