@@ -2,24 +2,90 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BELGE_LISTESI, tcKimlikGecerliMi, ibanGecerliMi, type BelgeTipi } from "@/lib/evrakSabitleri";
+import { mailIskelet } from "@/lib/mailSablon";
+import { sendMail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 
-// Aday portalında Supabase Auth kullanıcısı yok — her işlem, önce token'ı
-// doğrulayıp personel_id'yi bulur, sonra service role ile (RLS'siz) çalışır.
-// Bu yüzden token doğrulaması burada, YALNIZCA bu dosyanın fonksiyonlarında
-// yapılır; başka hiçbir yol bu tablolara erişemez.
-async function tokenDogrula(token: string): Promise<{ personelId: string } | { error: string }> {
+// Aday portalında Supabase Auth kullanıcısı yok — link tek başına hiçbir
+// veriye erişim sağlamaz. Önce e-posta doğrulanır (İşe Alım'da kayıtlı
+// mailin AYNISI girilmeli), sonra o maile giden 6 haneli KOD girilir.
+// Bu iki adımı geçmeden hiçbir veri okunamaz/yazılamaz — kod, her
+// fonksiyonda ayrı ayrı, sunucu tarafında kontrol edilir.
+async function tokenVeKodDogrula(token: string, kod: string): Promise<{ personelId: string } | { error: string }> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("evrak_erisim_tokenlari")
-    .select("personel_id, expires_at")
+    .select("personel_id, expires_at, dogrulama_kodu, dogrulama_kodu_son_tarih")
     .eq("token", token)
     .maybeSingle();
   if (!data) return { error: "Bu bağlantı geçersiz." };
   if (new Date(data.expires_at) < new Date()) return { error: "Bu bağlantının süresi dolmuş. İK'dan yeni bir bağlantı isteyin." };
+  if (!data.dogrulama_kodu || !data.dogrulama_kodu_son_tarih) return { error: "Önce e-posta doğrulaması yapmalısınız." };
+  if (new Date(data.dogrulama_kodu_son_tarih) < new Date()) return { error: "Doğrulama kodunun süresi dolmuş, tekrar e-posta doğrulaması yapın." };
+  if (data.dogrulama_kodu !== kod.trim()) return { error: "Doğrulama kodu geçersiz." };
 
   await admin.from("evrak_erisim_tokenlari").update({ son_erisim_tarihi: new Date().toISOString() }).eq("token", token);
   return { personelId: data.personel_id };
+}
+
+// ADIM 1: E-posta doğrulama — girilen e-posta, bu token için İşe Alım
+// sırasında kayıt edilen e-postayla (büyük/küçük harf duyarsız) eşleşmeli.
+// Eşleşirse 6 haneli bir kod üretilip o adrese gönderilir.
+export async function emailDogrula(token: string, girilenEmail: string): Promise<{ error?: string }> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("evrak_erisim_tokenlari")
+    .select("email, expires_at, personel_id")
+    .eq("token", token)
+    .maybeSingle();
+
+  if (!data) return { error: "Bu bağlantı geçersiz." };
+  if (new Date(data.expires_at) < new Date()) return { error: "Bu bağlantının süresi dolmuş. İK'dan yeni bir bağlantı isteyin." };
+
+  const kayitliEmail = (data.email ?? "").trim().toLowerCase();
+  const girilen = girilenEmail.trim().toLowerCase();
+  if (!kayitliEmail || kayitliEmail !== girilen) {
+    return { error: "Girdiğiniz e-posta, işe alım sürecinde kayıtlı e-posta ile eşleşmiyor." };
+  }
+
+  const kod = String(Math.floor(100000 + Math.random() * 900000));
+  const sonTarih = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  const { error } = await admin
+    .from("evrak_erisim_tokenlari")
+    .update({ dogrulama_kodu: kod, dogrulama_kodu_son_tarih: sonTarih })
+    .eq("token", token);
+  if (error) return { error: error.message };
+
+  const { data: personel } = await admin.from("personel").select("ad_soyad").eq("id", data.personel_id).maybeSingle();
+
+  const mailSonuc = await sendMail({
+    to: girilenEmail,
+    subject: "Evrak Portalı Doğrulama Kodunuz",
+    text: `Sayın ${personel?.ad_soyad ?? ""},\n\nEvrak portalına giriş için doğrulama kodunuz: ${kod}\n\nBu kod 24 saat geçerlidir.`,
+    html: mailIskelet({
+      baslik: "Doğrulama Kodunuz",
+      govdeHtml: `
+        <p style="margin: 0 0 14px;">Sayın <strong>${personel?.ad_soyad ?? ""}</strong>,</p>
+        <p style="margin: 0 0 18px;">Evrak portalına giriş yapmak için aşağıdaki kodu kullanın.</p>
+        <div style="background-color: #FAFAF8; border-radius: 6px; padding: 18px; text-align: center; margin-bottom: 14px;">
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 700; letter-spacing: 5px; color: #0F1B4D;">${kod}</div>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #8a8a86;">Bu kod 24 saat geçerlidir.</p>
+      `,
+    }),
+  });
+  if (mailSonuc.error) return { error: "Kod gönderilemedi: " + mailSonuc.error };
+
+  return {};
+}
+
+// ADIM 2: Kod doğrulama — sadece kodun geçerli olup olmadığını kontrol eder,
+// asıl veri erişimi her zaman tokenVeKodDogrula ile ayrıca yapılır.
+export async function koduDogrula(token: string, kod: string): Promise<{ error?: string }> {
+  const sonuc = await tokenVeKodDogrula(token, kod);
+  if ("error" in sonuc) return sonuc;
+  return {};
 }
 
 export type PortalVerisi = {
@@ -32,8 +98,8 @@ export type PortalVerisi = {
   belgeler: Record<BelgeTipi, { dosya_yollari: string[]; durum: string; red_nedeni: string | null; red_aciklama: string | null }>;
 };
 
-export async function getPortalVerisi(token: string): Promise<PortalVerisi | { error: string }> {
-  const dogrulama = await tokenDogrula(token);
+export async function getPortalVerisi(token: string, kod: string): Promise<PortalVerisi | { error: string }> {
+  const dogrulama = await tokenVeKodDogrula(token, kod);
   if ("error" in dogrulama) return dogrulama;
   const admin = createAdminClient();
 
@@ -73,8 +139,8 @@ export async function getPortalVerisi(token: string): Promise<PortalVerisi | { e
   };
 }
 
-export async function kvkkOnayla(token: string): Promise<{ error?: string }> {
-  const dogrulama = await tokenDogrula(token);
+export async function kvkkOnayla(token: string, kod: string): Promise<{ error?: string }> {
+  const dogrulama = await tokenVeKodDogrula(token, kod);
   if ("error" in dogrulama) return dogrulama;
   const admin = createAdminClient();
 
@@ -89,8 +155,8 @@ export async function kvkkOnayla(token: string): Promise<{ error?: string }> {
   return {};
 }
 
-export async function bilgileriKaydet(token: string, formData: FormData): Promise<{ error?: string }> {
-  const dogrulama = await tokenDogrula(token);
+export async function bilgileriKaydet(token: string, kod: string, formData: FormData): Promise<{ error?: string }> {
+  const dogrulama = await tokenVeKodDogrula(token, kod);
   if ("error" in dogrulama) return dogrulama;
   const admin = createAdminClient();
 
@@ -116,8 +182,8 @@ export async function bilgileriKaydet(token: string, formData: FormData): Promis
   return {};
 }
 
-export async function belgeYukle(token: string, formData: FormData): Promise<{ error?: string }> {
-  const dogrulama = await tokenDogrula(token);
+export async function belgeYukle(token: string, kod: string, formData: FormData): Promise<{ error?: string }> {
+  const dogrulama = await tokenVeKodDogrula(token, kod);
   if ("error" in dogrulama) return dogrulama;
   const admin = createAdminClient();
 
