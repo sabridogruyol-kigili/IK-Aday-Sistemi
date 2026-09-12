@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getEvrakDetay, belgeKararVer, getBelgeSignedUrl, hatirlatmaGonder, type EvrakDetay } from "./actions";
+import { getEvrakDetay, belgeKararVer, getBelgeSignedUrl, hatirlatmaGonder, iptalEtIseAlim, type EvrakDetay } from "./actions";
 import { BELGE_LISTESI, belgeGorunurMu, RED_NEDENLERI, type BelgeTipi } from "@/lib/evrakSabitleri";
 
 const DURUM_ROZET: Record<string, string> = {
@@ -112,10 +112,28 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hatirlatmaGonderildi, setHatirlatmaGonderildi] = useState(false);
   const [hatirlatmaHata, setHatirlatmaHata] = useState<string | null>(null);
+  const [iptalModAcik, setIptalModAcik] = useState(false);
+  const [iptalNedeni, setIptalNedeni] = useState("");
+  const [iptalPending, setIptalPending] = useState(false);
+  const [iptalHata, setIptalHata] = useState<string | null>(null);
+  const [iptalEdildi, setIptalEdildi] = useState(false);
 
   useEffect(() => {
     getEvrakDetay(personelId).then((d) => { setDetay(d); setYukleniyor(false); });
   }, [personelId]);
+
+  function iptalEt() {
+    setIptalHata(null);
+    setIptalPending(true);
+    const fd = new FormData();
+    fd.set("personel_id", personelId);
+    fd.set("neden", iptalNedeni);
+    iptalEtIseAlim(fd).then((res) => {
+      setIptalPending(false);
+      if (res?.error) { setIptalHata(res.error); return; }
+      setIptalEdildi(true);
+    });
+  }
 
   function karar(belgeId: string, kararDegeri: "ONAYLANDI" | "REDDEDILDI", redNedeni?: string, redAciklama?: string) {
     const fd = new FormData();
@@ -172,6 +190,11 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
             <div className="text-xs text-gray-400 py-8 text-center flex items-center justify-center gap-2">
               <span className="yukleniyor-donen" /> Yükleniyor...
             </div>
+          ) : iptalEdildi ? (
+            <div className="text-center py-6">
+              <div className="text-sm font-semibold text-danger mb-1">İşe Alım İptal Edildi</div>
+              <div className="text-xs text-gray-500">{adSoyad} pasif duruma alındı, evrak süreci sonlandırıldı.</div>
+            </div>
           ) : (
             <>
               <div className="bg-gray-50 rounded-md p-3 mb-1">
@@ -186,17 +209,43 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                 </div>
               </div>
 
-              <div className="flex flex-col items-end gap-1 mb-1">
-                <button onClick={hatirlat} disabled={hatirlatmaGonderildi}
-                  className={`text-[11px] font-medium rounded-md px-3 py-1.5 transition-colors ${
-                    hatirlatmaGonderildi
-                      ? "bg-success-bg text-success cursor-default"
-                      : "bg-white border border-info/40 text-info hover:bg-info/5"
-                  }`}>
-                  {hatirlatmaGonderildi ? "Hatırlatma Gönderildi ✓" : "Adaya Hatırlatma Gönder"}
-                </button>
-                {hatirlatmaHata && <div className="text-[11px] text-danger">{hatirlatmaHata}</div>}
-              </div>
+              {!iptalModAcik ? (
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <button onClick={() => setIptalModAcik(true)}
+                    className="text-[11px] font-medium rounded-md px-3 py-1.5 bg-white border border-danger/30 text-danger hover:bg-danger-bg transition-colors">
+                    İşe Alımı İptal Et
+                  </button>
+                  <button onClick={hatirlat} disabled={hatirlatmaGonderildi}
+                    className={`text-[11px] font-medium rounded-md px-3 py-1.5 transition-colors ${
+                      hatirlatmaGonderildi
+                        ? "bg-success-bg text-success cursor-default"
+                        : "bg-white border border-info/40 text-info hover:bg-info/5"
+                    }`}>
+                    {hatirlatmaGonderildi ? "Hatırlatma Gönderildi ✓" : "Adaya Hatırlatma Gönder"}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-danger-bg border border-danger/30 rounded-md p-3 mb-1">
+                  <div className="text-[11px] font-semibold text-danger mb-1.5">İşe Alımı İptal Et</div>
+                  <div className="text-[11px] text-gray-600 mb-2">
+                    Bu kişi pasif duruma alınacak, evrak süreci sonlandırılacak. Bu işlem geri alınamaz.
+                  </div>
+                  <textarea value={iptalNedeni} onChange={(e) => setIptalNedeni(e.target.value)}
+                    placeholder="İptal gerekçesi (en az 20 karakter)..." rows={2}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs mb-2" />
+                  {iptalHata && <div className="text-[11px] text-danger mb-2">{iptalHata}</div>}
+                  <div className="flex justify-between">
+                    <button onClick={iptalEt} disabled={iptalPending || iptalNedeni.trim().length < 20}
+                      className="bg-danger text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50">
+                      {iptalPending ? "İptal Ediliyor..." : "İptali Onayla"}
+                    </button>
+                    <button onClick={() => { setIptalModAcik(false); setIptalNedeni(""); setIptalHata(null); }} className="text-xs text-gray-400">
+                      Vazgeç
+                    </button>
+                  </div>
+                </div>
+              )}
+              {hatirlatmaHata && <div className="text-[11px] text-danger mb-1">{hatirlatmaHata}</div>}
               {gorunurBelgeler.map((tanim) => (
                 <BelgeSatiri
                   key={tanim.id}
