@@ -295,6 +295,42 @@ export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
   };
 }
 
+// "İşe Alındı" durumundaki adaylar için, evrak süreci gerçekten tamamlanmadıysa
+// sistemin her yerinde (Aday Havuzu, Talepler sayfası, süreç detayı) aynı
+// doğru etiketin görünmesi için — tek yerden hesaplanır, tek yerden çağrılır.
+export async function iseAlindiEtiketleriniHesapla(tcListesi: string[]): Promise<Record<string, string>> {
+  const supabase = createClient();
+  const sonuc: Record<string, string> = {};
+  const gecerliTcler = tcListesi.filter(Boolean);
+  if (gecerliTcler.length === 0) return sonuc;
+
+  const { data: personeller } = await supabase
+    .from("personel")
+    .select("id, tc_kimlik_no, evrak_iptal_nedeni")
+    .in("tc_kimlik_no", gecerliTcler);
+  if (!personeller || personeller.length === 0) return sonuc;
+
+  const personelIdleri = personeller.map((p: any) => p.id);
+  const [{ data: bilgilerListesi }, { data: belgelerListesi }] = await Promise.all([
+    supabase.from("personel_evrak_bilgileri").select("personel_id, cinsiyet").in("personel_id", personelIdleri),
+    supabase.from("personel_evrak_belgeleri").select("personel_id, belge_tipi, durum").in("personel_id", personelIdleri),
+  ]);
+
+  for (const p of personeller) {
+    if (p.evrak_iptal_nedeni) {
+      sonuc[p.tc_kimlik_no] = "İşe Alım İptal Edildi";
+      continue;
+    }
+    const cinsiyet = (bilgilerListesi ?? []).find((b: any) => b.personel_id === p.id)?.cinsiyet ?? null;
+    const kendiBelgeleri = (belgelerListesi ?? []).filter((b: any) => b.personel_id === p.id);
+    const gerekliBelgeler = BELGE_LISTESI.filter((b) => !b.istegeBagli && belgeGorunurMu(b, cinsiyet));
+    const onaylanan = gerekliBelgeler.filter((b) => kendiBelgeleri.find((k: any) => k.belge_tipi === b.id)?.durum === "ONAYLANDI").length;
+    const tamamMi = gerekliBelgeler.length > 0 && onaylanan === gerekliBelgeler.length;
+    sonuc[p.tc_kimlik_no] = tamamMi ? "İşe Alındı — Evrak Tamamlandı" : `İşe Alım Onaylandı — Evrak Bekleniyor (${onaylanan}/${gerekliBelgeler.length})`;
+  }
+  return sonuc;
+}
+
 export async function getAdaylarByTalep(talepId: string) {
   const supabase = createClient();
   const { data: adaylar, error } = await supabase
@@ -319,7 +355,14 @@ export async function getAdaylarByTalep(talepId: string) {
     if (!onayTarihiMap[g.aday_id]) onayTarihiMap[g.aday_id] = g.created_at;
   });
 
-  const zenginlestirilmis = adaylar.map((a) => ({ ...a, onay_tarihi: onayTarihiMap[a.id] ?? null }));
+  const iseAlindiTcListesi = adaylar.filter((a) => a.durum === "ISE_ALINDI" && a.tc_kimlik_no).map((a) => a.tc_kimlik_no as string);
+  const evrakEtiketleri = await iseAlindiEtiketleriniHesapla(iseAlindiTcListesi);
+
+  const zenginlestirilmis = adaylar.map((a) => ({
+    ...a,
+    onay_tarihi: onayTarihiMap[a.id] ?? null,
+    evrak_etiket: a.tc_kimlik_no ? evrakEtiketleri[a.tc_kimlik_no] ?? null : null,
+  }));
 
   return { data: zenginlestirilmis, error: undefined };
 }
