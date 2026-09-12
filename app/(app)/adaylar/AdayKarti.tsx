@@ -115,7 +115,11 @@ export default function AdayKarti({
     GORUSULDU_OLUMSUZ: "Görüşüldü — Olumsuz", ISE_ALINDI: "İşe Alındı",
     BEKLEMEDE: "Beklemede", HAVUZDA: "Havuzda",
   };
-  const durumEtiketL = durumEtiketMap[durumL] ?? durumEtiket;
+  // "İşe Alındı" durumu için page.tsx, evrak durumuna göre daha doğru bir
+  // etiket ("...Evrak Bekleniyor" gibi) hesaplayıp gönderiyor — statik harita
+  // yerine bu öncelikli kullanılır. Diğer tüm durumlar için statik harita
+  // (durumEtiketMap) esas alınır, çünkü onlar sabit/değişmeyen etiketlerdir.
+  const durumEtiketL = durumL === "ISE_ALINDI" ? durumEtiket : (durumEtiketMap[durumL] ?? durumEtiket);
 
   // "Şu an kimde bekliyor" göstergesi — süreç nerede tıkanmış, kim aksiyon
   // almalı, tek bakışta görünsün.
@@ -139,7 +143,11 @@ export default function AdayKarti({
     }
     if (durumL === "GORUSULDU_OLUMLU") return { metin: "Bekleyen: İşe alım kaydının (TC/tarih) girilmesi", renk: "text-success" };
     if (durumL === "GORUSULDU_OLUMSUZ" || durumL === "REDDEDILDI") return { metin: "Süreç tamamlandı", renk: "text-gray-400" };
-    if (durumL === "ISE_ALINDI") return { metin: "Süreç tamamlandı — işe alındı", renk: "text-success" };
+    if (durumL === "ISE_ALINDI") {
+      if (durumEtiketL.includes("Evrak Bekleniyor")) return { metin: "Bekleyen: Adayın işe giriş evraklarını tamamlaması", renk: "text-accent" };
+      if (durumEtiketL.includes("İptal")) return { metin: "Süreç durduruldu — işe alım iptal edildi", renk: "text-danger" };
+      return { metin: "Süreç tamamlandı — işe alındı, evrak tamam", renk: "text-success" };
+    }
     return { metin: "", renk: "" };
   }
   const bekleyenBilgi = kimdeBekliyor();
