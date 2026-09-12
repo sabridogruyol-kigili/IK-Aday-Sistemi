@@ -9,7 +9,7 @@ const DURUM_RENK: Record<string, string> = {
   "Tamamlandı": "bg-success-bg text-success",
   "Eksik/Reddedilen Var": "bg-danger-bg text-danger",
   "İncelemede": "bg-accent/15 text-accent",
-  "Bekleniyor": "bg-gray-100 text-gray-500",
+  "İşe Alım Onaylandı — Evrak Bekleniyor": "bg-gray-100 text-gray-500",
 };
 
 export default function EvrakOnayListesi({ kisiler }: { kisiler: Kisi[] }) {
@@ -40,7 +40,7 @@ export default function EvrakOnayListesi({ kisiler }: { kisiler: Kisi[] }) {
           className="border border-gray-300 rounded-md px-2 py-1.5 text-xs flex-1 max-w-xs" />
         <select value={durumFiltre} onChange={(e) => setDurumFiltre(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
           <option value="">Tüm Durumlar</option>
-          <option value="Bekleniyor">Bekleniyor</option>
+          <option value="İşe Alım Onaylandı — Evrak Bekleniyor">Evrak Bekleniyor</option>
           <option value="İncelemede">İncelemede</option>
           <option value="Eksik/Reddedilen Var">Eksik/Reddedilen Var</option>
           <option value="Tamamlandı">Tamamlandı</option>
