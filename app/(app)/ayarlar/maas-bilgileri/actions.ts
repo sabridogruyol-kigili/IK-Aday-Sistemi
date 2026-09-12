@@ -39,7 +39,11 @@ export async function guncelleIkIletisim(formData: FormData): Promise<{ error?: 
     .eq("id", 1);
   if (error) return { error: error.message };
 
-  revalidatePath("/ayarlar/maas-bilgileri");
+  // Bu form artık Sistem Ayarları sayfasında kullanılıyor — eskiden burada
+  // yanlışlıkla Maaş Bilgileri sayfası işaretleniyordu, bu yüzden kayıt
+  // gerçekten oluyordu ama sayfa yenilenince eski (önbellekteki) hâli
+  // görünüyordu.
+  revalidatePath("/ayarlar/sistem");
   return {};
 }
 export async function guncelleKidemTavani(formData: FormData): Promise<{ error?: string }> {
