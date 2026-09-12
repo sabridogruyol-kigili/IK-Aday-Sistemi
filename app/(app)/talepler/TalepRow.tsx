@@ -44,7 +44,7 @@ type Aday = {
   id: string; ad_soyad: string; telefon: string | null; email: string | null; cinsiyet: string | null; cv_drive_link: string | null;
   yonlendiren_rol: string; karari_veren_rol: string; durum: string; yonlendiren_kullanici_id: string; onay_tarihi: string | null;
   onay_bm: string | null; onay_ik: string | null; mulakat_bm: string | null; mulakat_ik: string | null;
-  tc_kimlik_no: string | null; ise_baslama_tarihi: string | null;
+  tc_kimlik_no: string | null; ise_baslama_tarihi: string | null; evrak_etiket: string | null;
 };
 
 export default function TalepRow({
@@ -332,10 +332,14 @@ export default function TalepRow({
                           </td>
                           <td className="px-3 py-2">
                             <div className="space-y-1">
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${ADAY_DURUM_RENK[a.durum] ?? ""}`}>
-                                {ADAY_DURUM_ETIKET[a.durum]}
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                a.durum === "ISE_ALINDI" && a.evrak_etiket?.includes("Bekleniyor") ? "bg-accent/15 text-accent"
+                                : a.durum === "ISE_ALINDI" && a.evrak_etiket?.includes("İptal") ? "bg-danger-bg text-danger"
+                                : ADAY_DURUM_RENK[a.durum] ?? ""
+                              }`}>
+                                {a.durum === "ISE_ALINDI" && a.evrak_etiket ? a.evrak_etiket : ADAY_DURUM_ETIKET[a.durum]}
                               </span>
-                              <AdayStepper durum={a.durum} />
+                              <AdayStepper durum={a.durum} evrakTamamMi={a.evrak_etiket ? a.evrak_etiket.includes("Tamamlandı") : undefined} />
                               {a.durum === "YONLENDIRILDI" && (
                                 <div className="text-[10px] text-gray-400 mt-1">
                                   {a.karari_veren_rol === "BM_VE_IK" ? (
