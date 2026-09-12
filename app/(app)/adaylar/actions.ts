@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
 import { mailIskelet, tarihTr, evrakSonTarih } from "@/lib/mailSablon";
+import { BELGE_LISTESI, belgeGorunurMu } from "@/lib/evrakSabitleri";
 
 // "cv-dosyalar" bucket'ı private olduğu için CV'yi görüntülemek geçici
 // (süreli) bir signed URL gerektirir. 5 dakikalık süre, bir kişinin CV'yi
@@ -352,7 +353,7 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
 
   const { data: aday, error: adayHata } = await supabase
     .from("adaylar")
-    .select("ad_soyad, created_at, yonlendiren_rol, karari_veren_rol, durum, onay_bm, onay_ik, mulakat_bm, mulakat_ik")
+    .select("ad_soyad, created_at, yonlendiren_rol, karari_veren_rol, durum, onay_bm, onay_ik, mulakat_bm, mulakat_ik, tc_kimlik_no")
     .eq("id", adayId)
     .single();
   if (adayHata || !aday) return { data: [], error: adayHata?.message ?? "Aday bulunamadı." };
@@ -444,6 +445,35 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
     baslik: "İşe Alındı",
     durum: adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU" : adayDurum === "GORUSULDU_OLUMLU" ? "MEVCUT" : "GELECEK",
   });
+
+  // Son adım: Evrak Tamamlandı — işe alım gerçek anlamda bittiyse (personel
+  // hâlâ aktifse ve tüm zorunlu belgeler onaylandıysa) yeşil, süreç devam
+  // ediyorsa (personel var ama belgeler eksik/incelemede) turuncu/mevcut,
+  // henüz işe alınmadıysa gri.
+  if (adayDurum === "ISE_ALINDI" && aday.tc_kimlik_no) {
+    const { data: personel } = await supabase
+      .from("personel")
+      .select("id, durum, evrak_iptal_nedeni")
+      .eq("tc_kimlik_no", aday.tc_kimlik_no)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (personel?.evrak_iptal_nedeni) {
+      adimlar.push({ tarih: null, baslik: "İşe Alım İptal Edildi", durum: "TAMAMLANDI_OLUMSUZ" });
+    } else if (personel) {
+      const { data: bilgi } = await supabase.from("personel_evrak_bilgileri").select("cinsiyet").eq("personel_id", personel.id).maybeSingle();
+      const { data: belgelerHam } = await supabase.from("personel_evrak_belgeleri").select("belge_tipi, durum").eq("personel_id", personel.id);
+      const gerekliBelgeler = BELGE_LISTESI.filter((b) => !b.istegeBagli && belgeGorunurMu(b, bilgi?.cinsiyet ?? null));
+      const onaylanan = gerekliBelgeler.filter((b) => (belgelerHam ?? []).find((s: any) => s.belge_tipi === b.id)?.durum === "ONAYLANDI").length;
+      const tamamMi = gerekliBelgeler.length > 0 && onaylanan === gerekliBelgeler.length;
+      adimlar.push({
+        tarih: null,
+        baslik: tamamMi ? "Evrak Tamamlandı" : `Evrak Bekleniyor (${onaylanan}/${gerekliBelgeler.length})`,
+        durum: tamamMi ? "TAMAMLANDI_OLUMLU" : "MEVCUT",
+      });
+    }
+  }
 
   return { data: adimlar };
 }
