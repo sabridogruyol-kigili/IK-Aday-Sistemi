@@ -37,7 +37,7 @@ export default async function EvrakOnayPage() {
     const reddedilen = kendiBelgeleri.filter((k: any) => k.durum === "REDDEDILDI").length;
     const incelemede = kendiBelgeleri.filter((k: any) => k.durum === "INCELEMEDE").length;
 
-    let durumEtiket = "Bekleniyor";
+    let durumEtiket = "İşe Alım Onaylandı — Evrak Bekleniyor";
     if (onaylanan === gerekliBelgeler.length && gerekliBelgeler.length > 0) durumEtiket = "Tamamlandı";
     else if (reddedilen > 0) durumEtiket = "Eksik/Reddedilen Var";
     else if (incelemede > 0) durumEtiket = "İncelemede";
