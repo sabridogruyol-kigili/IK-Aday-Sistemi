@@ -6,6 +6,43 @@ import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
 import { mailIskelet, tarihTr } from "@/lib/mailSablon";
 
+export async function iptalEtIseAlim(formData: FormData): Promise<{ error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Giriş yapmalısınız." };
+
+  const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
+  if (!me || (me.rol !== "IK" && me.rol !== "YONETIM")) return { error: "Bu işlem için yetkiniz yok." };
+
+  const personelId = String(formData.get("personel_id"));
+  const neden = String(formData.get("neden") ?? "").trim();
+  if (!neden || neden.length < 20) return { error: "İptal gerekçesi en az 20 karakter olmalı." };
+
+  // İşten Çıkarma'daki aynı mantık: personel pasif olur, açık atama kapanır —
+  // fark olarak buradaki kişi hiç gerçek anlamda çalışmaya başlamadığı için
+  // ayrı bir "evrak iptal" gerekçesi ayrıca kaydedilir (denetim izi).
+  const { error: personelHata } = await supabase
+    .from("personel")
+    .update({
+      durum: "pasif",
+      evrak_iptal_nedeni: neden,
+      evrak_iptal_tarihi: new Date().toISOString(),
+      evrak_iptal_eden_kullanici_id: me.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", personelId);
+  if (personelHata) return { error: personelHata.message };
+
+  await supabase
+    .from("personel_atama_gecmisi")
+    .update({ ayrilma_tarihi: new Date().toISOString().slice(0, 10) })
+    .eq("personel_id", personelId)
+    .is("ayrilma_tarihi", null);
+
+  revalidatePath("/evrak-onay");
+  return {};
+}
+
 export type EvrakDetay = {
   ad_soyad: string;
   email: string | null;
