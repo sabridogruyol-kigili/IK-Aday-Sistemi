@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdayKarti from "./AdayKarti";
 import HavuzKarti from "./HavuzKarti";
+import { BELGE_LISTESI, belgeGorunurMu } from "@/lib/evrakSabitleri";
 
 const DURUM_ETIKET: Record<string, string> = {
   YONLENDIRILDI: "Yönlendirildi",
@@ -13,6 +14,41 @@ const DURUM_ETIKET: Record<string, string> = {
   ISE_ALINDI: "İşe Alındı",
   BEKLEMEDE: "Beklemede",
 };
+
+// "İşe Alındı" durumundaki adaylar için, evrak süreci gerçekten tamamlanmadıysa
+// sistemin her yerinde (burada, Evrak Onay'da, süreç detayında) aynı, doğru
+// etiketin görünmesi için — personel/evrak durumuna bakılıp etiket buna göre
+// güncellenir. Tek tek sorgu yerine toplu (tek seferde) hesaplanır.
+async function iseAlindiEtiketleriniHesapla(supabase: any, tcListesi: string[]): Promise<Record<string, string>> {
+  const sonuc: Record<string, string> = {};
+  if (tcListesi.length === 0) return sonuc;
+
+  const { data: personeller } = await supabase
+    .from("personel")
+    .select("id, tc_kimlik_no, evrak_iptal_nedeni")
+    .in("tc_kimlik_no", tcListesi);
+  if (!personeller || personeller.length === 0) return sonuc;
+
+  const personelIdleri = personeller.map((p: any) => p.id);
+  const [{ data: bilgilerListesi }, { data: belgelerListesi }] = await Promise.all([
+    supabase.from("personel_evrak_bilgileri").select("personel_id, cinsiyet").in("personel_id", personelIdleri),
+    supabase.from("personel_evrak_belgeleri").select("personel_id, belge_tipi, durum").in("personel_id", personelIdleri),
+  ]);
+
+  for (const p of personeller) {
+    if (p.evrak_iptal_nedeni) {
+      sonuc[p.tc_kimlik_no] = "İşe Alım İptal Edildi";
+      continue;
+    }
+    const cinsiyet = (bilgilerListesi ?? []).find((b: any) => b.personel_id === p.id)?.cinsiyet ?? null;
+    const kendiBelgeleri = (belgelerListesi ?? []).filter((b: any) => b.personel_id === p.id);
+    const gerekliBelgeler = BELGE_LISTESI.filter((b) => !b.istegeBagli && belgeGorunurMu(b, cinsiyet));
+    const onaylanan = gerekliBelgeler.filter((b) => kendiBelgeleri.find((k: any) => k.belge_tipi === b.id)?.durum === "ONAYLANDI").length;
+    const tamamMi = gerekliBelgeler.length > 0 && onaylanan === gerekliBelgeler.length;
+    sonuc[p.tc_kimlik_no] = tamamMi ? "İşe Alındı — Evrak Tamamlandı" : `İşe Alım Onaylandı — Evrak Bekleniyor (${onaylanan}/${gerekliBelgeler.length})`;
+  }
+  return sonuc;
+}
 
 export default async function AdaylarPage() {
   const supabase = createClient();
@@ -48,6 +84,9 @@ export default async function AdaylarPage() {
       .eq("talep_turu", "ISE_ALIM")
       .order("created_at", { ascending: false }),
   ]);
+
+  const iseAlindiTcListesi = (adaylar ?? []).filter((a: any) => a.durum === "ISE_ALINDI" && a.tc_kimlik_no).map((a: any) => a.tc_kimlik_no);
+  const iseAlindiEtiketleri = await iseAlindiEtiketleriniHesapla(supabase, iseAlindiTcListesi);
 
   return (
     <div>
@@ -105,7 +144,7 @@ export default async function AdaylarPage() {
             mulakatBm={a.mulakat_bm}
             mulakatIk={a.mulakat_ik}
             durum={a.durum}
-            durumEtiket={DURUM_ETIKET[a.durum] ?? a.durum}
+            durumEtiket={a.durum === "ISE_ALINDI" && a.tc_kimlik_no && iseAlindiEtiketleri[a.tc_kimlik_no] ? iseAlindiEtiketleri[a.tc_kimlik_no] : (DURUM_ETIKET[a.durum] ?? a.durum)}
             benimKullaniciId={me.id}
             benimRolum={me.rol}
           />
