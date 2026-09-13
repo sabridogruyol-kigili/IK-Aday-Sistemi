@@ -59,9 +59,11 @@ export type EvrakDetay = {
   saglik_rapor_tipi: string | null;
   il: string | null; ilce: string | null; mahalle: string | null; cadde: string | null; sokak: string | null;
   site_adi: string | null; blok_no: string | null; apt_adi: string | null; bina_no: string | null; daire_no: string | null;
+  kat: string | null; posta_kodu: string | null;
   ikinci_adres_var: boolean | null;
   il2: string | null; ilce2: string | null; mahalle2: string | null; cadde2: string | null; sokak2: string | null;
   site_adi2: string | null; blok_no2: string | null; apt_adi2: string | null; bina_no2: string | null; daire_no2: string | null;
+  kat2: string | null; posta_kodu2: string | null;
   kvkk_onay_tarihi: string | null;
   bilgi_guncelleme_tarihi: string | null;
   belgeler: { id: string; belge_tipi: string; dosya_yollari: string[]; durum: string; red_nedeni: string | null; red_aciklama: string | null; ik_notu: string | null }[];
@@ -105,7 +107,7 @@ export async function getEvrakDetay(personelId: string): Promise<EvrakDetay | nu
   return {
     ad_soyad: personel?.ad_soyad ?? "",
     email: token?.email ?? null,
-    telefon: null,
+    telefon: bilgi?.telefon ?? null,
     talep_id: talepId,
     aday_id: adayId,
     cinsiyet,
@@ -119,11 +121,13 @@ export async function getEvrakDetay(personelId: string): Promise<EvrakDetay | nu
     cadde: bilgi?.cadde ?? null, sokak: bilgi?.sokak ?? null, site_adi: bilgi?.site_adi ?? null,
     blok_no: bilgi?.blok_no ?? null, apt_adi: bilgi?.apt_adi ?? null,
     bina_no: bilgi?.bina_no ?? null, daire_no: bilgi?.daire_no ?? null,
+    kat: bilgi?.kat ?? null, posta_kodu: bilgi?.posta_kodu ?? null,
     ikinci_adres_var: bilgi?.ikinci_adres_var ?? null,
     il2: bilgi?.il2 ?? null, ilce2: bilgi?.ilce2 ?? null, mahalle2: bilgi?.mahalle2 ?? null,
     cadde2: bilgi?.cadde2 ?? null, sokak2: bilgi?.sokak2 ?? null, site_adi2: bilgi?.site_adi2 ?? null,
     blok_no2: bilgi?.blok_no2 ?? null, apt_adi2: bilgi?.apt_adi2 ?? null,
     bina_no2: bilgi?.bina_no2 ?? null, daire_no2: bilgi?.daire_no2 ?? null,
+    kat2: bilgi?.kat2 ?? null, posta_kodu2: bilgi?.posta_kodu2 ?? null,
     kvkk_onay_tarihi: bilgi?.kvkk_onay_tarihi ?? null,
     bilgi_guncelleme_tarihi: bilgi?.updated_at ?? null,
     belgeler: belgeler ?? [],
