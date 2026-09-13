@@ -215,6 +215,7 @@ export type PersonelDetay = {
   personel_kodu: string | null;
   kidem_ay: number | null;
   brut_maas: number | null;
+  brut_maas_hata: string | null;
   kidem_tazminati_tavani: number | null;
   kidem_tazminati_tahmini: number | null;
 };
@@ -298,12 +299,14 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
   // Maaş artık kişi bazlı değil, ünvan bazlı tek bir tabloda tutuluyor —
   // kişinin güncel ünvanına göre karşılık gelen maaş burada aranır.
   let brutMaas: number | null = null;
+  let brutMaasHata: string | null = null;
   if (magazaHam.guncel_unvan) {
-    const { data: unvanMaasKaydi } = await supabase
+    const { data: unvanMaasKaydi, error: unvanMaasHata } = await supabase
       .from("unvan_maas")
       .select("brut_maas")
       .eq("unvan", magazaHam.guncel_unvan)
       .maybeSingle();
+    if (unvanMaasHata) brutMaasHata = unvanMaasHata.message;
     brutMaas = unvanMaasKaydi?.brut_maas ?? null;
   }
 
@@ -333,6 +336,7 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     il_adi: magazaHam.magazalar?.il_adi ?? null,
     kidem_ay: kidemAy,
     brut_maas: brutMaas,
+    brut_maas_hata: brutMaasHata,
     kidem_tazminati_tavani: tavan,
     kidem_tazminati_tahmini: kidemTazminatiTahmini,
   };
