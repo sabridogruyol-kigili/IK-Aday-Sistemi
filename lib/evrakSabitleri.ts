@@ -14,12 +14,19 @@ export type BelgeTanimi = {
   nasilAlinir: string[];
 };
 
+// Kabul edilen dosya türleri ve azami boyut — hem arayüzde gösterilen metin
+// hem gerçek input kısıtlaması bununla tutarlı olsun diye tek yerden.
+export const KABUL_EDILEN_TURLER = "application/pdf,image/jpeg,image/png";
+export const KABUL_EDILEN_TURLER_ETIKET = "PDF, JPG veya PNG";
+export const MAKS_DOSYA_BOYUTU_MB = 10;
+export const MAKS_DOSYA_BOYUTU_BYTE = MAKS_DOSYA_BOYUTU_MB * 1024 * 1024;
+
 // Belge listesi — kavramsal tasarım dokümanındaki "Toplanan Veri" bölümüyle
 // birebir eşleşir. "askerlik" sadece erkek adaylardan istenir (koşullu).
 export const BELGE_LISTESI: BelgeTanimi[] = [
   {
     id: "kimlik", ad: "Kimlik ve ehliyet fotokopisi", etiket: "Ön ve arka yüz · ehliyetiniz varsa ekleyin", coklu: true,
-    nasilAlinir: ["Kimliğinizin ön yüzünü düz bir zeminde fotoğraflayın.", "Arka yüzünü de aynı şekilde çekin.", "Ehliyetiniz varsa onu da aynı şekilde ekleyin."],
+    nasilAlinir: ["Kimliğinizin ön yüzünü düz bir zeminde fotoğraflayın.", "Arka yüzünü de aynı şekilde çekin.", "Ehliyetiniz varsa onu da aynı şekilde ekleyin.", `Birden fazla dosyayı aynı anda seçip yükleyebilir, ya da her birini ayrı ayrı yükleyebilirsiniz — daha önce yüklenenlerin üzerine eklenir, silinmez.`],
   },
   {
     id: "adli", ad: "Adli sicil kaydı", etiket: "e-Devlet · ücretsiz",
@@ -38,12 +45,24 @@ export const BELGE_LISTESI: BelgeTanimi[] = [
     nasilAlinir: ["e-Devlet'ten barkodlu mezun belgesi alabilirsiniz.", "Öğrenciyseniz \"Öğrenci Belgesi\" hizmetini kullanın.", "Belgenin tamamını yükleyin."],
   },
   {
-    id: "saglik", ad: "Sağlık raporu", etiket: "Ek-5 (aile hekimi) veya Ek-2 (OSGB) — birini seçin", secenekli: true,
-    nasilAlinir: ["Aile hekiminizden Ek-5 Durum Bildirir Tek Hekim Raporu ALINABİLİR, ya da", "Anlaşmalı OSGB'den Ek-2 İşe Giriş ve Periyodik Muayene Raporu alınabilir.", "Raporun tüm sayfalarını yükleyin."],
+    id: "saglik", ad: "Sağlık raporu", etiket: "Ek-5 veya Ek-2 — birini yükleyin", secenekli: true,
+    nasilAlinir: [
+      "Seçenek 1: Aile hekiminizden Ek-5 Durum Bildirir Tek Hekim Raporu alın.",
+      "Seçenek 2: Anlaşmalı bir OSGB'den Ek-2 İşe Giriş ve Periyodik Muayene Raporu alın.",
+      "İki seçenekten sadece birini yükleyin, raporun tüm sayfalarını ekleyin.",
+    ],
   },
   {
-    id: "iskur", ad: "İŞKUR aktif kayıt belgesi", etiket: "e-Devlet ya da İŞKUR",
-    nasilAlinir: ["e-Devlet veya İŞKUR mobil uygulamasına giriş yapın.", "\"Aktif Kayıt Belgesi\" oluşturun.", "Belgeyi indirip yükleyin."],
+    id: "iskur", ad: "İŞKUR aktif kayıt belgesi", etiket: "e-Devlet ya da İŞKUR Mobil",
+    nasilAlinir: [
+      "e-Devlet yolu — Adım 1: turkiye.gov.tr adresine TC kimlik no ve şifrenizle giriş yapın.",
+      "e-Devlet yolu — Adım 2: Üstteki arama çubuğuna \"İŞKUR\" yazıp \"İŞKUR Aktif İş Arayan Kayıt Belgesi\" hizmetini açın.",
+      "e-Devlet yolu — Adım 3: Belge ekranda görüntülenince sağ üstteki indirme simgesiyle PDF olarak kaydedin.",
+      "İŞKUR Mobil yolu — Adım 1: \"İŞKUR Mobil\" uygulamasını App Store veya Play Store'dan indirin.",
+      "İŞKUR Mobil yolu — Adım 2: TC kimlik no ve e-Devlet şifrenizle giriş yapın.",
+      "İŞKUR Mobil yolu — Adım 3: Ana ekrandan \"Belgelerim\" bölümüne girip \"İş Arayan Kayıt Belgesi\"ni açın, PDF olarak paylaşın.",
+      "Daha önce hiç İŞKUR'a kayıt olmadıysanız, önce aynı uygulama veya e-Devlet üzerinden \"İş Arayan Kaydı\" oluşturmanız gerekir — bu, belgeyi almadan önceki tek seferlik bir adımdır.",
+    ],
   },
   {
     id: "askerlik", ad: "Askerlik durum belgesi", etiket: "e-Devlet · erkek adaylar için", kosul: (c) => c === "Erkek",
@@ -74,6 +93,11 @@ export function tcKimlikGecerliMi(v: string): boolean {
 
 export function ibanGecerliMi(v: string): boolean {
   return /^TR[0-9]{24}$/.test(v.replace(/\s/g, "").toUpperCase());
+}
+
+// Cep telefonu — başında 0 olmadan, 5 ile başlayan 10 hane (örn. 5XXXXXXXXX).
+export function telefonGecerliMi(v: string): boolean {
+  return /^5[0-9]{9}$/.test(v.replace(/\s/g, ""));
 }
 
 // İl -> ilçe listesi (81 il, resmi ilçe verisi).
