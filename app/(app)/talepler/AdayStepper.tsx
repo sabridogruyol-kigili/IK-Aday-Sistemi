@@ -1,6 +1,6 @@
 "use client";
 
-const ADIMLAR = ["Yönlendirildi", "Karar", "Görüşme", "Sonuç", "İşe Alındı", "Evrak"];
+const ADIMLAR = ["Yönlendirildi", "Karar", "Görüşme", "Sonuç", "İşe Alım Onaylandı", "Evrak Tamamlandı"];
 
 function adimDurumlari(durum: string, evrakTamamMi?: boolean): ("done" | "active" | "fail" | "pending")[] {
   const evrakAdimi: "done" | "active" = evrakTamamMi ? "done" : "active";
