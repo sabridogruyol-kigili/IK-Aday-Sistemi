@@ -70,8 +70,8 @@ function BelgeSatiri({ belgeTipi, tanimAd, kayit, onKarar }: {
         <div className="flex flex-wrap gap-1.5 mb-2">
           {kayit.dosya_yollari.map((yol, i) => (
             <button key={i} onClick={() => dosyaGoster(yol)} disabled={dosyaYukleniyor}
-              className="text-[11px] text-info hover:underline disabled:opacity-50">
-              Dosya {i + 1} Görüntüle
+              className="inline-flex items-center gap-1 text-[11px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2.5 py-1.5 disabled:opacity-50 transition-colors">
+              📄 Dosya {i + 1} — Görüntüle
             </button>
           ))}
         </div>
