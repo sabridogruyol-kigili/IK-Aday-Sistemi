@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import SurecTarihce, { type SurecAdimi } from "./SurecTarihce";
+import { adayiHavuzaAl } from "../adaylar/actions";
 
 function tarihFormat(t: string | null): string {
   if (!t) return "—";
@@ -9,9 +11,41 @@ function tarihFormat(t: string | null): string {
   return d.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// Havuza alınabilecek (henüz sonlanmamış) aday durumları — reddedilmiş,
+// işe alınmış veya zaten havuzdaki adaylar bu listede yok.
+const HAVUZA_ALINABILIR_DURUMLAR = ["YONLENDIRILDI", "BEKLEMEDE", "ONAYLANDI", "ON_GORUSME_PLANLANDI", "GORUSULDU_OLUMLU"];
+
 export default function SurecDetayModal({
   baslik, olaylar, yukleniyor, onClose,
-}: { baslik: string; olaylar: SurecAdimi[]; yukleniyor: boolean; onClose: () => void }) {
+  adayId, adayDurum, onHavuzaAlSonrasi,
+}: {
+  baslik: string; olaylar: SurecAdimi[]; yukleniyor: boolean; onClose: () => void;
+  // Bu üçü sadece ADAY seviyesindeki süreç detayında verilir — talep
+  // seviyesindeki popup'ta hiç geçilmez, buton de hiç görünmez. Bu yüzden
+  // "Adayı Havuza Al" diğer süreçlerle (talep onayı, revizyon vb.) hiç
+  // çakışmaz — sadece kendi popup'ında, ayrı bir bölümde durur.
+  adayId?: string; adayDurum?: string; onHavuzaAlSonrasi?: () => void;
+}) {
+  const [havuzaAlPending, setHavuzaAlPending] = useState(false);
+  const [havuzaAlHata, setHavuzaAlHata] = useState<string | null>(null);
+  const [havuzaAlindi, setHavuzaAlindi] = useState(false);
+
+  const havuzaAlinabilirMi = !!adayId && !!adayDurum && HAVUZA_ALINABILIR_DURUMLAR.includes(adayDurum);
+
+  function havuzaAlTikla() {
+    if (!adayId) return;
+    setHavuzaAlHata(null);
+    setHavuzaAlPending(true);
+    const fd = new FormData();
+    fd.set("aday_id", adayId);
+    adayiHavuzaAl(fd).then((res) => {
+      setHavuzaAlPending(false);
+      if (res?.error) { setHavuzaAlHata(res.error); return; }
+      setHavuzaAlindi(true);
+      onHavuzaAlSonrasi?.();
+    });
+  }
+
   return (
     <div className="fixed inset-0 bg-navy-3/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-card border border-gray-200 w-full max-w-2xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -47,6 +81,28 @@ export default function SurecDetayModal({
                   )}
                 </div>
               </div>
+
+              {havuzaAlinabilirMi && (
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  {havuzaAlindi ? (
+                    <div className="text-[11px] text-success bg-success-bg rounded-md px-3 py-2.5">
+                      Aday havuza alındı — bu talepten bağımsızlaştı, Aday Havuzu sayfasında görünecek.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-[11px] font-semibold text-navy-3 uppercase mb-2">Diğer İşlemler</div>
+                      <div className="text-[11px] text-gray-500 mb-2">
+                        Süreç bu talep için şimdilik uygun değilse, adayı bu talepten bağımsızlaştırıp genel havuza alabilirsiniz — ileride başka bir talebe yeniden yönlendirilebilir.
+                      </div>
+                      {havuzaAlHata && <div className="text-[11px] text-danger mb-2">{havuzaAlHata}</div>}
+                      <button onClick={havuzaAlTikla} disabled={havuzaAlPending}
+                        className="bg-white border border-gray-300 hover:bg-gray-50 text-navy-3 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 transition-colors">
+                        {havuzaAlPending ? "İşleniyor..." : "Adayı Havuza Al"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
