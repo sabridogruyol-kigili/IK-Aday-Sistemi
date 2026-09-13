@@ -394,17 +394,45 @@ export async function deleteAday(formData: FormData) {
 // Süreç Tarihçesi — geçmiş + mevcut + gelecek adımları tek şablonda üretir.
 // Her adımın "durum" alanı: TAMAMLANDI (yeşil/kırmızı, gerçekleşti) | MEVCUT (mavi, şu an bekleniyor) | GELECEK (gri, henüz sırası gelmedi)
 // ============================================================
+// ============================================================
+// Süreç Tarihçesi — geçmiş + mevcut + gelecek adımları tek şablonda üretir.
+// Her adımın "durum" alanı: TAMAMLANDI (yeşil/kırmızı, gerçekleşti) | MEVCUT (mavi, şu an bekleniyor) | GELECEK (gri, henüz sırası gelmedi)
+//
+// Süreç mantığının amacı: (1) tamamlanan her adım için KİM, NE ZAMAN, NE
+// AÇIKLAMAYLA yaptı — geçmişe dönük tam izlenebilirlik. (2) şu an bekleyen
+// adım için HANGİ DURUMDA, NE KADAR SÜREDİR, KİMDE bekliyor. (3) bir
+// sonraki adımın KİMDE olacağı. Aşağıdaki alanlar bunun için var.
+// ============================================================
 export type SurecAdimi = {
   baslik: string;
   tarih: string | null;
   detay?: string | null;
   durum: "TAMAMLANDI_OLUMLU" | "TAMAMLANDI_OLUMSUZ" | "TAMAMLANDI_NOTR" | "MEVCUT" | "GELECEK";
+  yapanKisi?: string | null; // Tamamlanan adımlar için: bu kararı/işlemi kim yaptı.
+  kimdeBekliyor?: string | null; // Sadece MEVCUT adım için: şu an kimin aksiyonu bekleniyor.
+  neKadarSuredir?: string | null; // Sadece MEVCUT adım için: bir önceki adımdan bu yana geçen süre.
 };
 
-function enSonTarih(gecmis: any[], durumlar: string[]): string | null {
+function enSonOlay(gecmis: any[], durumlar: string[]): { tarih: string | null; kullaniciId: string | null } {
   const eslesen = gecmis.filter((g) => durumlar.includes(g.durum));
-  if (eslesen.length === 0) return null;
-  return eslesen[eslesen.length - 1].created_at;
+  if (eslesen.length === 0) return { tarih: null, kullaniciId: null };
+  const son = eslesen[eslesen.length - 1];
+  return { tarih: son.created_at, kullaniciId: son.degistiren_kullanici_id ?? null };
+}
+
+// "2 gün 3 saat", "45 dakika" gibi okunaklı süre — MEVCUT adımın ne kadar
+// süredir beklediğini göstermek için.
+function sureFormatla(baslangic: string | null): string | null {
+  if (!baslangic) return null;
+  const ms = Date.now() - new Date(baslangic).getTime();
+  if (ms < 0) return null;
+  const dk = Math.floor(ms / 60000);
+  const saat = Math.floor(dk / 60);
+  const gun = Math.floor(saat / 24);
+  if (gun > 0) return `${gun} gün ${saat % 24} saattir`;
+  if (saat > 0) return `${saat} saat ${dk % 60} dakikadır`;
+  if (dk > 0) return `${dk} dakikadır`;
+  return "az önce";
 }
 
 export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: SurecAdimi[]; error?: string }> {
@@ -412,17 +440,28 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
 
   const { data: aday, error: adayHata } = await supabase
     .from("adaylar")
-    .select("ad_soyad, created_at, yonlendiren_rol, karari_veren_rol, durum, onay_bm, onay_ik, mulakat_bm, mulakat_ik, tc_kimlik_no")
+    .select("ad_soyad, created_at, yonlendiren_rol, karari_veren_rol, durum, onay_bm, onay_ik, mulakat_bm, mulakat_ik, tc_kimlik_no, yonlendiren_kullanici_id")
     .eq("id", adayId)
     .single();
   if (adayHata || !aday) return { data: [], error: adayHata?.message ?? "Aday bulunamadı." };
 
   const { data: gecmis } = await supabase
     .from("aday_surec_gecmisi")
-    .select("durum, aciklama, created_at")
+    .select("durum, aciklama, created_at, degistiren_kullanici_id")
     .eq("aday_id", adayId)
     .order("created_at");
   const g = gecmis ?? [];
+
+  // Adı geçen tüm kullanıcıları (yönlendiren + her aşamada karar veren) tek
+  // seferde çekip isim eşlemesi kuruyoruz — her adımda ayrı sorgu atmamak için.
+  const kullaniciIdleri = new Set<string>();
+  if (aday.yonlendiren_kullanici_id) kullaniciIdleri.add(aday.yonlendiren_kullanici_id);
+  g.forEach((e) => { if (e.degistiren_kullanici_id) kullaniciIdleri.add(e.degistiren_kullanici_id); });
+  const { data: kullanicilarHam } = kullaniciIdleri.size > 0
+    ? await supabase.from("kullanicilar").select("id, ad_soyad").in("id", Array.from(kullaniciIdleri))
+    : { data: [] as any[] };
+  const isimMap: Record<string, string> = {};
+  (kullanicilarHam ?? []).forEach((k: any) => { isimMap[k.id] = k.ad_soyad; });
 
   const adimlar: SurecAdimi[] = [];
   const adayDurum = aday.durum;
@@ -432,78 +471,131 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
   const mulakatBm = aday.mulakat_bm;
   const mulakatIk = aday.mulakat_ik;
 
-  adimlar.push({ tarih: aday.created_at, baslik: `Aday Eklendi — ${aday.yonlendiren_rol}`, durum: "TAMAMLANDI_NOTR" });
+  // Bir MEVCUT adımın "ne kadar süredir" hesabı için, kendisinden BİR ÖNCE
+  // tamamlanan adımın tarihi lazım — adımlar sırayla eklendiği için, en son
+  // eklenen adımın tarihini burada takip ediyoruz.
+  let sonTamamlananTarih: string | null = aday.created_at;
+  function guncelleSonTamamlanan(t: string | null) { if (t) sonTamamlananTarih = t; }
+
+  adimlar.push({
+    tarih: aday.created_at,
+    baslik: `Aday Eklendi — ${aday.yonlendiren_rol}`,
+    durum: "TAMAMLANDI_NOTR",
+    yapanKisi: isimMap[aday.yonlendiren_kullanici_id] ?? null,
+  });
 
   const durumSirasi = ["YONLENDIRILDI", "ONAYLANDI", "REDDEDILDI", "ON_GORUSME_PLANLANDI", "GORUSULDU_OLUMLU", "GORUSULDU_OLUMSUZ", "ISE_ALINDI"];
   const mevcutIndex = durumSirasi.indexOf(adayDurum);
 
   function mulakatAdimi(rol: "BM" | "IK", deger: string | null) {
-    const tarih = enSonTarih(g, [`MULAKAT_${rol}_YAPILDI`, `MULAKAT_${rol}_YAPILMADI`]);
-    if (deger === "YAPILDI") adimlar.push({ tarih, baslik: `Mülakat (${rol}) — Yapıldı`, durum: "TAMAMLANDI_OLUMLU" });
-    else if (deger === "YAPILMADI") adimlar.push({ tarih, baslik: `Mülakat (${rol}) — Yapılmadı`, durum: "TAMAMLANDI_OLUMSUZ" });
-    else adimlar.push({ tarih: null, baslik: `Mülakat (${rol})`, durum: adayDurum === "YONLENDIRILDI" ? "MEVCUT" : "GELECEK" });
+    const olay = enSonOlay(g, [`MULAKAT_${rol}_YAPILDI`, `MULAKAT_${rol}_YAPILMADI`]);
+    if (deger === "YAPILDI") {
+      adimlar.push({ tarih: olay.tarih, baslik: `Mülakat (${rol}) — Yapıldı`, durum: "TAMAMLANDI_OLUMLU", yapanKisi: isimMap[olay.kullaniciId ?? ""] ?? null });
+      guncelleSonTamamlanan(olay.tarih);
+    } else if (deger === "YAPILMADI") {
+      adimlar.push({ tarih: olay.tarih, baslik: `Mülakat (${rol}) — Yapılmadı`, durum: "TAMAMLANDI_OLUMSUZ", yapanKisi: isimMap[olay.kullaniciId ?? ""] ?? null });
+      guncelleSonTamamlanan(olay.tarih);
+    } else if (adayDurum === "YONLENDIRILDI") {
+      adimlar.push({ tarih: null, baslik: `Mülakat (${rol})`, durum: "MEVCUT", kimdeBekliyor: rol === "BM" ? "Bölge/Mağaza Müdürü" : "İK", neKadarSuredir: sureFormatla(sonTamamlananTarih) });
+    } else {
+      adimlar.push({ tarih: null, baslik: `Mülakat (${rol})`, durum: "GELECEK" });
+    }
   }
 
   if (adayDurum === "REDDEDILDI" || adayDurum === "ONAYLANDI" || adayDurum === "YONLENDIRILDI") {
     if (karariVerenRol === "BM_VE_IK") {
       mulakatAdimi("BM", mulakatBm);
       mulakatAdimi("IK", mulakatIk);
-      const bmTarih = enSonTarih(g, ["ARA_KARAR_BM_ONAY", "ARA_KARAR_BM_RED"]);
-      const ikTarih = enSonTarih(g, ["ARA_KARAR_IK_ONAY", "ARA_KARAR_IK_RED"]);
+      const bmOlay = enSonOlay(g, ["ARA_KARAR_BM_ONAY", "ARA_KARAR_BM_RED"]);
+      const ikOlay = enSonOlay(g, ["ARA_KARAR_IK_ONAY", "ARA_KARAR_IK_RED"]);
       adimlar.push({
-        tarih: bmTarih,
+        tarih: bmOlay.tarih,
         baslik: onayBm ? `BM Kararı — ${onayBm === "ONAY" ? "Onayladı" : "Reddetti"}` : "BM Kararı",
         durum: onayBm === "ONAY" ? "TAMAMLANDI_OLUMLU" : onayBm === "RED" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
+        yapanKisi: onayBm ? isimMap[bmOlay.kullaniciId ?? ""] ?? null : null,
+        kimdeBekliyor: !onayBm ? "Bölge/Mağaza Müdürü" : null,
+        neKadarSuredir: !onayBm ? sureFormatla(sonTamamlananTarih) : null,
       });
+      guncelleSonTamamlanan(bmOlay.tarih);
       adimlar.push({
-        tarih: ikTarih,
+        tarih: ikOlay.tarih,
         baslik: onayIk ? `İK Kararı — ${onayIk === "ONAY" ? "Onayladı" : "Reddetti"}` : "İK Kararı",
         durum: onayIk === "ONAY" ? "TAMAMLANDI_OLUMLU" : onayIk === "RED" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
+        yapanKisi: onayIk ? isimMap[ikOlay.kullaniciId ?? ""] ?? null : null,
+        kimdeBekliyor: !onayIk ? "İK" : null,
+        neKadarSuredir: !onayIk ? sureFormatla(sonTamamlananTarih) : null,
       });
+      guncelleSonTamamlanan(ikOlay.tarih);
     } else {
       const rol = karariVerenRol as "BM" | "IK";
       mulakatAdimi(rol, rol === "BM" ? mulakatBm : mulakatIk);
-      const kararTarihi = enSonTarih(g, ["ONAYLANDI", "REDDEDILDI"]);
+      const kararOlay = enSonOlay(g, ["ONAYLANDI", "REDDEDILDI"]);
       adimlar.push({
-        tarih: adayDurum === "YONLENDIRILDI" ? null : kararTarihi,
+        tarih: adayDurum === "YONLENDIRILDI" ? null : kararOlay.tarih,
         baslik: adayDurum === "ONAYLANDI" ? `Karar (${rol}) — Onayladı` : adayDurum === "REDDEDILDI" ? `Karar (${rol}) — Reddetti` : `Karar (${rol})`,
         durum: adayDurum === "ONAYLANDI" ? "TAMAMLANDI_OLUMLU" : adayDurum === "REDDEDILDI" ? "TAMAMLANDI_OLUMSUZ" : "MEVCUT",
+        yapanKisi: adayDurum !== "YONLENDIRILDI" ? isimMap[kararOlay.kullaniciId ?? ""] ?? null : null,
+        kimdeBekliyor: adayDurum === "YONLENDIRILDI" ? (rol === "BM" ? "Bölge/Mağaza Müdürü" : "İK") : null,
+        neKadarSuredir: adayDurum === "YONLENDIRILDI" ? sureFormatla(sonTamamlananTarih) : null,
       });
+      guncelleSonTamamlanan(kararOlay.tarih);
     }
   } else {
-    adimlar.push({ tarih: enSonTarih(g, ["ONAYLANDI"]), baslik: "Karar — Onaylandı", durum: "TAMAMLANDI_OLUMLU" });
+    const olay = enSonOlay(g, ["ONAYLANDI"]);
+    adimlar.push({ tarih: olay.tarih, baslik: "Karar — Onaylandı", durum: "TAMAMLANDI_OLUMLU", yapanKisi: isimMap[olay.kullaniciId ?? ""] ?? null });
+    guncelleSonTamamlanan(olay.tarih);
   }
 
   if (adayDurum === "REDDEDILDI") {
     return { data: adimlar };
   }
 
+  const gorusmeOlay = enSonOlay(g, ["ON_GORUSME_PLANLANDI"]);
+  const gorusmeDurum: SurecAdimi["durum"] =
+    mevcutIndex > durumSirasi.indexOf("ON_GORUSME_PLANLANDI") ? "TAMAMLANDI_NOTR"
+    : adayDurum === "ON_GORUSME_PLANLANDI" ? "TAMAMLANDI_NOTR"
+    : adayDurum === "ONAYLANDI" ? "MEVCUT" : "GELECEK";
   adimlar.push({
-    tarih: enSonTarih(g, ["ON_GORUSME_PLANLANDI"]),
+    tarih: gorusmeOlay.tarih,
     baslik: "Ön Görüşme Planlandı",
-    durum: mevcutIndex > durumSirasi.indexOf("ON_GORUSME_PLANLANDI") ? "TAMAMLANDI_NOTR"
-      : adayDurum === "ON_GORUSME_PLANLANDI" ? "TAMAMLANDI_NOTR"
-      : adayDurum === "ONAYLANDI" ? "MEVCUT" : "GELECEK",
+    durum: gorusmeDurum,
+    yapanKisi: gorusmeDurum !== "MEVCUT" && gorusmeDurum !== "GELECEK" ? isimMap[gorusmeOlay.kullaniciId ?? ""] ?? null : null,
+    kimdeBekliyor: gorusmeDurum === "MEVCUT" ? "İK" : null,
+    neKadarSuredir: gorusmeDurum === "MEVCUT" ? sureFormatla(sonTamamlananTarih) : null,
   });
+  if (gorusmeDurum !== "GELECEK") guncelleSonTamamlanan(gorusmeOlay.tarih);
 
   const gorusuldu = adayDurum === "GORUSULDU_OLUMLU" || adayDurum === "GORUSULDU_OLUMSUZ" || adayDurum === "ISE_ALINDI";
+  const gorusmeSonucOlay = enSonOlay(g, ["GORUSULDU_OLUMLU", "GORUSULDU_OLUMSUZ"]);
+  const gorusmeSonucDurum: SurecAdimi["durum"] =
+    adayDurum === "GORUSULDU_OLUMLU" || adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU"
+    : adayDurum === "GORUSULDU_OLUMSUZ" ? "TAMAMLANDI_OLUMSUZ"
+    : adayDurum === "ON_GORUSME_PLANLANDI" ? "MEVCUT" : "GELECEK";
   adimlar.push({
-    tarih: enSonTarih(g, ["GORUSULDU_OLUMLU", "GORUSULDU_OLUMSUZ"]),
+    tarih: gorusmeSonucOlay.tarih,
     baslik: adayDurum === "GORUSULDU_OLUMSUZ" ? "Görüşüldü — Olumsuz" : gorusuldu ? "Görüşüldü — Olumlu" : "Görüşüldü",
-    durum: adayDurum === "GORUSULDU_OLUMLU" || adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU"
-      : adayDurum === "GORUSULDU_OLUMSUZ" ? "TAMAMLANDI_OLUMSUZ"
-      : adayDurum === "ON_GORUSME_PLANLANDI" ? "MEVCUT" : "GELECEK",
+    durum: gorusmeSonucDurum,
+    yapanKisi: gorusmeSonucDurum !== "MEVCUT" && gorusmeSonucDurum !== "GELECEK" ? isimMap[gorusmeSonucOlay.kullaniciId ?? ""] ?? null : null,
+    kimdeBekliyor: gorusmeSonucDurum === "MEVCUT" ? "İK" : null,
+    neKadarSuredir: gorusmeSonucDurum === "MEVCUT" ? sureFormatla(sonTamamlananTarih) : null,
   });
+  if (gorusmeSonucDurum !== "GELECEK") guncelleSonTamamlanan(gorusmeSonucOlay.tarih);
 
   if (adayDurum === "GORUSULDU_OLUMSUZ") {
     return { data: adimlar };
   }
 
+  const iseAlimDurum: SurecAdimi["durum"] = adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU" : adayDurum === "GORUSULDU_OLUMLU" ? "MEVCUT" : "GELECEK";
+  const iseAlimOlay = enSonOlay(g, ["ISE_ALINDI"]);
   adimlar.push({
-    tarih: enSonTarih(g, ["ISE_ALINDI"]),
+    tarih: iseAlimOlay.tarih,
     baslik: "İşe Alım Onaylandı",
-    durum: adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU" : adayDurum === "GORUSULDU_OLUMLU" ? "MEVCUT" : "GELECEK",
+    durum: iseAlimDurum,
+    yapanKisi: iseAlimDurum === "TAMAMLANDI_OLUMLU" ? isimMap[iseAlimOlay.kullaniciId ?? ""] ?? null : null,
+    kimdeBekliyor: iseAlimDurum === "MEVCUT" ? "İK (TC ve başlama tarihi girip \"İşe Al\" demesi bekleniyor)" : null,
+    neKadarSuredir: iseAlimDurum === "MEVCUT" ? sureFormatla(sonTamamlananTarih) : null,
   });
+  if (iseAlimDurum !== "GELECEK") guncelleSonTamamlanan(iseAlimOlay.tarih);
 
   // Son adım: Evrak Tamamlandı — işe alım gerçek anlamda bittiyse (personel
   // hâlâ aktifse ve tüm zorunlu belgeler onaylandıysa) yeşil, süreç devam
@@ -512,7 +604,7 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
   if (adayDurum === "ISE_ALINDI" && aday.tc_kimlik_no) {
     const { data: personel } = await supabase
       .from("personel")
-      .select("id, durum, evrak_iptal_nedeni")
+      .select("id, durum, evrak_iptal_nedeni, created_at")
       .eq("tc_kimlik_no", aday.tc_kimlik_no)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -530,6 +622,8 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
         tarih: null,
         baslik: tamamMi ? "Evrak Tamamlandı" : `Evrak Bekleniyor (${onaylanan}/${gerekliBelgeler.length})`,
         durum: tamamMi ? "TAMAMLANDI_OLUMLU" : "MEVCUT",
+        kimdeBekliyor: tamamMi ? null : "Aday (evrak yüklemesi) ve İK (onay)",
+        neKadarSuredir: tamamMi ? null : sureFormatla(personel.created_at),
       });
     }
   }
