@@ -103,6 +103,9 @@ function BelgeKarti({
 
 export default function EvrakPortaliClient({ token, kod, veri }: { token: string; kod: string; veri: PortalVerisi }) {
   const [bilgiler, setBilgiler] = useState(veri.bilgiler ?? {});
+  const [secilenIl, setSecilenIl] = useState(veri.bilgiler?.il ?? "");
+  const [ikinciAdresVar, setIkinciAdresVar] = useState(!!veri.bilgiler?.ikinci_adres_var);
+  const [secilenIl2, setSecilenIl2] = useState(veri.bilgiler?.il2 ?? "");
   const [belgeler, setBelgeler] = useState(veri.belgeler);
   const [kvkkOnaylandi, setKvkkOnaylandi] = useState(!!veri.bilgiler?.kvkk_onay_tarihi);
   const [kvkkIsaretli, setKvkkIsaretli] = useState(false);
@@ -265,13 +268,13 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
               <div className="pt-2 border-t border-gray-100">
                 <div className="text-[11px] font-semibold text-navy-3 mb-2">İkamet Adresi</div>
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  <select name="il" required defaultValue={bilgiler.il ?? ""} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                  <select name="il" required value={secilenIl} onChange={(e) => setSecilenIl(e.target.value)} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
                     <option value="">İl seçin</option>
                     {ILLER.map((il) => <option key={il} value={il}>{il}</option>)}
                   </select>
-                  <select name="ilce" required defaultValue={bilgiler.ilce ?? ""} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                  <select name="ilce" required key={secilenIl} defaultValue={secilenIl === (veri.bilgiler?.il ?? "") ? (bilgiler.ilce ?? "") : ""} className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
                     <option value="">İlçe seçin</option>
-                    {(ILCE[bilgiler.il] ?? "").split(",").filter(Boolean).map((i: string) => <option key={i} value={i}>{i}</option>)}
+                    {(ILCE[secilenIl] ?? "").split(",").filter(Boolean).map((i: string) => <option key={i} value={i}>{i}</option>)}
                   </select>
                 </div>
                 <input name="mahalle" defaultValue={bilgiler.mahalle ?? ""} placeholder="Mahalle / Köy" className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm mb-2" />
@@ -283,6 +286,43 @@ export default function EvrakPortaliClient({ token, kod, veri }: { token: string
                   <input name="bina_no" defaultValue={bilgiler.bina_no ?? ""} placeholder="Bina No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
                   <input name="daire_no" defaultValue={bilgiler.daire_no ?? ""} placeholder="Daire No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-gray-100">
+                <label className="flex items-center gap-2 text-[12px] text-navy-3 font-medium cursor-pointer">
+                  <input type="checkbox" name="ikinci_adres_var" value="true" checked={ikinciAdresVar}
+                    onChange={(e) => setIkinciAdresVar(e.target.checked)} />
+                  İkamet adresimden farklı bir adreste yaşıyorum
+                </label>
+
+                {ikinciAdresVar && (
+                  <div className="mt-3">
+                    <div className="text-[11px] font-semibold text-navy-3 mb-0.5">Yaşadığınız Adres</div>
+                    <div className="text-[10px] text-gray-400 mb-2">Size ulaşılacak adres.</div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <select name="il2" required={ikinciAdresVar} value={secilenIl2} onChange={(e) => setSecilenIl2(e.target.value)}
+                        className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                        <option value="">İl seçin</option>
+                        {ILLER.map((il) => <option key={il} value={il}>{il}</option>)}
+                      </select>
+                      <select name="ilce2" required={ikinciAdresVar} key={secilenIl2} defaultValue={secilenIl2 === (veri.bilgiler?.il2 ?? "") ? (bilgiler.ilce2 ?? "") : ""}
+                        className="border border-gray-300 rounded-md px-2 py-2 text-sm bg-white">
+                        <option value="">{secilenIl2 ? "İlçe seçin" : "Önce il seçin"}</option>
+                        {(ILCE[secilenIl2] ?? "").split(",").filter(Boolean).map((i: string) => <option key={i} value={i}>{i}</option>)}
+                      </select>
+                    </div>
+                    <input name="mahalle2" defaultValue={bilgiler.mahalle2 ?? ""} placeholder="Mahalle / Köy" className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm mb-2" />
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <input name="cadde2" defaultValue={bilgiler.cadde2 ?? ""} placeholder="Cadde (varsa)" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                      <input name="sokak2" defaultValue={bilgiler.sokak2 ?? ""} placeholder="Sokak" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                    </div>
+                    <input name="site_adi2" defaultValue={bilgiler.site_adi2 ?? ""} placeholder="Site adı (varsa)" className="w-full border border-gray-300 rounded-md px-2 py-2 text-sm mb-2" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input name="bina_no2" defaultValue={bilgiler.bina_no2 ?? ""} placeholder="Bina No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                      <input name="daire_no2" defaultValue={bilgiler.daire_no2 ?? ""} placeholder="Daire No" className="border border-gray-300 rounded-md px-2 py-2 text-sm" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {bilgilerHata && <div className="text-xs text-danger">{bilgilerHata}</div>}
