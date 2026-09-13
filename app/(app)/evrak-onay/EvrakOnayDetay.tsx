@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { getEvrakDetay, belgeKararVer, getBelgeSignedUrl, hatirlatmaGonder, iptalEtIseAlim, type EvrakDetay } from "./actions";
 import { iseAlimiTamamla } from "../talepler/actions";
+import { getAdaySurecGecmisi, type SurecAdimi } from "../adaylar/actions";
+import SurecDetayModal from "../talepler/SurecDetayModal";
 import { BELGE_LISTESI, belgeGorunurMu, RED_NEDENLERI, type BelgeTipi } from "@/lib/evrakSabitleri";
 
 const DURUM_ROZET: Record<string, string> = {
@@ -121,6 +123,19 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
   const [tamamlaPending, setTamamlaPending] = useState(false);
   const [tamamlaHata, setTamamlaHata] = useState<string | null>(null);
   const [tamamlandi, setTamamlandi] = useState(false);
+  const [surecModalAcik, setSurecModalAcik] = useState(false);
+  const [surecOlaylar, setSurecOlaylar] = useState<SurecAdimi[]>([]);
+  const [surecPending, setSurecPending] = useState(false);
+
+  function surecDetayiniAc() {
+    if (!detay?.aday_id) return;
+    setSurecModalAcik(true);
+    setSurecPending(true);
+    getAdaySurecGecmisi(detay.aday_id).then((res) => {
+      setSurecOlaylar(res.data);
+      setSurecPending(false);
+    });
+  }
 
   useEffect(() => {
     getEvrakDetay(personelId).then((d) => { setDetay(d); setYukleniyor(false); });
@@ -222,7 +237,15 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
           ) : (
             <>
               <div className="bg-gray-50 rounded-md p-3 mb-1">
-                <div className="text-[10px] font-semibold text-navy-3 uppercase mb-2">Kişi Bilgileri</div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-semibold text-navy-3 uppercase">Kişi Bilgileri</div>
+                  {detay?.aday_id && (
+                    <button onClick={surecDetayiniAc}
+                      className="text-[10px] bg-white border border-gray-300 hover:bg-gray-50 text-navy-3 rounded-md px-2 py-1 font-medium transition-colors">
+                      🔍 Süreç Detayı
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2.5 text-[11px]">
                   <div><span className="text-gray-400">E-posta: </span><span className="text-navy-3">{detay?.email ?? "—"}</span></div>
                   <div><span className="text-gray-400">Cinsiyet: </span><span className="text-navy-3">{detay?.cinsiyet ?? "—"}</span></div>
@@ -296,6 +319,15 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
           )}
         </div>
       </div>
+
+      {surecModalAcik && (
+        <SurecDetayModal
+          baslik={adSoyad}
+          olaylar={surecOlaylar}
+          yukleniyor={surecPending}
+          onClose={() => setSurecModalAcik(false)}
+        />
+      )}
     </div>
   );
 }
