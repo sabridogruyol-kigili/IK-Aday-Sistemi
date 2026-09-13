@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
@@ -169,7 +170,16 @@ export async function getBelgeSignedUrl(dosyaYolu: string): Promise<{ url?: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Giriş yapmalısınız." };
 
-  const { data, error } = await supabase.storage.from("evrak-dosyalari").createSignedUrl(dosyaYolu, 300);
+  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  if (!me || (me.rol !== "IK" && me.rol !== "YONETIM")) return { error: "Bu belgeyi görüntüleme yetkiniz yok." };
+
+  // evrak-dosyalari bucket'ı için storage.objects RLS politikası hiç
+  // yazılmamıştı — normal (yetki kontrollü) bağlantı dosyayı "yok" gibi
+  // görüyordu, oysa yükleme zaten admin bağlantıyla yapılıyordu. Yetki
+  // kontrolü yukarıda (IK/YONETIM) yapıldığı için, buradan itibaren admin
+  // bağlantı kullanmak güvenli.
+  const admin = createAdminClient();
+  const { data, error } = await admin.storage.from("evrak-dosyalari").createSignedUrl(dosyaYolu, 300);
   if (error || !data) return { error: error?.message ?? "Dosya bağlantısı üretilemedi." };
   return { url: data.signedUrl };
 }
