@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { BELGE_LISTESI, tcKimlikGecerliMi, ibanGecerliMi, type BelgeTipi } from "@/lib/evrakSabitleri";
+import { BELGE_LISTESI, tcKimlikGecerliMi, ibanGecerliMi, telefonGecerliMi, MAKS_DOSYA_BOYUTU_BYTE, MAKS_DOSYA_BOYUTU_MB, type BelgeTipi } from "@/lib/evrakSabitleri";
 import { mailIskelet } from "@/lib/mailSablon";
 import { sendMail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
@@ -209,15 +209,20 @@ export async function bilgileriKaydet(token: string, kod: string, formData: Form
   if ("error" in dogrulama) return dogrulama;
   const admin = createAdminClient();
 
-  const iban = String(formData.get("iban") ?? "").trim().toUpperCase();
-  if (iban && !ibanGecerliMi(iban)) return { error: "IBAN geçerli değil — TR ile başlayan 26 karakter olmalı." };
+  const iban = String(formData.get("iban") ?? "").replace(/\s/g, "").trim().toUpperCase();
+  if (!iban) return { error: "IBAN zorunludur — maaş ödemesi bu bilgiye bağlıdır." };
+  if (!ibanGecerliMi(iban)) return { error: "IBAN geçerli değil — TR ile başlayan 26 karakter olmalı." };
+
+  const telefon = String(formData.get("telefon") ?? "").trim();
+  if (!telefon) return { error: "Cep telefonu zorunludur." };
+  if (!telefonGecerliMi(telefon)) return { error: "Telefon geçerli değil — başında 0 olmadan, 5 ile başlayan 10 hane olmalı (örn. 5XXXXXXXXX)." };
 
   const alanlar = [
     "cinsiyet", "medeni_hal", "il", "ilce", "mahalle", "cadde", "sokak",
-    "site_adi", "blok_no", "apt_adi", "bina_no", "daire_no",
-    "il2", "ilce2", "mahalle2", "cadde2", "sokak2", "site_adi2", "blok_no2", "apt_adi2", "bina_no2", "daire_no2",
+    "site_adi", "blok_no", "apt_adi", "bina_no", "daire_no", "kat", "posta_kodu",
+    "il2", "ilce2", "mahalle2", "cadde2", "sokak2", "site_adi2", "blok_no2", "apt_adi2", "bina_no2", "daire_no2", "kat2", "posta_kodu2",
   ];
-  const guncelleme: any = { personel_id: dogrulama.personelId, iban: iban || null };
+  const guncelleme: any = { personel_id: dogrulama.personelId, iban, telefon: telefon.replace(/\s/g, "") };
   alanlar.forEach((a) => { guncelleme[a] = String(formData.get(a) ?? "").trim() || null; });
   guncelleme.emekli = formData.get("emekli") === "true";
   guncelleme.engelli = formData.get("engelli") === "true";
@@ -240,6 +245,14 @@ export async function belgeYukle(token: string, kod: string, formData: FormData)
   const dosyalar = formData.getAll("dosyalar") as File[];
   if (dosyalar.length === 0) return { error: "Dosya seçilmedi." };
 
+  for (const dosya of dosyalar) {
+    if (dosya.size > MAKS_DOSYA_BOYUTU_BYTE) {
+      return { error: `"${dosya.name}" çok büyük (azami ${MAKS_DOSYA_BOYUTU_MB} MB).` };
+    }
+  }
+
+  const belgeTanimi = BELGE_LISTESI.find((b) => b.id === belgeTipi);
+
   const yuklenenYollar: string[] = [];
   for (const dosya of dosyalar) {
     if (dosya.size === 0) continue;
@@ -251,10 +264,19 @@ export async function belgeYukle(token: string, kod: string, formData: FormData)
   }
   if (yuklenenYollar.length === 0) return { error: "Geçerli dosya bulunamadı." };
 
+  // Çok dosyalı (coklu) belgelerde (örn. kimlik+ehliyet) yeni dosyalar
+  // önceki yüklenenlerin ÜZERİNE eklenir, silinmez. Tek dosyalı belgelerde
+  // yeniden yükleme eskisinin yerini alır.
+  let finalYollar = yuklenenYollar;
+  if (belgeTanimi?.coklu) {
+    const { data: mevcut } = await admin.from("personel_evrak_belgeleri").select("dosya_yollari").eq("personel_id", dogrulama.personelId).eq("belge_tipi", belgeTipi).maybeSingle();
+    finalYollar = [...(mevcut?.dosya_yollari ?? []), ...yuklenenYollar];
+  }
+
   const { error } = await admin.from("personel_evrak_belgeleri").upsert({
     personel_id: dogrulama.personelId,
     belge_tipi: belgeTipi,
-    dosya_yollari: yuklenenYollar,
+    dosya_yollari: finalYollar,
     durum: "INCELEMEDE",
     red_nedeni: null,
     red_aciklama: null,
@@ -263,6 +285,43 @@ export async function belgeYukle(token: string, kod: string, formData: FormData)
   }, { onConflict: "personel_id,belge_tipi" });
 
   if (error) return { error: error.message };
+  revalidatePath(`/evrak-portali/${token}`);
+  return {};
+}
+
+// Madde 15: Aday, yüklediği dosyayı görebilmeli — yanlış dosya yüklendiğinde
+// İK'nın reddetmesini beklemeden kendisi fark edebilsin.
+export async function kendiBelgeSignedUrl(token: string, kod: string, dosyaYolu: string): Promise<{ url?: string; error?: string }> {
+  const dogrulama = await tokenVeKodDogrula(token, kod);
+  if ("error" in dogrulama) return dogrulama;
+  if (!dosyaYolu.startsWith(dogrulama.personelId + "/")) return { error: "Bu dosyaya erişim yetkiniz yok." };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.storage.from("evrak-dosyalari").createSignedUrl(dosyaYolu, 300);
+  if (error || !data) return { error: error?.message ?? "Dosya bağlantısı üretilemedi." };
+  return { url: data.signedUrl };
+}
+
+// Madde 15: Yanlış yüklenen bir dosyayı kaldırma — çok dosyalı belgelerde
+// tek bir dosyayı, tek dosyalı belgelerde tüm belgeyi (BEKLENIYOR'a
+// döndürerek) kaldırır.
+export async function belgeDosyaKaldir(token: string, kod: string, belgeTipi: BelgeTipi, dosyaYolu: string): Promise<{ error?: string }> {
+  const dogrulama = await tokenVeKodDogrula(token, kod);
+  if ("error" in dogrulama) return dogrulama;
+  const admin = createAdminClient();
+
+  const { data: mevcut } = await admin.from("personel_evrak_belgeleri").select("dosya_yollari").eq("personel_id", dogrulama.personelId).eq("belge_tipi", belgeTipi).maybeSingle();
+  if (!mevcut) return { error: "Belge bulunamadı." };
+
+  await admin.storage.from("evrak-dosyalari").remove([dosyaYolu]);
+  const kalanlar = (mevcut.dosya_yollari ?? []).filter((y: string) => y !== dosyaYolu);
+
+  if (kalanlar.length === 0) {
+    await admin.from("personel_evrak_belgeleri").delete().eq("personel_id", dogrulama.personelId).eq("belge_tipi", belgeTipi);
+  } else {
+    await admin.from("personel_evrak_belgeleri").update({ dosya_yollari: kalanlar, updated_at: new Date().toISOString() }).eq("personel_id", dogrulama.personelId).eq("belge_tipi", belgeTipi);
+  }
+
   revalidatePath(`/evrak-portali/${token}`);
   return {};
 }
