@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PersonelTablosu from "./PersonelTablosu";
+import { BELGE_LISTESI, belgeGorunurMu } from "@/lib/evrakSabitleri";
 
 // Supabase tek sorguda en fazla 1000 satır döndürür — atama geçmişi bunu kolayca
 // aşabileceği için sayfalayarak (1000'erlik parçalar hâlinde) çekiyoruz.
@@ -64,7 +65,7 @@ export default async function PersonelPage() {
   const { data: personelHam, error: personelHata } = await supabase
     .from("personel")
     .select(
-      "id, ad_soyad, guncel_unvan, kadro_kategorisi, durum, kidem_ay, performans_ortalama_hgo, guncel_magaza_id, magazalar!inner(magaza_adi, aktif, bolgeler(ad))"
+      "id, ad_soyad, guncel_unvan, kadro_kategorisi, durum, kidem_ay, performans_ortalama_hgo, guncel_magaza_id, tc_kimlik_no, evrak_iptal_nedeni, magazalar!inner(magaza_adi, aktif, bolgeler(ad))"
     )
     .eq("magazalar.aktif", true)
     .not("tc_kimlik_no", "like", "PLASIYER-%")
@@ -72,6 +73,32 @@ export default async function PersonelPage() {
 
   if (personelHata) {
     return <div className="text-xs text-danger">Hata: {personelHata.message}</div>;
+  }
+
+  // Evrak Portalı üzerinden işe alınmış (yani gerçekten bir evrak token'ı
+  // oluşmuş) ama zorunlu belgeleri henüz tam onaylanmamış kişiler için özel
+  // bir rozet gösterilecek — Excel'den yıllar önce içe aktarılmış eski
+  // personel bu kontrole hiç girmez (onların hiç token'ı yok).
+  const { data: tokenliPersonelIdleri } = await supabase.from("evrak_erisim_tokenlari").select("personel_id");
+  const tokenluIdSeti = new Set((tokenliPersonelIdleri ?? []).map((t: any) => t.personel_id));
+  const evrakKontrolEdilecekler = (personelHam ?? []).filter((p: any) => tokenluIdSeti.has(p.id) && !p.evrak_iptal_nedeni);
+
+  const evrakEtiketMap: Record<string, string> = {};
+  if (evrakKontrolEdilecekler.length > 0) {
+    const idListesi = evrakKontrolEdilecekler.map((p: any) => p.id);
+    const [{ data: bilgilerListesi }, { data: belgelerListesi }] = await Promise.all([
+      supabase.from("personel_evrak_bilgileri").select("personel_id, cinsiyet").in("personel_id", idListesi),
+      supabase.from("personel_evrak_belgeleri").select("personel_id, belge_tipi, durum").in("personel_id", idListesi),
+    ]);
+    for (const p of evrakKontrolEdilecekler) {
+      const cinsiyet = (bilgilerListesi ?? []).find((b: any) => b.personel_id === p.id)?.cinsiyet ?? null;
+      const kendiBelgeleri = (belgelerListesi ?? []).filter((b: any) => b.personel_id === p.id);
+      const gerekliBelgeler = BELGE_LISTESI.filter((b) => !b.istegeBagli && belgeGorunurMu(b, cinsiyet));
+      const onaylanan = gerekliBelgeler.filter((b) => kendiBelgeleri.find((k: any) => k.belge_tipi === b.id)?.durum === "ONAYLANDI").length;
+      if (gerekliBelgeler.length > 0 && onaylanan < gerekliBelgeler.length) {
+        evrakEtiketMap[p.id] = `Evrak Bekleniyor (${onaylanan}/${gerekliBelgeler.length})`;
+      }
+    }
   }
 
   // Not: personel_id'leri .in() filtresine tek seferde vermek (binlerce UUID),
@@ -103,6 +130,7 @@ export default async function PersonelPage() {
       performans_ortalama_hgo: p.performans_ortalama_hgo,
       magaza_adi: p.magazalar?.magaza_adi ?? "",
       bolge_adi: p.magazalar?.bolgeler?.ad ?? "",
+      evrak_etiket: evrakEtiketMap[p.id] ?? null,
     };
   });
 
