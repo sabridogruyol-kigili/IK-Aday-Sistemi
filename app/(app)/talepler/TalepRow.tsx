@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition, Fragment } from "react";
+import { useRouter } from "next/navigation";
 import { getAdaylarByTalep, deleteAday, kararVerAday, ilerletDurum, getAdaySurecGecmisi, mulakatIsaretle } from "../adaylar/actions";
-import { getTalepTarihcesi, type SurecAdimi } from "./actions";
+import { getTalepTarihcesi, iseAlimiTamamla, type SurecAdimi } from "./actions";
 import RevizyonForm from "./RevizyonForm";
 import CvModal from "./CvModal";
 import AdayEkleModal from "./AdayEkleModal";
@@ -53,6 +54,7 @@ export default function TalepRow({
   talep: Talep; redGerekce?: string; benimKullaniciId: string; benimRolum: string; baslangicAdaySayisi: number;
   acanAdi?: string; acanRol?: string; benimAcimMi: boolean; gorunumEtiket?: string;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [adayAcik, setAdayAcik] = useState(false);
   const [adaylar, setAdaylar] = useState<Aday[]>([]);
@@ -69,6 +71,18 @@ export default function TalepRow({
   const [adayTarihceAcikId, setAdayTarihceAcikId] = useState<string | null>(null);
   const [adayTarihce, setAdayTarihce] = useState<SurecAdimi[]>([]);
   const [adayTarihcePending, setAdayTarihcePending] = useState(false);
+  const [tamamlaPending, setTamamlaPending] = useState(false);
+  const [tamamlaHata, setTamamlaHata] = useState<string | null>(null);
+
+  function iseAlimiTamamlaTikla() {
+    setTamamlaHata(null);
+    setTamamlaPending(true);
+    iseAlimiTamamla(talep.id).then((res) => {
+      setTamamlaPending(false);
+      if (res?.error) { setTamamlaHata(res.error); return; }
+      router.refresh();
+    });
+  }
 
   function talepTarihceyiAcKapa() {
     if (!talepTarihceAcik) {
@@ -202,7 +216,11 @@ export default function TalepRow({
         <td className="px-3 py-2.5 text-gray-600">{talep.kisi_sayisi ?? "—"}</td>
         <td className="px-3 py-2.5 text-gray-600">{talep.aktif_gonderim_no}/3</td>
         <td className="px-3 py-2.5">
-          <div className={`font-medium ${DURUM_RENK[talep.durum] ?? ""}`}>{gorunumEtiket ?? talep.durum}</div>
+          <div className={`font-medium ${DURUM_RENK[talep.durum] ?? ""}`}>
+            {gorunumEtiket === "EVRAK_BEKLENIYOR" ? "Kabul Edildi — Evrak Bekleniyor"
+              : gorunumEtiket === "TAMAMLANDI" ? "Tamamlandı"
+              : gorunumEtiket ?? talep.durum}
+          </div>
           {talep.durum === "DURAKLADI" && redGerekce && (
             <div className="text-[11px] text-gray-500 mt-0.5 max-w-[220px]">{redGerekce}</div>
           )}
@@ -212,6 +230,13 @@ export default function TalepRow({
           {talep.durum === "DURAKLADI" && talep.aktif_gonderim_no >= 3 && benimAcimMi && (
             <div className="text-[11px] text-gray-400 mt-0.5">3 deneme doldu, yeni talep açın</div>
           )}
+          {gorunumEtiket === "EVRAK_BEKLENIYOR" && (benimRolum === "IK" || benimRolum === "YONETIM") && (
+            <button onClick={iseAlimiTamamlaTikla} disabled={tamamlaPending}
+              className="mt-1 bg-navy hover:bg-navy-2 text-white rounded-md px-2 py-1 text-[10px] font-medium disabled:opacity-50 transition-colors">
+              {tamamlaPending ? "İşleniyor..." : "İşe Alımı Tamamla"}
+            </button>
+          )}
+          {tamamlaHata && <div className="text-[10px] text-danger mt-0.5 max-w-[200px]">{tamamlaHata}</div>}
         </td>
         <td className="px-3 py-2.5">
           <button
