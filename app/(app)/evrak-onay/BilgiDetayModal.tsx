@@ -30,12 +30,16 @@ function adresBirlestir(d: EvrakDetay, ek: "" | "2"): string {
   const cadde = ek === "" ? d.cadde : d.cadde2;
   const sokak = ek === "" ? d.sokak : d.sokak2;
   const siteAdi = ek === "" ? d.site_adi : d.site_adi2;
+  const blokNo = ek === "" ? d.blok_no : d.blok_no2;
+  const aptAdi = ek === "" ? d.apt_adi : d.apt_adi2;
   const binaNo = ek === "" ? d.bina_no : d.bina_no2;
   const daireNo = ek === "" ? d.daire_no : d.daire_no2;
+  const kat = ek === "" ? d.kat : d.kat2;
+  const postaKodu = ek === "" ? d.posta_kodu : d.posta_kodu2;
   const parcalar = [
-    mahalle && `${mahalle} Mah.`, cadde, sokak, siteAdi,
-    binaNo && `No: ${binaNo}`, daireNo && `Daire: ${daireNo}`,
-    ilce, il,
+    mahalle && `${mahalle} Mah.`, cadde, sokak, siteAdi, blokNo && `Blok: ${blokNo}`, aptAdi,
+    binaNo && `No: ${binaNo}`, kat && `Kat: ${kat}`, daireNo && `Daire: ${daireNo}`,
+    ilce, il, postaKodu,
   ].filter(Boolean);
   return parcalar.length > 0 ? parcalar.join(", ") : "";
 }
@@ -57,6 +61,7 @@ export default function BilgiDetayModal({ detay, onClose }: { detay: EvrakDetay 
             <div className="text-[11px] font-semibold text-navy-3 uppercase mb-2">Temel Bilgiler</div>
             <div className="grid grid-cols-2 gap-3">
               <Alan label="E-posta" value={detay?.email} />
+              <Alan label="Telefon" value={detay?.telefon ? "0" + detay.telefon : null} />
               <Alan label="Cinsiyet" value={detay?.cinsiyet} />
               <Alan label="Doğum Tarihi" value={tarihFormat(detay?.dogum_tarihi)} />
               <Alan label="Medeni Hal" value={detay?.medeni_hal} />
