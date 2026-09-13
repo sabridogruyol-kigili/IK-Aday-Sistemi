@@ -485,7 +485,7 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
 
   adimlar.push({
     tarih: enSonTarih(g, ["ISE_ALINDI"]),
-    baslik: "İşe Alındı",
+    baslik: "İşe Alım Onaylandı",
     durum: adayDurum === "ISE_ALINDI" ? "TAMAMLANDI_OLUMLU" : adayDurum === "GORUSULDU_OLUMLU" ? "MEVCUT" : "GELECEK",
   });
 
