@@ -298,6 +298,22 @@ export async function ilerletDurum(formData: FormData): Promise<IlerletSonuc> {
 // "İşe Alındı" durumundaki adaylar için, evrak süreci gerçekten tamamlanmadıysa
 // sistemin her yerinde (Aday Havuzu, Talepler sayfası, süreç detayı) aynı
 // doğru etiketin görünmesi için — tek yerden hesaplanır, tek yerden çağrılır.
+// "Yeni Talep" akışındaki aday ekleme modalında "Havuzdan Aday Ekle"
+// seçeneği için — sadece isim/temel bilgi listesi, seçim yapmaya yeter.
+export async function getHavuzdakiAdaylar(): Promise<{ id: string; ad_soyad: string; telefon: string | null; email: string | null; havuz_magaza_adi: string | null }[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("adaylar")
+    .select("id, ad_soyad, telefon, email, magazalar!havuz_magaza_id(magaza_adi)")
+    .eq("durum", "HAVUZDA")
+    .order("updated_at", { ascending: false });
+
+  return (data ?? []).map((h: any) => ({
+    id: h.id, ad_soyad: h.ad_soyad, telefon: h.telefon, email: h.email,
+    havuz_magaza_adi: h.magazalar?.magaza_adi ?? null,
+  }));
+}
+
 export async function iseAlindiEtiketleriniHesapla(tcListesi: string[]): Promise<Record<string, string>> {
   const supabase = createClient();
   const sonuc: Record<string, string> = {};
