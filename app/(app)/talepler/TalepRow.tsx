@@ -8,7 +8,7 @@ import CvModal from "./CvModal";
 import AdayEkleModal from "./AdayEkleModal";
 import AdayStepper from "./AdayStepper";
 import IseAlModal from "./IseAlModal";
-import SurecTarihce from "./SurecTarihce";
+import SurecDetayModal from "./SurecDetayModal";
 
 const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon", NORM_DEGISIKLIK: "Norm Değişikliği" };
 const DURUM_RENK: Record<string, string> = {
@@ -68,6 +68,7 @@ export default function TalepRow({
   const [talepTarihcePending, setTalepTarihcePending] = useState(false);
   const [adayTarihceAcikId, setAdayTarihceAcikId] = useState<string | null>(null);
   const [adayTarihce, setAdayTarihce] = useState<SurecAdimi[]>([]);
+  const [adayTarihcePending, setAdayTarihcePending] = useState(false);
 
   function talepTarihceyiAcKapa() {
     if (!talepTarihceAcik) {
@@ -86,7 +87,11 @@ export default function TalepRow({
       return;
     }
     setAdayTarihceAcikId(adayId);
-    getAdaySurecGecmisi(adayId).then((res) => setAdayTarihce(res.data));
+    setAdayTarihcePending(true);
+    getAdaySurecGecmisi(adayId).then((res) => {
+      setAdayTarihce(res.data);
+      setAdayTarihcePending(false);
+    });
   }
 
   function adaylariYukle() {
@@ -217,7 +222,7 @@ export default function TalepRow({
           >
             <span>🕐</span>
             <span>{SUREC_OZET[talep.durum] ?? talep.durum}</span>
-            <span className={`text-[8px] transition-transform ${talepTarihceAcik ? "rotate-180" : ""}`}>▼</span>
+            <span className="text-[9px]">🔍</span>
           </button>
         </td>
         <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{new Date(talep.created_at).toLocaleDateString("tr-TR")}</td>
@@ -243,21 +248,6 @@ export default function TalepRow({
           )}
         </td>
       </tr>
-
-      {talepTarihceAcik && (
-        <tr className="bg-gray-50/50 border-t border-gray-100">
-          <td colSpan={11} className="px-6 py-3">
-            <div className="rounded-card border border-gray-200 bg-white p-3 w-full">
-              <div className="text-[11px] font-semibold text-navy-3 mb-2">Süreç Tarihçesi — {talep.talep_no}</div>
-              {talepTarihcePending ? (
-                <div className="text-[11px] text-gray-400">Yükleniyor...</div>
-              ) : (
-                <SurecTarihce olaylar={talepTarihce} />
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
 
       {adayAcik && (
         <tr className="bg-gray-50/70 border-t border-gray-100">
@@ -386,7 +376,7 @@ export default function TalepRow({
                                   adayTarihceAcikId === a.id ? "bg-navy text-white border-navy" : "bg-gray-50 text-gray-500 border-gray-200 hover:border-navy hover:bg-white"
                                 }`}>
                                 <span>🕐 Süreç detayı</span>
-                                <span className={`text-[7px] transition-transform ${adayTarihceAcikId === a.id ? "rotate-180" : ""}`}>▼</span>
+                                <span className="text-[8px]">🔍</span>
                               </button>
                             </div>
                           </td>
@@ -453,16 +443,6 @@ export default function TalepRow({
                             </div>
                           </td>
                         </tr>
-                        {adayTarihceAcikId === a.id && (
-                          <tr className="bg-gray-50/50 border-t border-gray-100">
-                            <td colSpan={11} className="px-6 py-3">
-                              <div className="rounded-card border border-gray-200 bg-white p-3 w-full">
-                                <div className="text-[11px] font-semibold text-navy-3 mb-2">Süreç Tarihçesi — {a.ad_soyad}</div>
-                                <SurecTarihce olaylar={adayTarihce} />
-                              </div>
-                            </td>
-                          </tr>
-                        )}
                         </Fragment>
                       );
                     })}
@@ -499,6 +479,24 @@ export default function TalepRow({
           hata={iseAlHata}
           onClose={() => { setIseAlAdayId(null); setIseAlHata(null); }}
           onConfirm={iseAlOnayla}
+        />
+      )}
+
+      {talepTarihceAcik && (
+        <SurecDetayModal
+          baslik={talep.talep_no}
+          olaylar={talepTarihce}
+          yukleniyor={talepTarihcePending}
+          onClose={() => setTalepTarihceAcik(false)}
+        />
+      )}
+
+      {adayTarihceAcikId && (
+        <SurecDetayModal
+          baslik={adaylar.find((a) => a.id === adayTarihceAcikId)?.ad_soyad ?? ""}
+          olaylar={adayTarihce}
+          yukleniyor={adayTarihcePending}
+          onClose={() => setAdayTarihceAcikId(null)}
         />
       )}
     </>
