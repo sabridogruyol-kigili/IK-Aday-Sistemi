@@ -2,6 +2,65 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { BELGE_LISTESI, belgeGorunurMu } from "@/lib/evrakSabitleri";
+
+// Bir işe alım talebi, hedef kişi sayısına ulaşıldığında (adaylar İşe
+// Alındı durumuna geçtiğinde) artık otomatik pasife düşmüyor — evrak
+// süreci hâlâ devam ediyor olabilir. İK/Yönetim, TÜM işe alınan kişilerin
+// evrakları eksiksiz onaylanınca bu fonksiyonu bilinçli olarak çağırıp
+// talebi kapatır (pasife düşürür).
+export async function iseAlimiTamamla(talepId: string): Promise<{ error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Giriş yapmalısınız." };
+
+  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  if (!me || (me.rol !== "IK" && me.rol !== "YONETIM")) return { error: "Bu işlem için yetkiniz yok." };
+
+  const { data: adaylar } = await supabase
+    .from("adaylar")
+    .select("id, ad_soyad, tc_kimlik_no")
+    .eq("talep_id", talepId)
+    .eq("durum", "ISE_ALINDI");
+
+  if (!adaylar || adaylar.length === 0) return { error: "Bu talebe bağlı işe alınmış kimse yok." };
+
+  const tcListesi = adaylar.filter((a) => a.tc_kimlik_no).map((a) => a.tc_kimlik_no as string);
+  const { data: personeller } = await supabase
+    .from("personel")
+    .select("id, tc_kimlik_no, evrak_iptal_nedeni")
+    .in("tc_kimlik_no", tcListesi);
+
+  const eksikOlanlar: string[] = [];
+
+  for (const aday of adaylar) {
+    const personel = (personeller ?? []).find((p) => p.tc_kimlik_no === aday.tc_kimlik_no);
+    if (!personel) { eksikOlanlar.push(`${aday.ad_soyad}: personel kaydı bulunamadı`); continue; }
+    if (personel.evrak_iptal_nedeni) { eksikOlanlar.push(`${aday.ad_soyad}: işe alımı iptal edilmiş`); continue; }
+
+    const { data: bilgi } = await supabase.from("personel_evrak_bilgileri").select("cinsiyet").eq("personel_id", personel.id).maybeSingle();
+    const { data: belgelerHam } = await supabase.from("personel_evrak_belgeleri").select("belge_tipi, durum").eq("personel_id", personel.id);
+    const gerekliBelgeler = BELGE_LISTESI.filter((b) => !b.istegeBagli && belgeGorunurMu(b, bilgi?.cinsiyet ?? null));
+    const onaylanan = gerekliBelgeler.filter((b) => (belgelerHam ?? []).find((s: any) => s.belge_tipi === b.id)?.durum === "ONAYLANDI").length;
+    if (gerekliBelgeler.length === 0 || onaylanan < gerekliBelgeler.length) {
+      eksikOlanlar.push(`${aday.ad_soyad}: evrak eksik (${onaylanan}/${gerekliBelgeler.length})`);
+    }
+  }
+
+  if (eksikOlanlar.length > 0) {
+    return { error: "Tüm evraklar tamamlanmadan işe alım kapatılamaz: " + eksikOlanlar.join("; ") };
+  }
+
+  const { error } = await supabase
+    .from("talepler")
+    .update({ ise_alimi_tamamlandi_tarihi: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", talepId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/talepler");
+  revalidatePath("/evrak-onay");
+  return {};
+}
 
 export async function revizeGonder(formData: FormData) {
   const supabase = createClient();
