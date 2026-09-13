@@ -63,19 +63,46 @@ export default function SurecDetayModal({
               <SurecTarihce olaylar={olaylar} />
 
               <div className="mt-6 pt-4 border-t border-gray-100">
-                <div className="text-[11px] font-semibold text-navy-3 uppercase mb-2.5">Adım Açıklamaları</div>
+                <div className="text-[11px] font-semibold text-navy-3 uppercase mb-2.5">Adım Detayları</div>
                 <div className="space-y-2">
-                  {olaylar.map((o, i) => (
-                    <div key={i} className="border border-gray-100 rounded-md px-3 py-2.5 bg-gray-50/50">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-[12px] font-medium text-navy-3">{o.baslik}</div>
-                        <div className="text-[10px] text-gray-400 font-mono">{tarihFormat(o.tarih)}</div>
+                  {olaylar.map((o, i) => {
+                    const mevcutMu = o.durum === "MEVCUT";
+                    const gelecekMi = o.durum === "GELECEK";
+                    const ilkGelecekMi = gelecekMi && olaylar[i - 1]?.durum === "MEVCUT";
+                    return (
+                      <div key={i} className={`border rounded-md px-3 py-2.5 ${
+                        mevcutMu ? "border-accent/40 bg-accent/10" : gelecekMi ? "border-gray-100 bg-gray-50/30" : "border-gray-100 bg-gray-50/50"
+                      }`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className={`text-[12px] font-medium ${mevcutMu ? "text-accent" : gelecekMi ? "text-gray-400" : "text-navy-3"}`}>{o.baslik}</div>
+                          {!gelecekMi && !mevcutMu && <div className="text-[10px] text-gray-400 font-mono">{tarihFormat(o.tarih)}</div>}
+                        </div>
+
+                        {/* Tamamlanan adım: kim yaptı + açıklama */}
+                        {!mevcutMu && !gelecekMi && (
+                          <>
+                            {o.yapanKisi && <div className="text-[11px] text-gray-500 mb-0.5">Yapan: <span className="text-navy-3 font-medium">{o.yapanKisi}</span></div>}
+                            <div className={`text-[11px] ${o.detay ? "text-gray-600" : "text-gray-300 italic"}`}>
+                              {o.detay || "Açıklama girilmemiş"}
+                            </div>
+                          </>
+                        )}
+
+                        {/* Mevcut (şu anki) adım: kimde bekliyor + ne kadar süredir */}
+                        {mevcutMu && (
+                          <div className="text-[11px] text-navy-3 space-y-0.5">
+                            {o.kimdeBekliyor && <div>Şu an bekleyen: <span className="font-semibold">{o.kimdeBekliyor}</span></div>}
+                            {o.neKadarSuredir && <div className="text-accent font-medium">{o.neKadarSuredir} bekliyor</div>}
+                          </div>
+                        )}
+
+                        {/* Gelecek adım — sadece mevcuttan hemen sonraki için "sırada" notu */}
+                        {gelecekMi && ilkGelecekMi && (
+                          <div className="text-[11px] text-gray-400">Bir önceki adım tamamlanınca sırada bu var.</div>
+                        )}
                       </div>
-                      <div className={`text-[11px] ${o.detay ? "text-gray-600" : "text-gray-300 italic"}`}>
-                        {o.detay || "Açıklama girilmemiş"}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {olaylar.length === 0 && (
                     <div className="text-[11px] text-gray-400 text-center py-3">Kayıtlı adım bulunamadı.</div>
                   )}
