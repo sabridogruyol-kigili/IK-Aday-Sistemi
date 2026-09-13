@@ -170,7 +170,7 @@ export async function getBelgeSignedUrl(dosyaYolu: string): Promise<{ url?: stri
   if (!user) return { error: "Giriş yapmalısınız." };
 
   const { data, error } = await supabase.storage.from("evrak-dosyalari").createSignedUrl(dosyaYolu, 300);
-  if (error || !data) return { error: "Dosya bağlantısı üretilemedi." };
+  if (error || !data) return { error: error?.message ?? "Dosya bağlantısı üretilemedi." };
   return { url: data.signedUrl };
 }
 
