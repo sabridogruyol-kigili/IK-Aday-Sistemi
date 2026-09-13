@@ -51,6 +51,7 @@ export type EvrakDetay = {
   dogum_tarihi: string | null;
   medeni_hal: string | null;
   iban: string | null;
+  talep_id: string | null;
   belgeler: { id: string; belge_tipi: string; dosya_yollari: string[]; durum: string; red_nedeni: string | null; red_aciklama: string | null; ik_notu: string | null }[];
 };
 
@@ -69,25 +70,29 @@ export async function getEvrakDetay(personelId: string): Promise<EvrakDetay | nu
   // personel.cinsiyet/dogum_tarihi genelde Personel Şablonu importundan gelir;
   // "İşe Al" ile oluşan yeni kayıtlarda boş olabilir — bu durumda, aynı TC
   // Kimlik No'ya sahip orijinal aday kaydındaki (aday eklerken girilen)
-  // değerlere geri dönülür.
+  // değerlere geri dönülür. Aynı sorgu, "İşe Alımı Tamamla" butonu için
+  // gereken talep_id'yi de getirir.
   let cinsiyet = personel?.cinsiyet ?? bilgi?.cinsiyet ?? null;
   let dogumTarihi = personel?.dogum_tarihi ?? null;
-  if ((!cinsiyet || !dogumTarihi) && personel?.tc_kimlik_no) {
+  let talepId: string | null = null;
+  if (personel?.tc_kimlik_no) {
     const { data: aday } = await supabase
       .from("adaylar")
-      .select("cinsiyet, dogum_tarihi")
+      .select("cinsiyet, dogum_tarihi, talep_id")
       .eq("tc_kimlik_no", personel.tc_kimlik_no)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     cinsiyet = cinsiyet ?? aday?.cinsiyet ?? null;
     dogumTarihi = dogumTarihi ?? aday?.dogum_tarihi ?? null;
+    talepId = aday?.talep_id ?? null;
   }
 
   return {
     ad_soyad: personel?.ad_soyad ?? "",
     email: token?.email ?? null,
     telefon: null,
+    talep_id: talepId,
     cinsiyet,
     dogum_tarihi: dogumTarihi,
     medeni_hal: bilgi?.medeni_hal ?? null,
