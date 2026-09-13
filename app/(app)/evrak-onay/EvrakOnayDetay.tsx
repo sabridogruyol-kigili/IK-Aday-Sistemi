@@ -25,14 +25,17 @@ function BelgeSatiri({ belgeTipi, tanimAd, kayit, onKarar }: {
   const [redAciklama, setRedAciklama] = useState("");
   const [dosyaUrl, setDosyaUrl] = useState<string | null>(null);
   const [dosyaYukleniyor, setDosyaYukleniyor] = useState(false);
+  const [dosyaHata, setDosyaHata] = useState<string | null>(null);
 
   const durum = kayit?.durum ?? "BEKLENIYOR";
 
   function dosyaGoster(yol: string) {
+    setDosyaHata(null);
     setDosyaYukleniyor(true);
     getBelgeSignedUrl(yol).then((res) => {
       setDosyaYukleniyor(false);
-      if (res.url) setDosyaUrl(res.url);
+      if (res.url) { setDosyaUrl(res.url); return; }
+      setDosyaHata(res.error ?? "Dosya bağlantısı üretilemedi.");
     });
   }
 
@@ -73,6 +76,7 @@ function BelgeSatiri({ belgeTipi, tanimAd, kayit, onKarar }: {
           ))}
         </div>
       )}
+      {dosyaHata && <div className="text-[11px] text-danger bg-danger-bg rounded-md px-2 py-1.5 mb-2">{dosyaHata}</div>}
 
       {durum === "INCELEMEDE" && !redModAcik && (
         <div className="flex gap-2">
