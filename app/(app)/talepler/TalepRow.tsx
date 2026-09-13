@@ -522,6 +522,9 @@ export default function TalepRow({
           olaylar={adayTarihce}
           yukleniyor={adayTarihcePending}
           onClose={() => setAdayTarihceAcikId(null)}
+          adayId={adayTarihceAcikId}
+          adayDurum={adaylar.find((a) => a.id === adayTarihceAcikId)?.durum}
+          onHavuzaAlSonrasi={() => { setAdayTarihceAcikId(null); adaylariYukle(); }}
         />
       )}
     </>
