@@ -300,6 +300,7 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
   // kişinin güncel ünvanına göre karşılık gelen maaş burada aranır.
   let brutMaas: number | null = null;
   let brutMaasHata: string | null = null;
+  const sorgulananUnvan = magazaHam.guncel_unvan ? `[${magazaHam.guncel_unvan}]` : null;
   if (magazaHam.guncel_unvan) {
     const { data: unvanMaasKaydi, error: unvanMaasHata } = await supabase
       .from("unvan_maas")
@@ -308,6 +309,13 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
       .maybeSingle();
     if (unvanMaasHata) brutMaasHata = unvanMaasHata.message;
     brutMaas = unvanMaasKaydi?.brut_maas ?? null;
+
+    // Geçici teşhis: aynı tabloda toplam kaç satır GÖRÜNÜYOR (RLS'ten
+    // geçerek) — 0 ise bu oturum için tablo tamamen görünmez demektir.
+    const { count: toplamGorunenSatir } = await supabase.from("unvan_maas").select("*", { count: "exact", head: true });
+    if (brutMaas == null && !brutMaasHata) {
+      brutMaasHata = `[teşhis] Aranan: ${sorgulananUnvan} — Bu oturumdan görünen toplam unvan_maas satırı: ${toplamGorunenSatir ?? "null"}`;
+    }
   }
 
   // Basit tahmini kıdem tazminatı: (tavanı aşmayan brüt maaş) × kıdem yılı.
