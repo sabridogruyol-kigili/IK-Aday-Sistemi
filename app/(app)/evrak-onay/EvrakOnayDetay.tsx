@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getEvrakDetay, belgeKararVer, getBelgeSignedUrl, hatirlatmaGonder, iptalEtIseAlim, type EvrakDetay } from "./actions";
+import { iseAlimiTamamla } from "../talepler/actions";
 import { BELGE_LISTESI, belgeGorunurMu, RED_NEDENLERI, type BelgeTipi } from "@/lib/evrakSabitleri";
 
 const DURUM_ROZET: Record<string, string> = {
@@ -117,6 +118,9 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
   const [iptalPending, setIptalPending] = useState(false);
   const [iptalHata, setIptalHata] = useState<string | null>(null);
   const [iptalEdildi, setIptalEdildi] = useState(false);
+  const [tamamlaPending, setTamamlaPending] = useState(false);
+  const [tamamlaHata, setTamamlaHata] = useState<string | null>(null);
+  const [tamamlandi, setTamamlandi] = useState(false);
 
   useEffect(() => {
     getEvrakDetay(personelId).then((d) => { setDetay(d); setYukleniyor(false); });
@@ -132,6 +136,17 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
       setIptalPending(false);
       if (res?.error) { setIptalHata(res.error); return; }
       setIptalEdildi(true);
+    });
+  }
+
+  function tamamla() {
+    if (!detay?.talep_id) return;
+    setTamamlaHata(null);
+    setTamamlaPending(true);
+    iseAlimiTamamla(detay.talep_id).then((res) => {
+      setTamamlaPending(false);
+      if (res?.error) { setTamamlaHata(res.error); return; }
+      setTamamlandi(true);
     });
   }
 
@@ -176,6 +191,10 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
 
   const gorunurBelgeler = BELGE_LISTESI.filter((b) => belgeGorunurMu(b, detay?.cinsiyet ?? null));
   const yas = yasHesapla(detay?.dogum_tarihi ?? null);
+  const zorunluBelgeler = gorunurBelgeler.filter((b) => !b.istegeBagli);
+  const tumuOnaylandiMi = zorunluBelgeler.length > 0 && zorunluBelgeler.every(
+    (b) => detay?.belgeler.find((k) => k.belge_tipi === b.id)?.durum === "ONAYLANDI"
+  );
 
   return (
     <div className="fixed inset-0 bg-navy-3/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -195,6 +214,11 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
               <div className="text-sm font-semibold text-danger mb-1">İşe Alım İptal Edildi</div>
               <div className="text-xs text-gray-500">{adSoyad} pasif duruma alındı, evrak süreci sonlandırıldı.</div>
             </div>
+          ) : tamamlandi ? (
+            <div className="text-center py-6">
+              <div className="text-sm font-semibold text-success mb-1">İşe Alımı Tamamlandı 🎉</div>
+              <div className="text-xs text-gray-500">{adSoyad} için tüm evraklar onaylandı, talep kapatıldı.</div>
+            </div>
           ) : (
             <>
               <div className="bg-gray-50 rounded-md p-3 mb-1">
@@ -208,6 +232,19 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                   <div><span className="text-gray-400">IBAN: </span><span className="text-navy-3 font-mono">{detay?.iban ?? "—"}</span></div>
                 </div>
               </div>
+
+              {tumuOnaylandiMi && (
+                <div className="bg-success-bg border border-success/30 rounded-md p-3 mb-2">
+                  <div className="text-[11px] text-success font-medium mb-2">
+                    Tüm zorunlu belgeler onaylandı — işe alım süreci tamamlanabilir.
+                  </div>
+                  {tamamlaHata && <div className="text-[11px] text-danger mb-2">{tamamlaHata}</div>}
+                  <button onClick={tamamla} disabled={tamamlaPending}
+                    className="bg-success hover:opacity-90 text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 transition-colors">
+                    {tamamlaPending ? "İşleniyor..." : "İşe Alımı Tamamla"}
+                  </button>
+                </div>
+              )}
 
               {!iptalModAcik ? (
                 <div className="flex items-center justify-between gap-2 mb-1">
