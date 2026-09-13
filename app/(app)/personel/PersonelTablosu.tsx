@@ -15,6 +15,7 @@ type Satir = {
   performans_ortalama_hgo: number | null;
   magaza_adi: string;
   bolge_adi: string;
+  evrak_etiket: string | null;
 };
 
 const KATEGORI_LABEL: Record<string, string> = {
@@ -148,6 +149,13 @@ export default function PersonelTablosu({ satirlar }: { satirlar: Satir[] }) {
                   }`}>
                     {s.durum === "aktif" ? "Aktif" : "Pasif"}
                   </span>
+                  {s.evrak_etiket && (
+                    <div className="mt-1">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/15 text-accent font-medium">
+                        {s.evrak_etiket}
+                      </span>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
