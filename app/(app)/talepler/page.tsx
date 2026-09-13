@@ -13,7 +13,7 @@ export default async function TaleplerPage() {
 
   const { data: talepler, error: talepHata } = await supabase
     .from("talepler")
-    .select("id, talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, acan_kullanici_id, magaza_grup_id, magazalar!magaza_id(magaza_adi), acan:kullanicilar!acan_kullanici_id(ad_soyad, rol)")
+    .select("id, talep_no, talep_turu, pozisyon_tipi, kisi_sayisi, durum, aktif_gonderim_no, created_at, acan_kullanici_id, magaza_grup_id, ise_alimi_tamamlandi_tarihi, magazalar!magaza_id(magaza_adi), acan:kullanicilar!acan_kullanici_id(ad_soyad, rol)")
     .order("created_at", { ascending: false });
 
   if (talepHata) {
@@ -80,9 +80,16 @@ export default async function TaleplerPage() {
       if (t.durum === "KABUL_EDILDI") {
         const iseAlinan = iseAlinanSayilari[t.id] ?? 0;
         const hedef = t.kisi_sayisi ?? 0;
-        if (hedef > 0 && iseAlinan >= hedef) {
+        if (t.ise_alimi_tamamlandi_tarihi) {
+          // İK/Yönetim, tüm evrakları kontrol edip bilinçli olarak
+          // "İşe Alımı Tamamla" demiş — artık gerçekten kapandı.
           kategori = "PASIF";
           gorunumEtiket = "TAMAMLANDI";
+        } else if (hedef > 0 && iseAlinan >= hedef) {
+          // Hedef kişi sayısına ulaşıldı ama evrak süreci hâlâ devam
+          // ediyor olabilir — talep AKTİF kalmaya devam eder, sadece
+          // farklı bir görünüm etiketiyle işaretlenir.
+          gorunumEtiket = "EVRAK_BEKLENIYOR";
         }
       }
     } else {
