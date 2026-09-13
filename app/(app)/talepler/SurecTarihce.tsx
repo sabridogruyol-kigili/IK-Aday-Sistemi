@@ -5,6 +5,9 @@ export type SurecAdimi = {
   tarih: string | null;
   detay?: string | null;
   durum: "TAMAMLANDI_OLUMLU" | "TAMAMLANDI_OLUMSUZ" | "TAMAMLANDI_NOTR" | "MEVCUT" | "GELECEK";
+  yapanKisi?: string | null;
+  kimdeBekliyor?: string | null;
+  neKadarSuredir?: string | null;
 };
 
 const NOKTA_RENK: Record<string, string> = {
