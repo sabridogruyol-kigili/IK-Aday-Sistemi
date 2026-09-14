@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { getMagazaCalisanGecmisi, type MagazaCalisanSatiri } from "./actions";
 
 type Magaza = {
-  id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string;
+  id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string; il_adi: string | null;
   subetipi: string | null; net_m2: number | null;
   istifa_turnover: number | null; fesih_turnover: number | null; toplam_turnover: number | null;
   magaza_muduru: string | null;
@@ -69,15 +69,6 @@ function hgoRenk(hgo: number) {
 
 // Mağaza adında genelde marka/kısaltma önekleri sonra il adı gelir (örn. "A.K. İstanbul Carousel").
 // Kesin bir "il" alanı DB'de tutulmadığı için en iyi tahminle çıkarım yapıyoruz.
-function ilTahminEt(magazaAdi: string): string {
-  const kelimeler = magazaAdi.trim().split(/\s+/);
-  for (const k of kelimeler) {
-    if (/^[A-ZÇĞİÖŞÜ.]+\.$/.test(k) || k.length <= 3) continue;
-    return k;
-  }
-  return kelimeler[0] ?? "";
-}
-
 // Tek bir KPI kutusu: mağaza seçiliyse kendi değeri (büyük), altında genel ortalama ve
 // aradaki fark (yöne göre yeşil/kırmızı — Turnover gibi "düşük iyi" metriklerde ters renklenir).
 function KpiKart({
@@ -612,7 +603,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
 
         {seciliMagaza && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 bg-gray-50 rounded-md p-2.5 text-[11px]">
-            <div><div className="text-[9px] text-gray-400 uppercase">İl (tahmini)</div><div className="text-navy-3 font-medium">{ilTahminEt(seciliMagaza.magaza_adi)}</div></div>
+            <div><div className="text-[9px] text-gray-400 uppercase">İl</div><div className="text-navy-3 font-medium">{seciliMagaza.il_adi ?? "—"}</div></div>
             <div><div className="text-[9px] text-gray-400 uppercase">Bölge</div><div className="text-navy-3 font-medium">{seciliMagaza.bolge_adi || "—"}</div></div>
             <div><div className="text-[9px] text-gray-400 uppercase">Net m²</div><div className="text-navy-3 font-medium">{seciliMagaza.net_m2 ?? "—"}</div></div>
             <div><div className="text-[9px] text-gray-400 uppercase">Mağaza Müdürü</div><div className="text-navy-3 font-medium">{seciliMagaza.magaza_muduru ?? "—"}</div></div>
