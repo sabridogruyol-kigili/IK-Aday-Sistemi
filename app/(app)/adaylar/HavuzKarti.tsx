@@ -47,7 +47,7 @@ export default function HavuzKarti({
             Son mağaza: {havuzMagaza ?? "—"} · {telefon ?? "Telefon —"} · {email ?? "E-posta —"}
           </div>
           {cvLink && (
-            <button onClick={() => setCvAcik(true)} className="text-xs text-info hover:underline font-medium">CV Görüntüle</button>
+            <button onClick={() => setCvAcik(true)} className="text-xs font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2.5 py-1 transition-colors">CV Görüntüle</button>
           )}
           {cvAcik && cvLink && <CvGoruntuleyici cvYolu={cvLink} onClose={() => setCvAcik(false)} />}
         </div>
