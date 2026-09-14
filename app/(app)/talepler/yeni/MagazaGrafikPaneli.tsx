@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { MagazaAylikSatiri } from "./actions-magaza-bilgi";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -28,6 +29,8 @@ export default function MagazaGrafikPaneli({
   const [degisken, setDegisken] = useState<keyof MagazaAylikSatiri>(varsayilanDegisken);
   const [gorunum, setGorunum] = useState<"grafik" | "liste">("grafik");
   const tanim = DEGISKENLER.find((d) => d.key === degisken)!;
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
 
   const veri = useMemo(
     () => aylikVeri
@@ -63,11 +66,11 @@ export default function MagazaGrafikPaneli({
       ) : gorunum === "grafik" ? (
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={veri} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
-            <YAxis tick={{ fontSize: 9 }} />
-            <Tooltip formatter={(v: number) => tanim.format(v)} labelStyle={{ fontSize: 11 }} />
-            <Line type="monotone" dataKey="deger" stroke="#0F1B4D" strokeWidth={2} dot={{ r: 2.5 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+            <XAxis dataKey="etiket" tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+            <YAxis tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+            <Tooltip formatter={(v: number) => tanim.format(v)} labelStyle={{ fontSize: 11, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
+            <Line type="monotone" dataKey="deger" stroke={rk.navy} strokeWidth={2} dot={{ r: 2.5 }} />
           </LineChart>
         </ResponsiveContainer>
       ) : (
