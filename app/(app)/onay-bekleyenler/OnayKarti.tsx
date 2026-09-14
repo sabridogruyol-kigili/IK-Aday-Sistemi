@@ -102,7 +102,7 @@ export default function OnayKarti({
       </div>
       {aciklama && <div className="text-xs text-gray-600 mb-3">"{aciklama}"</div>}
 
-      <button onClick={detaylariGoster} className="text-[11px] text-info hover:underline mb-3">
+      <button onClick={detaylariGoster} className="text-[11px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2.5 py-1 mb-3 transition-colors">
         {detayAcik ? "Detayları Gizle ▲" : "Mağaza / Performans Detaylarını Göster ▾"}
       </button>
 
