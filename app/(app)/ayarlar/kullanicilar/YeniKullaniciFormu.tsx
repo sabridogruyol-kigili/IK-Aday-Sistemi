@@ -40,6 +40,7 @@ export default function YeniKullaniciFormu({ bolgeler }: { bolgeler: Bolge[] }) 
             <option value="IK">İK</option>
             <option value="YONETIM">Yönetim</option>
             <option value="MAGAZALAR_DIREKTORLUGU">Mağazalar Direktörlüğü</option>
+            <option value="BORDRO">Bordro ve Çalışma İlişkileri</option>
           </select>
         </div>
         {bolgeGerekli && (
