@@ -9,6 +9,7 @@ export default async function AdaylarPage() {
 
   const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) return null;
+  if (me.rol === "BORDRO") redirect("/evrak-onay");
 
   // Aday Havuzu'nun tek amacı: "Aday Havuzuna Al" denilen kişilerin
   // arşivlendiği, ileride başka bir İşe Alım talebine yeniden
