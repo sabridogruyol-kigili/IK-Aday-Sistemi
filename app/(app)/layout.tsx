@@ -44,10 +44,19 @@ export default async function AppLayout({
     "/dashboard", "/norm", "/talepler", "/onay-bekleyenler", "/personel", "/terfi-degerlendirme",
   ]);
 
+  // Bordro ve Çalışma İlişkileri: hiçbir onay/red yetkisi yok, sadece işe
+  // alımı tamamlanmış kişilerin evraklarını görüntüleyip "sisteme girildi"
+  // bilgisini kaydeder — aday havuzu, terfi değerlendirme, raporlar ve
+  // sistem ayarlarına hiç erişimi yok.
+  const BORDRO_GORUNUR_HREFLER = new Set([
+    "/dashboard", "/norm", "/onay-bekleyenler", "/talepler", "/personel", "/evrak-onay",
+  ]);
+
   const visibleNavItems = navItems.filter((item) => {
     if (item.href === "/ayarlar/kullanicilar" && profile?.rol !== "YONETIM") return false;
-    if (item.href === "/evrak-onay" && profile?.rol !== "IK" && profile?.rol !== "YONETIM") return false;
+    if (item.href === "/evrak-onay" && profile?.rol !== "IK" && profile?.rol !== "YONETIM" && profile?.rol !== "BORDRO") return false;
     if (profile?.rol === "MAGAZALAR_DIREKTORLUGU" && !DIREKTOR_GORUNUR_HREFLER.has(item.href)) return false;
+    if (profile?.rol === "BORDRO" && !BORDRO_GORUNUR_HREFLER.has(item.href)) return false;
     return true;
   });
 
