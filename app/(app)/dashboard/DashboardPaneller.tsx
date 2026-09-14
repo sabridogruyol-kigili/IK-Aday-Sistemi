@@ -606,7 +606,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
             )}
           </div>
           {seciliMagaza && (
-            <button onClick={() => setSeciliMagazaId(null)} className="text-[11px] text-info hover:underline">◀ Tüm Mağazalar</button>
+            <button onClick={() => setSeciliMagazaId(null)} className="text-[11px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2 py-1 transition-colors">◀ Tüm Mağazalar</button>
           )}
         </div>
 
