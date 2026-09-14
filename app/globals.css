@@ -142,6 +142,10 @@ span[class*="rounded"][class*="bg-info-bg"] {
    aşağıdaki iki blokta ilgili satırı güncelleyin.
    ============================================================ */
 :root {
+  --c-success: 47 111 78;       /* #2F6F4E */
+  --c-danger: 176 64 46;        /* #B0402E */
+  --c-info: 62 124 177;         /* #3E7CB1 */
+  --c-accent: 192 138 46;       /* #C08A2E */
   --c-success-bg: 234 243 222;  /* #EAF3DE */
   --c-danger-bg: 252 235 235;   /* #FCEBEB */
   --c-info-bg: 233 241 247;     /* #E9F1F7 */
@@ -159,6 +163,13 @@ span[class*="rounded"][class*="bg-info-bg"] {
 
 .dark {
   color-scheme: dark;
+  /* Bu dört renk (success/danger/info/accent), açık zeminler için
+     tasarlanmış orta-koyu tonlardı — koyu kartların üzerinde okunması
+     zorlaşıyordu, bu yüzden koyu modda belirgin şekilde açılıyorlar. */
+  --c-success: 92 199 138;      /* #5CC78A */
+  --c-danger: 224 111 90;       /* #E06F5A */
+  --c-info: 110 170 217;        /* #6EAAD9 */
+  --c-accent: 212 166 90;       /* #D4A65A */
   --c-success-bg: 20 37 26;     /* #14251A */
   --c-danger-bg: 42 22 22;      /* #2A1616 */
   --c-info-bg: 20 34 48;        /* #142230 */
@@ -211,23 +222,25 @@ span[class*="rounded"][class*="bg-info-bg"] {
 
 /* Koyu modda sayfa/kart arka planı da zaten koyu lacivert tonlarında
    olduğu için, standart "navy" düğme rengi (#0F1B4D) neredeyse hiç
-   belli olmuyordu — düğmeler ve vurgulu alanlar fark edilsin diye
-   koyu modda belirgin şekilde parlatılıyor. */
+   belli olmuyordu. Yeni bir renk icat etmek yerine, markanın KENDİ orta
+   tonu olan navy-2'yi (#1B2E6B) kullanıyoruz — hem tutarlı hem de ilk
+   denemedeki (#2E4494) kadar sert/yapay durmuyor. Üzerine gelince
+   (hover) bir ton daha açılıyor. */
 .dark .bg-navy {
-  background-color: #2E4494 !important;
+  background-color: #1B2E6B !important;
 }
 .dark .hover\:bg-navy:hover {
-  background-color: #2E4494 !important;
+  background-color: #24397F !important;
 }
 .dark .bg-navy-2,
 .dark .hover\:bg-navy-2:hover {
-  background-color: #3D5AC0 !important;
+  background-color: #24397F !important;
 }
 .dark .border-navy {
-  border-color: #2E4494 !important;
+  border-color: #1B2E6B !important;
 }
 .dark .focus\:ring-navy:focus {
-  --tw-ring-color: #2E4494 !important;
+  --tw-ring-color: #1B2E6B !important;
 }
 
 /* Input, select, textarea alanları */
