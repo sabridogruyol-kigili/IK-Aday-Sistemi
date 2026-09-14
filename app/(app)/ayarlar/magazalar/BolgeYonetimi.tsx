@@ -78,7 +78,7 @@ export default function BolgeYonetimi({ bolgeler }: { bolgeler: Bolge[] }) {
                     <span className="text-xs text-navy-3">{b.ad}</span>
                     <button
                       onClick={() => { setDuzenlenenId(b.id); setDuzenlenenAd(b.ad); }}
-                      className="text-[10px] text-info px-1.5 hover:underline"
+                      className="text-[10px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-1.5 py-0.5 transition-colors"
                     >
                       düzenle
                     </button>
