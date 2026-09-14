@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { createRotasyonTalebi } from "./actions-rotasyon";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 import { getMagazaBilgi, type MagazaBilgi } from "./actions-magaza-bilgi";
 import { getPersonelPerformansGecmisi, getPersonelDetay, type PersonelAylikHgo, type PersonelDetay } from "./actions-cikarma";
 import MagazaGrafikPaneli from "./MagazaGrafikPaneli";
@@ -87,6 +88,8 @@ function MagazaOzetPaneli({ baslik, bilgi, yukleniyor }: { baslik: string; bilgi
 function PersonelOzetPaneli({ ad, gecmis, detay, yukleniyor }: {
   ad: string; gecmis: PersonelAylikHgo[]; detay: PersonelDetay | null; yukleniyor: boolean;
 }) {
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
   if (yukleniyor) {
     return <div className="text-xs text-gray-400 py-8 text-center flex items-center justify-center gap-2"><span className="yukleniyor-donen" /> Yükleniyor...</div>;
   }
@@ -112,11 +115,11 @@ function PersonelOzetPaneli({ ad, gecmis, detay, yukleniyor }: {
         ) : (
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={grafikVerisi} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
-              <YAxis tick={{ fontSize: 9 }} />
-              <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="hgo" stroke="#0F1B4D" strokeWidth={2} dot={{ r: 2.5 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+              <XAxis dataKey="etiket" tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+              <YAxis tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+              <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 11, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
+              <Line type="monotone" dataKey="hgo" stroke={rk.navy} strokeWidth={2} dot={{ r: 2.5 }} />
             </LineChart>
           </ResponsiveContainer>
         )}
