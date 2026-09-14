@@ -4,6 +4,7 @@ import type { Config } from "tailwindcss";
 // "SaaS kart kiti" (her yerde aynı yuvarlak köşe + soft gölge) yerine ince
 // çerçeveler ve keskin köşelerle disiplinli bir hiyerarşi kuruluyor.
 const config: Config = {
+  darkMode: "class",
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
