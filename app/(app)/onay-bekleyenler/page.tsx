@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OnayKarti from "./OnayKarti";
+import BordroBekleyenListesi from "./BordroBekleyenListesi";
+import { BELGE_LISTESI, belgeGorunurMu } from "@/lib/evrakSabitleri";
 
 export default async function OnayBekleyenlerPage() {
   const supabase = createClient();
@@ -8,8 +10,47 @@ export default async function OnayBekleyenlerPage() {
   if (!user) redirect("/login");
 
   const { data: me } = await supabase
-    .from("kullanicilar").select("id").eq("email", user.email).single();
+    .from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) return null;
+
+  // Bordro ve Çalışma İlişkileri rolünün hiç talep onay yetkisi yok — bu
+  // sayfada onlar için "sistem girişi bekleyen" (evrakları İK tarafından
+  // onaylanmış ama henüz bordro sistemine girilmemiş) kişiler listelenir,
+  // talep onayları hiç gösterilmez.
+  if (me.rol === "BORDRO") {
+    const { data: tokenlar } = await supabase.from("evrak_erisim_tokenlari").select("personel_id");
+    const personelIdleri = Array.from(new Set((tokenlar ?? []).map((t) => t.personel_id)));
+
+    let bekleyenler: { id: string; ad_soyad: string; guncel_unvan: string | null; magaza_adi: string | null }[] = [];
+    if (personelIdleri.length > 0) {
+      const [{ data: personelListesi }, { data: bilgilerListesi }, { data: belgelerListesi }] = await Promise.all([
+        supabase.from("personel").select("id, ad_soyad, guncel_unvan, bordro_giris_tarihi, evrak_iptal_nedeni, magazalar!guncel_magaza_id(magaza_adi)").in("id", personelIdleri),
+        supabase.from("personel_evrak_bilgileri").select("personel_id, cinsiyet").in("personel_id", personelIdleri),
+        supabase.from("personel_evrak_belgeleri").select("personel_id, belge_tipi, durum").in("personel_id", personelIdleri),
+      ]);
+
+      bekleyenler = (personelListesi ?? [])
+        .filter((p: any) => !p.bordro_giris_tarihi && !p.evrak_iptal_nedeni)
+        .filter((p: any) => {
+          const cinsiyet = (bilgilerListesi ?? []).find((b: any) => b.personel_id === p.id)?.cinsiyet ?? null;
+          const kendiBelgeleri = (belgelerListesi ?? []).filter((b: any) => b.personel_id === p.id);
+          const gerekliBelgeler = BELGE_LISTESI.filter((b) => !b.istegeBagli && belgeGorunurMu(b, cinsiyet));
+          const onaylanan = gerekliBelgeler.filter((b) => kendiBelgeleri.find((k: any) => k.belge_tipi === b.id)?.durum === "ONAYLANDI").length;
+          return gerekliBelgeler.length > 0 && onaylanan === gerekliBelgeler.length;
+        })
+        .map((p: any) => ({ id: p.id, ad_soyad: p.ad_soyad, guncel_unvan: p.guncel_unvan, magaza_adi: p.magazalar?.magaza_adi ?? null }));
+    }
+
+    return (
+      <div>
+        <div className="mb-4">
+          <div className="text-lg font-semibold text-navy-3">Onay Bekleyenler</div>
+          <div className="text-xs text-gray-400 mt-0.5">Evrakları onaylanmış, sisteme giriş bekleyen kişiler</div>
+        </div>
+        <BordroBekleyenListesi kisiler={bekleyenler} benimRolum={me.rol} />
+      </div>
+    );
+  }
 
   const { data: onaylar } = await supabase
     .from("talep_onaylari")
