@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from "recharts";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 
 type PerformansSatiri = {
   magaza_id: string; yil: number; ay: number; hgo: number | null;
@@ -25,6 +26,8 @@ function anahtarUret(yil: number, ay: number) {
 export default function DashboardZamanGrafigi({ performansHam }: { performansHam: PerformansSatiri[] }) {
   const [degisken, setDegisken] = useState<keyof PerformansSatiri>("hgo");
   const secilenTanim = DEGISKENLER.find((d) => d.key === degisken)!;
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
 
   // Dosyadaki tüm (yıl, ay) çiftlerini kronolojik sırada çıkar — aralık seçicileri bunlardan besleniyor.
   const tumDonemler = useMemo(() => {
@@ -131,15 +134,15 @@ export default function DashboardZamanGrafigi({ performansHam }: { performansHam
       ) : (
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={veri} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="etiket" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => secilenTanim.format(v)} labelStyle={{ fontSize: 12 }} />
-            <Line type="monotone" dataKey="deger" stroke="#00365a" strokeWidth={2} dot={{ r: 3 }} name={secilenTanim.label}>
+            <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+            <XAxis dataKey="etiket" tick={{ fontSize: 11, fill: rk.eksenMetni }} />
+            <YAxis tick={{ fontSize: 11, fill: rk.eksenMetni }} />
+            <Tooltip formatter={(v: number) => secilenTanim.format(v)} labelStyle={{ fontSize: 12, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
+            <Line type="monotone" dataKey="deger" stroke={rk.navy} strokeWidth={2} dot={{ r: 3 }} name={secilenTanim.label}>
               <LabelList
                 dataKey="deger"
                 position="top"
-                style={{ fontSize: 10, fill: "#00365a" }}
+                style={{ fontSize: 10, fill: rk.navy }}
                 formatter={(v: number) => secilenTanim.format(v)}
               />
             </Line>
