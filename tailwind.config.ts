@@ -22,10 +22,10 @@ const config: Config = {
           // ayrıca ele alınıyor.
           3: "#0A122E",
         },
-        accent: "#C08A2E",
-        success: { DEFAULT: "#2F6F4E", bg: "rgb(var(--c-success-bg) / <alpha-value>)" },
-        danger: { DEFAULT: "#B0402E", bg: "rgb(var(--c-danger-bg) / <alpha-value>)" },
-        info: { DEFAULT: "#3E7CB1", bg: "rgb(var(--c-info-bg) / <alpha-value>)" },
+        accent: "rgb(var(--c-accent) / <alpha-value>)",
+        success: { DEFAULT: "rgb(var(--c-success) / <alpha-value>)", bg: "rgb(var(--c-success-bg) / <alpha-value>)" },
+        danger: { DEFAULT: "rgb(var(--c-danger) / <alpha-value>)", bg: "rgb(var(--c-danger-bg) / <alpha-value>)" },
+        info: { DEFAULT: "rgb(var(--c-info) / <alpha-value>)", bg: "rgb(var(--c-info-bg) / <alpha-value>)" },
         // Standart Tailwind gri paleti, CSS değişkenlerine bağlandı — bu
         // sayede "text-gray-400", "border-gray-200", hatta "bg-gray-50/60"
         // gibi opaklık varyantlarının TAMAMI, tek bir yerden (globals.css'teki
