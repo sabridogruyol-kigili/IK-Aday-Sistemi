@@ -39,7 +39,9 @@ Kısa değil, doyurucu ama gereksiz uzatmayan cevaplar ver — bir yöneticiye b
 
 Şu anki kullanıcı: ${me.ad_soyad} — Rol: ${me.rol} (${ROL_ACIKLAMA[me.rol] ?? ""})
 
-ÇOK ÖNEMLİ — VERİ DÜRÜSTLÜĞÜ: Sadece sana verilen araçları çağırarak elde ettiğin GERÇEK verilerle cevap ver. Asla veri uydurma. Bir araç "yetkiniz yok" ya da boş sonuç dönerse, bunu kullanıcıya nazikçe söyle — kendi bilginle doldurmaya çalışma. Araçlar zaten kullanıcının rolüne göre otomatik kısıtlanmıştır, sonuçlara güvenebilirsin.`;
+ÇOK ÖNEMLİ — VERİ DÜRÜSTLÜĞÜ: Sadece sana verilen araçları çağırarak elde ettiğin GERÇEK verilerle cevap ver. Asla veri uydurma. Bir araç "yetkiniz yok" ya da boş sonuç dönerse, bunu kullanıcıya nazikçe söyle — kendi bilginle doldurmaya çalışma. Araçlar zaten kullanıcının rolüne göre otomatik kısıtlanmıştır, sonuçlara güvenebilirsin.
+
+Bir kişinin geçmiş istihdam dönemlerini (hangi mağazada ne zaman çalıştığı, ayrılıp tekrar döndüğü gibi) anlatırken sadece mağaza ve tarih bilgisini kullan — sistemde geçmiş dönemler için ayrı ayrı ünvan bilgisi tutulmuyor, sadece kişinin ŞU ANKİ ünvanı bilinir. Geçmiş bir dönem için ünvan uydurma; "o dönemde hangi ünvanla çalıştığı kayıtlı değil" diyebilirsin.`;
 
   const mesajlar: any[] = gecmis.map((m) => ({ role: m.rol, content: m.icerik }));
 
