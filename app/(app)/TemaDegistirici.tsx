@@ -16,6 +16,10 @@ export default function TemaDegistirici() {
     try {
       localStorage.setItem("tema", yeniKoyu ? "koyu" : "acik");
     } catch {}
+    // Grafikler (Recharts) CSS sınıflarıyla değil doğrudan renk koduyla
+    // (stroke/fill) çizildiği için, tema değişince onların da yeniden
+    // hesaplanabilmesi için bir olay yayınlanıyor — bkz. useTemaKoyuMu().
+    window.dispatchEvent(new Event("temadegisti"));
   }
 
   return (
