@@ -15,12 +15,35 @@ const config: Config = {
         navy: {
           DEFAULT: "#0F1B4D",
           2: "#1B2E6B",
-          3: "#0A122E",
+          // navy-3, açık modda koyu lacivert (birincil metin rengi), koyu
+          // modda ise açık bir tona dönüşmesi gereken TEK renk — bu yüzden
+          // CSS değişkenine bağlandı. Diğerleri (navy, navy-2) zaten koyu
+          // olduğu için iki modda da aynı kalabiliyor.
+          3: "rgb(var(--c-navy-3) / <alpha-value>)",
         },
         accent: "#C08A2E",
-        success: { DEFAULT: "#2F6F4E", bg: "#EAF3DE" },
-        danger: { DEFAULT: "#B0402E", bg: "#FCEBEB" },
-        info: { DEFAULT: "#3E7CB1", bg: "#E9F1F7" },
+        success: { DEFAULT: "#2F6F4E", bg: "rgb(var(--c-success-bg) / <alpha-value>)" },
+        danger: { DEFAULT: "#B0402E", bg: "rgb(var(--c-danger-bg) / <alpha-value>)" },
+        info: { DEFAULT: "#3E7CB1", bg: "rgb(var(--c-info-bg) / <alpha-value>)" },
+        // Standart Tailwind gri paleti, CSS değişkenlerine bağlandı — bu
+        // sayede "text-gray-400", "border-gray-200", hatta "bg-gray-50/60"
+        // gibi opaklık varyantlarının TAMAMI, tek bir yerden (globals.css'teki
+        // :root / .dark blokları) otomatik olarak açık/koyu moda göre doğru
+        // değeri alır. Yeni bir sayfa eklerken bu sınıfları normal şekilde
+        // kullanmaya devam edin — karanlık mod için ekstra hiçbir şey
+        // yazmanıza gerek yok.
+        gray: {
+          50: "rgb(var(--c-gray-50) / <alpha-value>)",
+          100: "rgb(var(--c-gray-100) / <alpha-value>)",
+          200: "rgb(var(--c-gray-200) / <alpha-value>)",
+          300: "rgb(var(--c-gray-300) / <alpha-value>)",
+          400: "rgb(var(--c-gray-400) / <alpha-value>)",
+          500: "rgb(var(--c-gray-500) / <alpha-value>)",
+          600: "rgb(var(--c-gray-600) / <alpha-value>)",
+          700: "rgb(var(--c-gray-700) / <alpha-value>)",
+          800: "rgb(var(--c-gray-800) / <alpha-value>)",
+          900: "rgb(var(--c-gray-900) / <alpha-value>)",
+        },
       },
       fontFamily: {
         sans: ["'IBM Plex Sans'", "sans-serif"],
