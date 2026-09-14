@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { getAdayEslesenPersonelDetay, type AdayDetay } from "./actions";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -23,6 +24,8 @@ export default function AdayDetayModal({
   talepNo: string; durumEtiket: string; tcKimlikNo: string | null;
 }) {
   const [detay, setDetay] = useState<AdayDetay | null>(null);
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
   const [yukleniyor, setYukleniyor] = useState(!!tcKimlikNo);
 
   useEffect(() => {
@@ -78,11 +81,11 @@ export default function AdayDetayModal({
                   <div className="text-[10px] font-semibold text-navy-3 mb-1">HGO (Ciro) — Aylık</div>
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={hgoGrafikVerisi} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="etiket" tick={{ fontSize: 8 }} />
-                      <YAxis tick={{ fontSize: 8 }} />
-                      <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 10 }} />
-                      <Line type="monotone" dataKey="hgo" stroke="#0F1B4D" strokeWidth={2} dot={{ r: 2 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+                      <XAxis dataKey="etiket" tick={{ fontSize: 8, fill: rk.eksenMetni }} />
+                      <YAxis tick={{ fontSize: 8, fill: rk.eksenMetni }} />
+                      <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 10, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
+                      <Line type="monotone" dataKey="hgo" stroke={rk.navy} strokeWidth={2} dot={{ r: 2 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
