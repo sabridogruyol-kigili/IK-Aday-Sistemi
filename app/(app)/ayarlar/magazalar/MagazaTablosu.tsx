@@ -371,8 +371,8 @@ export default function MagazaTablosu({ magazalar, bolgeler }: { magazalar: Maga
                         </span>
                       </td>
                       <td className="px-2 py-2 whitespace-nowrap">
-                        <button onClick={() => duzenlemeyeBasla(m)} className="text-info hover:underline mr-2">Düzenle</button>
-                        {m.aktif && <button onClick={() => pasifYap(m.id, m.magaza_adi)} className="text-danger hover:underline">Pasif Yap</button>}
+                        <button onClick={() => duzenlemeyeBasla(m)} className="text-[11px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2 py-1 mr-2 transition-colors">Düzenle</button>
+                        {m.aktif && <button onClick={() => pasifYap(m.id, m.magaza_adi)} className="text-[11px] font-medium bg-white border border-danger/30 text-danger hover:bg-danger-bg rounded-md px-2 py-1 transition-colors">Pasif Yap</button>}
                       </td>
                     </>
                   )}
