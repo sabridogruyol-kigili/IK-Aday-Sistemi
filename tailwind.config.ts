@@ -15,11 +15,12 @@ const config: Config = {
         navy: {
           DEFAULT: "#0F1B4D",
           2: "#1B2E6B",
-          // navy-3, açık modda koyu lacivert (birincil metin rengi), koyu
-          // modda ise açık bir tona dönüşmesi gereken TEK renk — bu yüzden
-          // CSS değişkenine bağlandı. Diğerleri (navy, navy-2) zaten koyu
-          // olduğu için iki modda da aynı kalabiliyor.
-          3: "rgb(var(--c-navy-3) / <alpha-value>)",
+          // navy-3 hem METİN (çok kullanılıyor) hem ARKA PLAN (daha az ama
+          // var) olarak kullanıldığı için token yapılamadı — ikisi zıt
+          // yönde davranması gerekirdi (metin açılmalı, arka plan koyu
+          // kalmalı). Statik bırakıldı, metin kullanımı globals.css'te
+          // ayrıca ele alınıyor.
+          3: "#0A122E",
         },
         accent: "#C08A2E",
         success: { DEFAULT: "#2F6F4E", bg: "rgb(var(--c-success-bg) / <alpha-value>)" },
