@@ -142,7 +142,6 @@ span[class*="rounded"][class*="bg-info-bg"] {
    aşağıdaki iki blokta ilgili satırı güncelleyin.
    ============================================================ */
 :root {
-  --c-navy-3: 10 18 46;         /* #0A122E — birincil metin, açık modda koyu lacivert */
   --c-success-bg: 234 243 222;  /* #EAF3DE */
   --c-danger-bg: 252 235 235;   /* #FCEBEB */
   --c-info-bg: 233 241 247;     /* #E9F1F7 */
@@ -160,7 +159,6 @@ span[class*="rounded"][class*="bg-info-bg"] {
 
 .dark {
   color-scheme: dark;
-  --c-navy-3: 232 234 242;      /* #E8EAF2 — koyu modda açık, okunaklı */
   --c-success-bg: 20 37 26;     /* #14251A */
   --c-danger-bg: 42 22 22;      /* #2A1616 */
   --c-info-bg: 20 34 48;        /* #142230 */
@@ -199,12 +197,37 @@ span[class*="rounded"][class*="bg-info-bg"] {
   background-color: #141A2E !important;
 }
 
-/* "navy" rengi hem metin (nadiren) hem arka plan (butonlar, sidebar — çok
-   sık) için kullanıldığından tamamen token yapılamadı; bg-navy zaten koyu
-   olduğu için değişmemeli, ama text-navy koyu zeminde okunaksız kalıyordu —
-   bu yüzden sadece METİN kullanımı ayrıca düzeltiliyor. */
+/* "navy" ve "navy-3" renkleri hem metin hem arka plan (butonlar, sidebar,
+   koyu başlık şeritleri) için kullanıldığından tamamen token yapılamadı;
+   bg-navy/bg-navy-3 zaten koyu olduğu için değişmemeli, ama METİN olarak
+   kullanıldıklarında koyu zeminde okunaksız kalıyorlardı — bu yüzden
+   sadece metin kullanımları ayrıca düzeltiliyor. */
 .dark .text-navy {
   color: #C7CEE8 !important;
+}
+.dark .text-navy-3 {
+  color: #E8EAF2 !important;
+}
+
+/* Koyu modda sayfa/kart arka planı da zaten koyu lacivert tonlarında
+   olduğu için, standart "navy" düğme rengi (#0F1B4D) neredeyse hiç
+   belli olmuyordu — düğmeler ve vurgulu alanlar fark edilsin diye
+   koyu modda belirgin şekilde parlatılıyor. */
+.dark .bg-navy {
+  background-color: #2E4494 !important;
+}
+.dark .hover\:bg-navy:hover {
+  background-color: #2E4494 !important;
+}
+.dark .bg-navy-2,
+.dark .hover\:bg-navy-2:hover {
+  background-color: #3D5AC0 !important;
+}
+.dark .border-navy {
+  border-color: #2E4494 !important;
+}
+.dark .focus\:ring-navy:focus {
+  --tw-ring-color: #2E4494 !important;
 }
 
 /* Input, select, textarea alanları */
