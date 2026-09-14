@@ -12,7 +12,7 @@ const DURUM_RENK: Record<string, string> = {
   "İşe Alım Onaylandı — Evrak Bekleniyor": "bg-gray-100 text-gray-500",
 };
 
-export default function EvrakOnayListesi({ kisiler }: { kisiler: Kisi[] }) {
+export default function EvrakOnayListesi({ kisiler, benimRolum }: { kisiler: Kisi[]; benimRolum: string }) {
   const [arama, setArama] = useState("");
   const [durumFiltre, setDurumFiltre] = useState("");
   const [secili, setSecili] = useState<Kisi | null>(null);
@@ -87,7 +87,7 @@ export default function EvrakOnayListesi({ kisiler }: { kisiler: Kisi[] }) {
         </table>
       </div>
 
-      {secili && <EvrakOnayDetay personelId={secili.personelId} adSoyad={secili.adSoyad} onClose={() => setSecili(null)} />}
+      {secili && <EvrakOnayDetay personelId={secili.personelId} adSoyad={secili.adSoyad} benimRolum={benimRolum} onClose={() => setSecili(null)} />}
     </div>
   );
 }
