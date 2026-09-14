@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 
 const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon", NORM_DEGISIKLIK: "Norm Değişikliği" };
 const DURUM_ETIKET: Record<string, string> = { BEKLEMEDE: "Beklemede", KABUL_EDILDI: "Kabul Edildi", DURAKLADI: "Duraklamış", KAPANDI_RED: "Kapandı (Red)" };
@@ -117,6 +118,8 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
   ikPerformans: IkPerformans[] | null; magazaRaporVeri: MagazaRapor[]; bolgeRaporVeri: BolgeRapor[]; benimRolum: string;
 }) {
   const [sekme, setSekme] = useState<"genel" | "ik_bm" | "magaza">("genel");
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
 
   // ---- Ortak filtreler (Genel sekmesindeki talep süreç süresi için) ----
   const [turFiltre, setTurFiltre] = useState("");
@@ -534,14 +537,14 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
                 <div className="text-[11px] font-semibold text-navy-3 mb-1">İş Yükü Karşılaştırması</div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={ikKarsilastirmaVerisi} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="ad_soyad" tick={{ fontSize: 9 }} />
-                    <YAxis tick={{ fontSize: 9 }} />
-                    <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: 10 }} />
-                    <Bar dataKey="Toplam İş" fill="#0F1B4D" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="Bekleyen İş" fill="#B0402E" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="Toplam Aday" fill="#3E7CB1" radius={[3, 3, 0, 0]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+                    <XAxis dataKey="ad_soyad" tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+                    <YAxis tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+                    <Tooltip contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder, color: rk.tooltipMetin }} />
+                    <Legend wrapperStyle={{ fontSize: 10, color: rk.eksenMetni }} />
+                    <Bar dataKey="Toplam İş" fill={rk.navy} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Bekleyen İş" fill={rk.danger} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Toplam Aday" fill={rk.info} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -551,11 +554,11 @@ export default function RaporlarClient({ hiyerarsi, talepSureVeri, bolgeler, ikP
                   <div className="text-[11px] font-semibold text-navy-3 mb-1">Aylık Yönlendirilen Aday Sayısı — İK Karşılaştırması</div>
                   <ResponsiveContainer width="100%" height={240}>
                     <LineChart data={ikAylikGrafikVerisi} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="ay" tick={{ fontSize: 9 }} />
-                      <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
-                      <Tooltip />
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+                      <XAxis dataKey="ay" tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+                      <YAxis tick={{ fontSize: 9, fill: rk.eksenMetni }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder, color: rk.tooltipMetin }} />
+                      <Legend wrapperStyle={{ fontSize: 10, color: rk.eksenMetni }} />
                       {ikPerformans.map((ik, i) => (
                         <Line key={ik.id} type="monotone" dataKey={ik.ad_soyad} stroke={SERI_RENKLERI[i % SERI_RENKLERI.length]} strokeWidth={2} dot={{ r: 2.5 }} />
                       ))}
