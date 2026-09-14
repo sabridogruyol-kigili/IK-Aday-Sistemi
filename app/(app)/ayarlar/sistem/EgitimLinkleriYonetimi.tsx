@@ -42,7 +42,7 @@ export default function EgitimLinkleriYonetimi({ egitimler }: { egitimler: Egiti
               <div className="text-[11px] text-gray-400 truncate">{e.link}</div>
             </div>
             <button onClick={() => sil(e.id)} disabled={silinenId === e.id}
-              className="text-[11px] text-danger hover:underline shrink-0 ml-3 disabled:opacity-50">
+              className="text-[11px] font-medium bg-white border border-danger/30 text-danger hover:bg-danger-bg rounded-md px-2 py-1 shrink-0 ml-3 disabled:opacity-50 transition-colors">
               {silinenId === e.id ? "Siliniyor..." : "Sil"}
             </button>
           </div>
