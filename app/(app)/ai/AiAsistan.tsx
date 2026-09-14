@@ -37,7 +37,7 @@ export default function AiAsistan() {
         <button
           onClick={() => setAcik(true)}
           className="fixed right-4 bottom-4 z-40 w-12 h-12 rounded-full bg-navy hover:bg-navy-2 text-white shadow-lg flex items-center justify-center transition-colors"
-          title="AI Asistan"
+          title="Kiğılı İK Asistanı"
         >
           <span className="text-xl">💬</span>
         </button>
@@ -48,7 +48,7 @@ export default function AiAsistan() {
         <div className="fixed right-4 bottom-4 z-40 w-[340px] max-w-[90vw] h-[480px] max-h-[75vh] bg-white border border-gray-200 rounded-card shadow-xl flex flex-col overflow-hidden">
           <div className="bg-navy text-white px-4 py-3 flex items-center justify-between shrink-0">
             <div>
-              <div className="text-sm font-semibold">AI Asistan</div>
+              <div className="text-sm font-semibold">Kiğılı İK Asistanı</div>
               <div className="text-[10px] text-white/60">Sistem verilerinize göre cevap verir</div>
             </div>
             <button onClick={() => setAcik(false)} className="text-white/70 hover:text-white text-lg leading-none">×</button>
