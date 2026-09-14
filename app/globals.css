@@ -219,6 +219,9 @@ span[class*="rounded"][class*="bg-info-bg"] {
 .dark .text-navy-3 {
   color: #E8EAF2 !important;
 }
+.dark .text-navy-3\/70 {
+  color: rgba(232, 234, 242, 0.7) !important;
+}
 
 /* Koyu modda sayfa/kart arka planı da zaten koyu lacivert tonlarında
    olduğu için, standart "navy" düğme rengi (#0F1B4D) neredeyse hiç
