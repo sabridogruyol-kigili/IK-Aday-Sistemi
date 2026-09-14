@@ -30,7 +30,7 @@ export default function KullaniciDuzenle({
 
   return (
     <>
-      <button onClick={() => setAcik(true)} className="text-xs text-info hover:underline">
+      <button onClick={() => setAcik(true)} className="text-xs font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2.5 py-1 transition-colors">
         Düzenle
       </button>
 
