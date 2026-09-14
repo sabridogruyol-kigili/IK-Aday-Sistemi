@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getEvrakDetay, belgeKararVer, getBelgeSignedUrl, hatirlatmaGonder, iptalEtIseAlim, type EvrakDetay } from "./actions";
+import { getEvrakDetay, belgeKararVer, getBelgeSignedUrl, hatirlatmaGonder, iptalEtIseAlim, bordroGirisOnayla, type EvrakDetay } from "./actions";
 import { iseAlimiTamamla } from "../talepler/actions";
 import { getAdaySurecGecmisi, type SurecAdimi } from "../adaylar/actions";
 import SurecDetayModal from "../talepler/SurecDetayModal";
@@ -15,10 +15,11 @@ const DURUM_ROZET: Record<string, string> = {
   REDDEDILDI: "bg-danger-bg text-danger",
 };
 
-function BelgeSatiri({ belgeTipi, tanimAd, kayit, onKarar }: {
+function BelgeSatiri({ belgeTipi, tanimAd, kayit, onKarar, saltOkunur }: {
   belgeTipi: BelgeTipi; tanimAd: string;
   kayit: EvrakDetay["belgeler"][number] | undefined;
   onKarar: (belgeId: string, karar: "ONAYLANDI" | "REDDEDILDI", redNedeni?: string, redAciklama?: string, ikNotu?: string) => void;
+  saltOkunur: boolean;
 }) {
   const [redModAcik, setRedModAcik] = useState(false);
   const [redNedeni, setRedNedeni] = useState<string>(RED_NEDENLERI[0]);
@@ -78,7 +79,7 @@ function BelgeSatiri({ belgeTipi, tanimAd, kayit, onKarar }: {
       )}
       {dosyaHata && <div className="text-[11px] text-danger bg-danger-bg rounded-md px-2 py-1.5 mb-2">{dosyaHata}</div>}
 
-      {durum === "INCELEMEDE" && !redModAcik && (
+      {durum === "INCELEMEDE" && !redModAcik && !saltOkunur && (
         <div className="flex gap-2">
           <button onClick={() => onKarar(kayit.id, "ONAYLANDI")} className="bg-success text-white rounded-md px-3 py-1.5 text-xs font-medium">Onayla</button>
           <button onClick={() => setRedModAcik(true)} className="bg-danger-bg text-danger border border-danger/30 rounded-md px-3 py-1.5 text-xs font-medium">Reddet</button>
@@ -115,7 +116,8 @@ function BelgeSatiri({ belgeTipi, tanimAd, kayit, onKarar }: {
   );
 }
 
-export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { personelId: string; adSoyad: string; onClose: () => void }) {
+export default function EvrakOnayDetay({ personelId, adSoyad, benimRolum, onClose }: { personelId: string; adSoyad: string; benimRolum: string; onClose: () => void }) {
+  const saltOkunur = benimRolum === "BORDRO";
   const [detay, setDetay] = useState<EvrakDetay | null>(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hatirlatmaGonderildi, setHatirlatmaGonderildi] = useState(false);
@@ -128,10 +130,23 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
   const [tamamlaPending, setTamamlaPending] = useState(false);
   const [tamamlaHata, setTamamlaHata] = useState<string | null>(null);
   const [tamamlandi, setTamamlandi] = useState(false);
+  const [bordroPending, setBordroPending] = useState(false);
+  const [bordroHata, setBordroHata] = useState<string | null>(null);
+  const [bordroTamamlandi, setBordroTamamlandi] = useState(false);
   const [surecModalAcik, setSurecModalAcik] = useState(false);
   const [bilgiDetayAcik, setBilgiDetayAcik] = useState(false);
   const [surecOlaylar, setSurecOlaylar] = useState<SurecAdimi[]>([]);
   const [surecPending, setSurecPending] = useState(false);
+
+  function bordroGirisiTikla() {
+    setBordroHata(null);
+    setBordroPending(true);
+    bordroGirisOnayla(personelId).then((res) => {
+      setBordroPending(false);
+      if (res?.error) { setBordroHata(res.error); return; }
+      setBordroTamamlandi(true);
+    });
+  }
 
   function surecDetayiniAc() {
     if (!detay?.aday_id) return;
@@ -268,7 +283,7 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                 </div>
               </div>
 
-              {tumuOnaylandiMi && (
+              {tumuOnaylandiMi && !saltOkunur && (
                 <div className="bg-success-bg border border-success/30 rounded-md p-3 mb-2">
                   <div className="text-[11px] text-success font-medium mb-2">
                     Tüm zorunlu belgeler onaylandı — işe alım süreci tamamlanabilir.
@@ -281,7 +296,30 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                 </div>
               )}
 
-              {!iptalModAcik ? (
+              {saltOkunur && (
+                <div className={`border rounded-md p-3 mb-2 ${bordroTamamlandi || detay?.bordro_giris_tarihi ? "bg-success-bg border-success/30" : tumuOnaylandiMi ? "bg-accent/10 border-accent/30" : "bg-gray-50 border-gray-200"}`}>
+                  {bordroTamamlandi || detay?.bordro_giris_tarihi ? (
+                    <div className="text-[11px] text-success font-medium">
+                      ✓ Evraklar ve aday bilgileri sisteme girildi — {tarihFormat(detay?.bordro_giris_tarihi ?? null)}
+                    </div>
+                  ) : tumuOnaylandiMi ? (
+                    <>
+                      <div className="text-[11px] text-navy-3 font-medium mb-2">
+                        Tüm zorunlu belgeler İK tarafından onaylandı — bilgileri kendi sisteminize girdikten sonra aşağıdan kaydedin.
+                      </div>
+                      {bordroHata && <div className="text-[11px] text-danger mb-2">{bordroHata}</div>}
+                      <button onClick={bordroGirisiTikla} disabled={bordroPending}
+                        className="bg-navy hover:bg-navy-2 text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 transition-colors">
+                        {bordroPending ? "Kaydediliyor..." : "Evraklar ve Aday Bilgileri Sisteme Girildi"}
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-[11px] text-gray-500">Tüm zorunlu belgeler İK tarafından onaylanınca burada bir işlem yapabileceksiniz.</div>
+                  )}
+                </div>
+              )}
+
+              {!saltOkunur && (!iptalModAcik ? (
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <button onClick={() => setIptalModAcik(true)}
                     className="text-[11px] font-medium rounded-md px-3 py-1.5 bg-white border border-danger/30 text-danger hover:bg-danger-bg transition-colors">
@@ -316,7 +354,7 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                     </button>
                   </div>
                 </div>
-              )}
+              ))}
               {hatirlatmaHata && <div className="text-[11px] text-danger mb-1">{hatirlatmaHata}</div>}
               {gorunurBelgeler.map((tanim) => (
                 <BelgeSatiri
@@ -325,6 +363,7 @@ export default function EvrakOnayDetay({ personelId, adSoyad, onClose }: { perso
                   tanimAd={tanim.ad}
                   kayit={detay?.belgeler.find((b) => b.belge_tipi === tanim.id)}
                   onKarar={karar}
+                  saltOkunur={saltOkunur}
                 />
               ))}
             </>
