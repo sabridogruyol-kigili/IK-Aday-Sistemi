@@ -25,6 +25,7 @@ export default async function RaporlarPage() {
   const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
   if (!me) redirect("/login");
   if (me.rol === "MAGAZALAR_DIREKTORLUGU") redirect("/dashboard");
+  if (me.rol === "BORDRO") redirect("/evrak-onay");
 
   const [{ data: bolgeler }, { data: atamalarHam }, { data: magazalarHam }] = await Promise.all([
     supabase.from("bolgeler").select("id, ad").order("ad"),
