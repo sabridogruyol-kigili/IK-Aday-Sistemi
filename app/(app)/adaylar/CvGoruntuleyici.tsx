@@ -30,7 +30,7 @@ export default function CvGoruntuleyici({ cvYolu, onClose }: { cvYolu: string; o
           <div className="text-sm font-semibold text-navy-3">CV Görüntüle</div>
           <div className="flex items-center gap-3">
             {url && (
-              <a href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-info hover:underline">
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2 py-1 transition-colors">
                 Yeni sekmede aç
               </a>
             )}
