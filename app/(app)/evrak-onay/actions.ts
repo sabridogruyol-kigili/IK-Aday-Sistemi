@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { sendMail } from "@/lib/email";
 import { uygulamaUrl } from "@/lib/appUrl";
 import { mailIskelet, tarihTr } from "@/lib/mailSablon";
+import { BELGE_LISTESI, belgeGorunurMu } from "@/lib/evrakSabitleri";
 
 export async function iptalEtIseAlim(formData: FormData): Promise<{ error?: string }> {
   const supabase = createClient();
@@ -65,6 +66,7 @@ export type EvrakDetay = {
   site_adi2: string | null; blok_no2: string | null; apt_adi2: string | null; bina_no2: string | null; daire_no2: string | null;
   kat2: string | null; posta_kodu2: string | null;
   kvkk_onay_tarihi: string | null;
+  bordro_giris_tarihi: string | null;
   bilgi_guncelleme_tarihi: string | null;
   belgeler: { id: string; belge_tipi: string; dosya_yollari: string[]; durum: string; red_nedeni: string | null; red_aciklama: string | null; ik_notu: string | null }[];
 };
@@ -75,7 +77,7 @@ export async function getEvrakDetay(personelId: string): Promise<EvrakDetay | nu
   if (!user) return null;
 
   const [{ data: personel }, { data: bilgi }, { data: token }, { data: belgeler }] = await Promise.all([
-    supabase.from("personel").select("ad_soyad, tc_kimlik_no, cinsiyet, dogum_tarihi").eq("id", personelId).maybeSingle(),
+    supabase.from("personel").select("ad_soyad, tc_kimlik_no, cinsiyet, dogum_tarihi, bordro_giris_tarihi").eq("id", personelId).maybeSingle(),
     supabase.from("personel_evrak_bilgileri").select("*").eq("personel_id", personelId).maybeSingle(),
     supabase.from("evrak_erisim_tokenlari").select("email").eq("personel_id", personelId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("personel_evrak_belgeleri").select("id, belge_tipi, dosya_yollari, durum, red_nedeni, red_aciklama, ik_notu").eq("personel_id", personelId),
@@ -129,6 +131,7 @@ export async function getEvrakDetay(personelId: string): Promise<EvrakDetay | nu
     bina_no2: bilgi?.bina_no2 ?? null, daire_no2: bilgi?.daire_no2 ?? null,
     kat2: bilgi?.kat2 ?? null, posta_kodu2: bilgi?.posta_kodu2 ?? null,
     kvkk_onay_tarihi: bilgi?.kvkk_onay_tarihi ?? null,
+    bordro_giris_tarihi: personel?.bordro_giris_tarihi ?? null,
     bilgi_guncelleme_tarihi: bilgi?.updated_at ?? null,
     belgeler: belgeler ?? [],
   };
@@ -175,7 +178,7 @@ export async function getBelgeSignedUrl(dosyaYolu: string): Promise<{ url?: stri
   if (!user) return { error: "Giriş yapmalısınız." };
 
   const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
-  if (!me || (me.rol !== "IK" && me.rol !== "YONETIM")) return { error: "Bu belgeyi görüntüleme yetkiniz yok." };
+  if (!me || (me.rol !== "IK" && me.rol !== "YONETIM" && me.rol !== "BORDRO")) return { error: "Bu belgeyi görüntüleme yetkiniz yok." };
 
   // evrak-dosyalari bucket'ı için storage.objects RLS politikası hiç
   // yazılmamıştı — normal (yetki kontrollü) bağlantı dosyayı "yok" gibi
@@ -262,5 +265,38 @@ export async function hatirlatmaGonder(formData: FormData): Promise<{ error?: st
   }
 
   revalidatePath("/evrak-onay");
+  return {};
+}
+
+// Bordro ve Çalışma İlişkileri rolü, onay/red yetkisi olmadan, sadece
+// evrakları görüntüleyip kendi (bordro) sistemlerine girdiklerini burada
+// kayıt altına alır — İK'nın "İşe Alımı Tamamla" (talebi kapatma)
+// işleminden AYRI, ek bir teyit adımıdır.
+export async function bordroGirisOnayla(personelId: string): Promise<{ error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Giriş yapmalısınız." };
+
+  const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
+  if (!me || (me.rol !== "BORDRO" && me.rol !== "YONETIM")) return { error: "Bu işlem için yetkiniz yok." };
+
+  // Sunucu tarafında tekrar doğrulama: tüm zorunlu belgeler gerçekten
+  // onaylanmış mı — arayüzdeki kontrole güvenilmez.
+  const { data: bilgi } = await supabase.from("personel_evrak_bilgileri").select("cinsiyet").eq("personel_id", personelId).maybeSingle();
+  const { data: belgelerHam } = await supabase.from("personel_evrak_belgeleri").select("belge_tipi, durum").eq("personel_id", personelId);
+  const gerekliBelgeler = BELGE_LISTESI.filter((b) => !b.istegeBagli && belgeGorunurMu(b, bilgi?.cinsiyet ?? null));
+  const onaylanan = gerekliBelgeler.filter((b) => (belgelerHam ?? []).find((s: any) => s.belge_tipi === b.id)?.durum === "ONAYLANDI").length;
+  if (gerekliBelgeler.length === 0 || onaylanan < gerekliBelgeler.length) {
+    return { error: `Tüm zorunlu belgeler onaylanmadan bu işlem yapılamaz (${onaylanan}/${gerekliBelgeler.length} onaylı).` };
+  }
+
+  const { error } = await supabase
+    .from("personel")
+    .update({ bordro_giris_tarihi: new Date().toISOString(), bordro_giren_kullanici_id: me.id })
+    .eq("id", personelId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/evrak-onay");
+  revalidatePath("/onay-bekleyenler");
   return {};
 }
