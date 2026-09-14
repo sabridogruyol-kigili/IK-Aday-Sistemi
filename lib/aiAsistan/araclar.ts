@@ -100,7 +100,7 @@ export const ARAC_TANIMLARI = [
   },
   {
     name: "personel_gecmisi_sorgula",
-    description: "Belirli bir kişinin (isimle aranır) TÜM istihdam geçmişini verir — hangi mağaza(lar)da hangi tarihler arasında çalıştığı, ayrıldıysa ne zaman ayrıldığı, tekrar işe girdiyse o dönemleri de dahil olmak üzere. 'Şu kişinin kıdem durumu nedir', 'bu kişi daha önce burada çalışmış mıydı' gibi sorularda kullanılır.",
+    description: "Belirli bir kişinin (isimle aranır) TÜM istihdam geçmişini verir — hangi mağaza(lar)da hangi tarihler arasında çalıştığı, ayrıldıysa ne zaman ayrıldığı, tekrar işe girdiyse o dönemleri de dahil olmak üzere. 'Şu kişinin kıdem durumu nedir', 'bu kişi daha önce burada çalışmış mıydı' gibi sorularda kullanılır. Aynı isimde birden fazla kişi bulunursa, TC Kimlik No PAYLAŞILMAZ — bunun yerine mağaza, il, ünvan, yaş ve tarih bilgileriyle ayırt edilir; bu durumda sonucu doğrudan yorumlama, kullanıcıya hangi kişiyi kastettiğini sor.",
     input_schema: {
       type: "object" as const,
       properties: { isim: { type: "string", description: "Aranacak kişinin adı soyadı (tam ya da kısmi)" } },
@@ -333,32 +333,64 @@ export async function aracCalistir(adi: string, girdi: any): Promise<AracSonucu>
 
         const { data: kisiler, error } = await supabase
           .from("personel")
-          .select("id, ad_soyad, guncel_unvan, durum, kidem_baslangic_tarihi, magazalar!guncel_magaza_id(magaza_adi)")
+          .select("id, ad_soyad, guncel_unvan, durum, dogum_tarihi, magazalar!guncel_magaza_id(magaza_adi, il_adi)")
           .ilike("ad_soyad", `%${isim}%`)
-          .limit(5);
+          .limit(10);
         if (error) return { basarili: false, hata: error.message };
         if (!kisiler || kisiler.length === 0) return { basarili: true, veri: { mesaj: `"${isim}" ile eşleşen, görebildiğiniz bir personel bulunamadı.` } };
 
-        const sonuc = await Promise.all(kisiler.map(async (k: any) => {
-          const { data: donemler } = await supabase
-            .from("personel_atama_gecmisi")
-            .select("baslama_tarihi, ayrilma_tarihi, magazalar!magaza_id(magaza_adi)")
-            .eq("personel_id", k.id)
-            .order("baslama_tarihi", { ascending: true });
+        const yasHesapla = (dt: string | null) => {
+          if (!dt) return null;
+          const fark = Date.now() - new Date(dt).getTime();
+          return Math.floor(fark / (1000 * 60 * 60 * 24 * 365.25));
+        };
+
+        // GÜVENLİK: TC Kimlik No hiçbir koşulda döndürülmez. Aynı isimde
+        // birden fazla kişi varsa, kişi id'si (uuid) ile ayırt edilmesi
+        // için değil, sadece AI'ın kullanıcıya "hangisini kastediyorsunuz"
+        // diye ayırt edici (mağaza/il/ünvan/yaş) bilgiyle sorması için
+        // özet bilgi döner — tam geçmiş SADECE tek eşleşme varsa gelir.
+        if (kisiler.length > 1) {
           return {
+            basarili: true,
+            veri: {
+              birden_fazla_eslesme: true,
+              aciklama: "Bu isimde birden fazla kişi bulundu, TC Kimlik No paylaşılamaz — aşağıdaki bilgilerle kullanıcıya hangisini kastettiğini sorun.",
+              kisiler: kisiler.map((k: any) => ({
+                ad_soyad: k.ad_soyad, guncel_unvan: k.guncel_unvan,
+                guncel_durum: k.durum === "aktif" ? "aktif çalışıyor" : "pasif/ayrılmış",
+                magaza: k.magazalar?.magaza_adi ?? null, il: k.magazalar?.il_adi ?? null,
+                yas: yasHesapla(k.dogum_tarihi),
+              })),
+            },
+          };
+        }
+
+        const k = kisiler[0] as any;
+        const { data: donemler } = await supabase
+          .from("personel_atama_gecmisi")
+          .select("baslama_tarihi, ayrilma_tarihi, magazalar!magaza_id(magaza_adi, il_adi)")
+          .eq("personel_id", k.id)
+          .order("baslama_tarihi", { ascending: true });
+
+        return {
+          basarili: true,
+          veri: {
             ad_soyad: k.ad_soyad,
             guncel_unvan: k.guncel_unvan,
+            yas: yasHesapla(k.dogum_tarihi),
             guncel_durum: k.durum === "aktif" ? "Hâlâ aktif çalışıyor" : "Şu an pasif/ayrılmış",
             guncel_magaza: k.magazalar?.magaza_adi ?? null,
+            guncel_il: k.magazalar?.il_adi ?? null,
             istihdam_donemleri: (donemler ?? []).map((d: any) => ({
               magaza: d.magazalar?.magaza_adi ?? null,
+              il: d.magazalar?.il_adi ?? null,
               baslama_tarihi: d.baslama_tarihi,
               ayrilma_tarihi: d.ayrilma_tarihi,
               devam_ediyor_mu: !d.ayrilma_tarihi,
             })),
-          };
-        }));
-        return { basarili: true, veri: sonuc };
+          },
+        };
       }
 
       case "ise_alim_suresi_ortalamasi": {
