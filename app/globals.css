@@ -210,6 +210,25 @@ span[class*="rounded"][class*="bg-info-bg"] {
   background-color: #2C3554 !important;
 }
 
+/* Opaklık modifikatörlü gri arka planlar (bg-gray-50/60 gibi) — bunlar
+   Tailwind'de tamamen ayrı sınıf isimleri olduğu için düz bg-gray-50
+   kuralı bunları yakalamıyor, ayrıca eklenmesi gerekiyor. */
+.dark .bg-gray-50\/30 {
+  background-color: rgba(26, 33, 56, 0.5) !important;
+}
+.dark .bg-gray-50\/50 {
+  background-color: rgba(26, 33, 56, 0.7) !important;
+}
+.dark .bg-gray-50\/60 {
+  background-color: rgba(26, 33, 56, 0.8) !important;
+}
+.dark .bg-gray-50\/70 {
+  background-color: rgba(26, 33, 56, 0.85) !important;
+}
+.dark .bg-gray-100\/60 {
+  background-color: rgba(35, 43, 72, 0.8) !important;
+}
+
 /* Durum rozetleri / uyarı kutuları — açık tonlu zeminler yerine koyu,
    renkli tonlamalar; üzerlerindeki text-success/text-danger/text-info
    renkleri zaten yeterince canlı olduğu için okunurluk korunuyor. */
