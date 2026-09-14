@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { kararVer } from "./actions";
 import { getMagazaBilgi, type MagazaBilgi } from "../talepler/yeni/actions-magaza-bilgi";
 import { getPersonelPerformansGecmisi, getPersonelDetay, type PersonelAylikHgo, type PersonelDetay } from "../talepler/yeni/actions-cikarma";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 import MagazaGrafikPaneli from "../talepler/yeni/MagazaGrafikPaneli";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
@@ -34,6 +35,8 @@ export default function OnayKarti({
 }) {
   const [pending, startTransition] = useTransition();
   const [redMod, setRedMod] = useState(false);
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
   const [redAciklama, setRedAciklama] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -127,11 +130,11 @@ export default function OnayKarti({
                     <div className="text-[10px] font-semibold text-navy-3 mb-1">HGO (Ciro) — Aylık</div>
                     <ResponsiveContainer width="100%" height={140}>
                       <LineChart data={hgoGrafikVerisi} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                        <XAxis dataKey="etiket" tick={{ fontSize: 8 }} />
-                        <YAxis tick={{ fontSize: 8 }} />
-                        <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 10 }} />
-                        <Line type="monotone" dataKey="hgo" stroke="#0F1B4D" strokeWidth={2} dot={{ r: 2 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+                        <XAxis dataKey="etiket" tick={{ fontSize: 8, fill: rk.eksenMetni }} />
+                        <YAxis tick={{ fontSize: 8, fill: rk.eksenMetni }} />
+                        <Tooltip formatter={(v: number) => `%${v.toFixed(1)}`} labelStyle={{ fontSize: 10, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
+                        <Line type="monotone" dataKey="hgo" stroke={rk.navy} strokeWidth={2} dot={{ r: 2 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
