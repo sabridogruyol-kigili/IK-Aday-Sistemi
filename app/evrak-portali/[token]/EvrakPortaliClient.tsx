@@ -98,7 +98,7 @@ function BelgeKarti({
         </div>
       )}
 
-      <button onClick={() => setDetayAcik(!detayAcik)} className="text-[11px] text-info hover:underline mt-2">
+      <button onClick={() => setDetayAcik(!detayAcik)} className="text-[11px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2 py-1 mt-2 transition-colors">
         {detayAcik ? "Nasıl alınır — gizle" : "Nasıl alınır?"}
       </button>
       {detayAcik && (
@@ -113,9 +113,9 @@ function BelgeKarti({
             <div key={yol} className="flex items-center justify-between bg-gray-50 rounded-md px-2 py-1.5">
               <span className="text-[11px] text-gray-600">📄 Dosya {i + 1}</span>
               <div className="flex items-center gap-2">
-                <button onClick={() => onGoruntule(yol)} className="text-[11px] text-info hover:underline">Görüntüle</button>
+                <button onClick={() => onGoruntule(yol)} className="text-[11px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2 py-1 transition-colors">Görüntüle</button>
                 {durum.durum !== "ONAYLANDI" && (
-                  <button onClick={() => onKaldir(yol)} disabled={kaldirilanYol === yol} className="text-[11px] text-danger hover:underline disabled:opacity-50">
+                  <button onClick={() => onKaldir(yol)} disabled={kaldirilanYol === yol} className="text-[11px] font-medium bg-white border border-danger/30 text-danger hover:bg-danger-bg rounded-md px-2 py-1 disabled:opacity-50 transition-colors">
                     {kaldirilanYol === yol ? "Kaldırılıyor..." : "Kaldır"}
                   </button>
                 )}
