@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CikisButonu from "./CikisButonu";
+import TemaDegistirici from "./TemaDegistirici";
 import AiAsistan from "./ai/AiAsistan";
 import SidebarNav from "./SidebarNav";
 
@@ -73,6 +74,7 @@ export default async function AppLayout({
         <SidebarNav items={visibleNavItems} />
         <div className="px-4 py-3 border-t border-white/10 space-y-2.5">
           <div className="text-white/40 text-[9px] uppercase tracking-wide text-center">Organizasyonel Gelişim</div>
+          <TemaDegistirici />
           <CikisButonu />
           <div className="flex items-center gap-2.5">
             <div className="w-[30px] h-[30px] rounded-full bg-accent border border-white/20 flex items-center justify-center text-[11px] font-semibold text-navy-3 shrink-0">
