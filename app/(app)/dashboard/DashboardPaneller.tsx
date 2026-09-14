@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getMagazaCalisanGecmisi, type MagazaCalisanSatiri } from "./actions";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 
 type Magaza = {
   id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string; il_adi: string | null;
@@ -108,6 +109,8 @@ function ZamanGrafigi({
 }) {
   const [zamanDegisken, setZamanDegisken] = useState<keyof PerformansSatiri>(varsayilanDegisken);
   const zamanTanim = ZAMAN_DEGISKENLERI.find((d) => d.key === zamanDegisken)!;
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
 
   const tumDonemler = useMemo(() => {
     const set = new Set<number>();
@@ -178,19 +181,19 @@ function ZamanGrafigi({
       ) : (
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={zamanVeri} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="etiket" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => zamanTanim.format(v)} labelStyle={{ fontSize: 12 }} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Line type="monotone" dataKey="ortalama" stroke="#9ca3af" strokeWidth={2} dot={{ r: 2 }} name="Tüm Mağaza Ortalaması" connectNulls>
+            <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+            <XAxis dataKey="etiket" tick={{ fontSize: 11, fill: rk.eksenMetni }} />
+            <YAxis tick={{ fontSize: 11, fill: rk.eksenMetni }} />
+            <Tooltip formatter={(v: number) => zamanTanim.format(v)} labelStyle={{ fontSize: 12, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
+            <Legend wrapperStyle={{ fontSize: 11, color: rk.eksenMetni }} />
+            <Line type="monotone" dataKey="ortalama" stroke={rk.ortalamaCizgi} strokeWidth={2} dot={{ r: 2 }} name="Tüm Mağaza Ortalaması" connectNulls>
               {!seciliMagaza && (
-                <LabelList dataKey="ortalama" position="top" style={{ fontSize: 10, fill: "#6b7280" }} formatter={(v: number) => zamanTanim.format(v)} />
+                <LabelList dataKey="ortalama" position="top" style={{ fontSize: 10, fill: rk.eksenMetni }} formatter={(v: number) => zamanTanim.format(v)} />
               )}
             </Line>
             {seciliMagaza && (
-              <Line type="monotone" dataKey="secili" stroke="#0F1B4D" strokeWidth={2.5} dot={{ r: 3 }} name={seciliMagaza.magaza_adi} connectNulls>
-                <LabelList dataKey="secili" position="top" style={{ fontSize: 10, fill: "#0F1B4D" }} formatter={(v: number) => zamanTanim.format(v)} />
+              <Line type="monotone" dataKey="secili" stroke={rk.navy} strokeWidth={2.5} dot={{ r: 3 }} name={seciliMagaza.magaza_adi} connectNulls>
+                <LabelList dataKey="secili" position="top" style={{ fontSize: 10, fill: rk.navy }} formatter={(v: number) => zamanTanim.format(v)} />
               </Line>
             )}
           </LineChart>
