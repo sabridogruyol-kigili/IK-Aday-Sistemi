@@ -130,3 +130,90 @@ span[class*="rounded"][class*="bg-info-bg"] {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   KARANLIK MOD — <html> etiketine "dark" sınıfı eklenince devreye girer.
+   Her dosyayı tek tek değiştirmek yerine, sistemde en sık kullanılan
+   sınıfları (bg-white, border-gray-*, text-gray-*, text-navy-3, sayfa
+   arka planı) burada tek yerden geçersiz kılıyoruz — böylece onlarca
+   dosyaya dokunmadan geniş bir kapsama elde ediliyor. Yeni bir sayfa/
+   bileşen eklerken bu sınıfları kullanmaya devam etmek yeterli, ayrıca
+   "dark:" varyantı yazmaya gerek yok.
+   ============================================================ */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #0B0F1A;
+}
+
+/* Sayfa arka planı (birçok sayfada kullanılan kağıt beyazı tonu) */
+.dark .bg-\[\#FAFAF8\] {
+  background-color: #0B0F1A !important;
+}
+
+/* Kartlar, paneller, modallar */
+.dark .bg-white {
+  background-color: #141A2E !important;
+}
+
+/* Hafif gri arka planlar (iç bölmeler, hover alanları) */
+.dark .bg-gray-50 {
+  background-color: #1A2138 !important;
+}
+.dark .bg-gray-100 {
+  background-color: #232B48 !important;
+}
+
+/* Çerçeveler */
+.dark .border-gray-100 {
+  border-color: #232B48 !important;
+}
+.dark .border-gray-200 {
+  border-color: #2C3554 !important;
+}
+.dark .border-gray-300 {
+  border-color: #3A4468 !important;
+}
+
+/* Ana metin rengi (koyu lacivert, açık zeminde okunaklıydı — koyu zeminde
+   açık renge dönmesi lazım) */
+.dark .text-navy-3 {
+  color: #E8EAF2 !important;
+}
+
+/* İkincil/soluk metinler */
+.dark .text-gray-400 {
+  color: #7A8296 !important;
+}
+.dark .text-gray-500 {
+  color: #8F97AB !important;
+}
+.dark .text-gray-600 {
+  color: #A4ABBD !important;
+}
+
+/* Input, select, textarea alanları */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #141A2E;
+  color: #E8EAF2;
+  border-color: #3A4468 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #5C6480;
+}
+
+/* Tablo satır çizgileri ve hover'ları */
+.dark table tr {
+  border-color: #232B48;
+}
+.dark tbody tr:hover {
+  background-color: #1A2138 !important;
+}
+
+/* Lacivert butonlar/başlıklar zaten koyu — karanlık modda ekstra
+   değişikliğe gerek yok, kontrastı hâlâ yeterli. */
