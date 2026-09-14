@@ -60,6 +60,7 @@ export default function KullaniciDuzenle({
                   <option value="IK">İK</option>
                   <option value="YONETIM">Yönetim</option>
                   <option value="MAGAZALAR_DIREKTORLUGU">Mağazalar Direktörlüğü</option>
+                  <option value="BORDRO">Bordro ve Çalışma İlişkileri</option>
                 </select>
               </div>
               {bolgeGerekli && <BolgeDropdown bolgeler={bolgeler} baslangicSecili={mevcutBolgeIdler} />}
