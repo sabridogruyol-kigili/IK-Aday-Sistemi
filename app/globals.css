@@ -146,6 +146,7 @@ span[class*="rounded"][class*="bg-info-bg"] {
 
 .dark body {
   background-color: #0B0F1A;
+  color: #E8EAF2;
 }
 
 /* Sayfa arka planı (birçok sayfada kullanılan kağıt beyazı tonu) */
@@ -158,15 +159,36 @@ span[class*="rounded"][class*="bg-info-bg"] {
   background-color: #141A2E !important;
 }
 
-/* Hafif gri arka planlar (iç bölmeler, hover alanları) */
-.dark .bg-gray-50 {
-  background-color: #1A2138 !important;
+/* Ana metin rengi (koyu lacivert, açık zeminde okunaklıydı — koyu zeminde
+   açık renge dönmesi lazım) */
+.dark .text-navy-3 {
+  color: #E8EAF2 !important;
 }
-.dark .bg-gray-100 {
-  background-color: #232B48 !important;
+.dark .text-navy {
+  color: #C7CEE8 !important;
+}
+
+/* İkincil/soluk metinler */
+.dark .text-gray-300 {
+  color: #6A7188 !important;
+}
+.dark .text-gray-400 {
+  color: #7A8296 !important;
+}
+.dark .text-gray-500 {
+  color: #8F97AB !important;
+}
+.dark .text-gray-600 {
+  color: #A4ABBD !important;
+}
+.dark .text-gray-700 {
+  color: #C0C6D6 !important;
 }
 
 /* Çerçeveler */
+.dark .border-gray-50 {
+  border-color: #1A2138 !important;
+}
 .dark .border-gray-100 {
   border-color: #232B48 !important;
 }
@@ -177,21 +199,34 @@ span[class*="rounded"][class*="bg-info-bg"] {
   border-color: #3A4468 !important;
 }
 
-/* Ana metin rengi (koyu lacivert, açık zeminde okunaklıydı — koyu zeminde
-   açık renge dönmesi lazım) */
-.dark .text-navy-3 {
-  color: #E8EAF2 !important;
+/* Hafif gri arka planlar (iç bölmeler, hover alanları, vurgulu sütunlar) */
+.dark .bg-gray-50 {
+  background-color: #1A2138 !important;
+}
+.dark .bg-gray-100 {
+  background-color: #232B48 !important;
+}
+.dark .bg-gray-200 {
+  background-color: #2C3554 !important;
 }
 
-/* İkincil/soluk metinler */
-.dark .text-gray-400 {
-  color: #7A8296 !important;
+/* Durum rozetleri / uyarı kutuları — açık tonlu zeminler yerine koyu,
+   renkli tonlamalar; üzerlerindeki text-success/text-danger/text-info
+   renkleri zaten yeterince canlı olduğu için okunurluk korunuyor. */
+.dark .bg-success-bg {
+  background-color: #14251A !important;
 }
-.dark .text-gray-500 {
-  color: #8F97AB !important;
+.dark .bg-danger-bg {
+  background-color: #2A1616 !important;
 }
-.dark .text-gray-600 {
-  color: #A4ABBD !important;
+.dark .bg-info-bg {
+  background-color: #142230 !important;
+}
+.dark .bg-accent\/10 {
+  background-color: rgba(192, 138, 46, 0.15) !important;
+}
+.dark .bg-accent\/15 {
+  background-color: rgba(192, 138, 46, 0.18) !important;
 }
 
 /* Input, select, textarea alanları */
