@@ -9,7 +9,7 @@ export default async function EvrakOnayPage() {
   if (!user) redirect("/login");
 
   const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
-  if (!me || (me.rol !== "IK" && me.rol !== "YONETIM")) redirect("/dashboard");
+  if (!me || (me.rol !== "IK" && me.rol !== "YONETIM" && me.rol !== "BORDRO")) redirect("/dashboard");
 
   const { data: tokenlar } = await supabase
     .from("evrak_erisim_tokenlari")
@@ -18,7 +18,7 @@ export default async function EvrakOnayPage() {
 
   const personelIdleri = Array.from(new Set((tokenlar ?? []).map((t) => t.personel_id)));
   if (personelIdleri.length === 0) {
-    return <EvrakOnayListesi kisiler={[]} />;
+    return <EvrakOnayListesi kisiler={[]} benimRolum={me.rol} />;
   }
 
   const [{ data: personelListesi }, { data: bilgilerListesi }, { data: belgelerListesi }] = await Promise.all([
@@ -53,5 +53,5 @@ export default async function EvrakOnayPage() {
     };
   });
 
-  return <EvrakOnayListesi kisiler={kisiler} />;
+  return <EvrakOnayListesi kisiler={kisiler} benimRolum={me.rol} />;
 }
