@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { PersonelAylikHgo } from "./actions-cikarma";
+import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -51,7 +52,9 @@ export default function KisiGrafikPaneli({
     [gecmisFiltrelenmis, degisken]
   );
 
-  const cizgiRengi = degisken === "hgo" && hgoYuksek ? "#B0402E" : degisken === "adet_hgo" ? "#3E7CB1" : "#0F1B4D";
+  const koyuMu = useTemaKoyuMu();
+  const rk = grafikRenkleri(koyuMu);
+  const cizgiRengi = degisken === "hgo" && hgoYuksek ? rk.danger : degisken === "adet_hgo" ? rk.info : rk.navy;
 
   return (
     <div>
@@ -107,10 +110,10 @@ export default function KisiGrafikPaneli({
       ) : (
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={veri} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="etiket" tick={{ fontSize: 9 }} />
-            <YAxis tick={{ fontSize: 9 }} />
-            <Tooltip formatter={(v: number) => tanim.format(v)} labelStyle={{ fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={rk.izgara} />
+            <XAxis dataKey="etiket" tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+            <YAxis tick={{ fontSize: 9, fill: rk.eksenMetni }} />
+            <Tooltip formatter={(v: number) => tanim.format(v)} labelStyle={{ fontSize: 11, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
             <Line type="monotone" dataKey="deger" stroke={cizgiRengi} strokeWidth={2} dot={{ r: 2.5 }} />
           </LineChart>
         </ResponsiveContainer>
