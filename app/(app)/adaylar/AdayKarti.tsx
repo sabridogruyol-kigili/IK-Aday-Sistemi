@@ -161,8 +161,8 @@ export default function AdayKarti({
     <div className="bg-white border border-gray-200 rounded-card p-4">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <button onClick={() => setDetayAcik(true)} className="font-medium text-navy-3 text-sm hover:text-info hover:underline text-left">
-            {adSoyad}
+          <button onClick={() => setDetayAcik(true)} className="font-medium text-navy-3 text-sm text-left hover:bg-navy/5 rounded px-1 -ml-1 transition-colors">
+            {adSoyad} <span className="text-[10px] text-info font-normal">(detay)</span>
           </button>
           {detayAcik && (
             <AdayDetayModal
@@ -176,7 +176,7 @@ export default function AdayKarti({
             {telefon ?? "Telefon —"} · {email ?? "E-posta —"}
           </div>
           {cvLink && (
-            <button onClick={() => setCvAcik(true)} className="text-xs text-info hover:underline font-medium">
+            <button onClick={() => setCvAcik(true)} className="text-xs font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2.5 py-1 mt-1 transition-colors">
               CV Görüntüle
             </button>
           )}
