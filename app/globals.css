@@ -132,18 +132,58 @@ span[class*="rounded"][class*="bg-info-bg"] {
 }
 
 /* ============================================================
-   KARANLIK MOD — <html> etiketine "dark" sınıfı eklenince devreye girer.
-   Her dosyayı tek tek değiştirmek yerine, sistemde en sık kullanılan
-   sınıfları (bg-white, border-gray-*, text-gray-*, text-navy-3, sayfa
-   arka planı) burada tek yerden geçersiz kılıyoruz — böylece onlarca
-   dosyaya dokunmadan geniş bir kapsama elde ediliyor. Yeni bir sayfa/
-   bileşen eklerken bu sınıfları kullanmaya devam etmek yeterli, ayrıca
-   "dark:" varyantı yazmaya gerek yok.
+   RENK SİSTEMİ — açık/koyu mod eşleştirmesi
+   Gri paleti ve birkaç anlamlı renk (navy-3, success-bg, danger-bg,
+   info-bg) burada CSS değişkeni olarak tanımlanıyor; tailwind.config.ts
+   bu değişkenlere işaret ediyor. Böylece "text-gray-400",
+   "border-gray-200", hatta "bg-gray-50/60" gibi opaklık varyantlarının
+   TAMAMI — tek tek sınıf yakalamaya gerek kalmadan — otomatik olarak
+   doğru moda göre renk alır. Yeni bir eşleştirme eklemek için sadece
+   aşağıdaki iki blokta ilgili satırı güncelleyin.
    ============================================================ */
-.dark {
-  color-scheme: dark;
+:root {
+  --c-navy-3: 10 18 46;         /* #0A122E — birincil metin, açık modda koyu lacivert */
+  --c-success-bg: 234 243 222;  /* #EAF3DE */
+  --c-danger-bg: 252 235 235;   /* #FCEBEB */
+  --c-info-bg: 233 241 247;     /* #E9F1F7 */
+  --c-gray-50: 249 250 251;
+  --c-gray-100: 243 244 246;
+  --c-gray-200: 229 231 235;
+  --c-gray-300: 209 213 219;
+  --c-gray-400: 156 163 175;
+  --c-gray-500: 107 114 128;
+  --c-gray-600: 75 85 99;
+  --c-gray-700: 55 65 81;
+  --c-gray-800: 31 41 55;
+  --c-gray-900: 17 24 39;
 }
 
+.dark {
+  color-scheme: dark;
+  --c-navy-3: 232 234 242;      /* #E8EAF2 — koyu modda açık, okunaklı */
+  --c-success-bg: 20 37 26;     /* #14251A */
+  --c-danger-bg: 42 22 22;      /* #2A1616 */
+  --c-info-bg: 20 34 48;        /* #142230 */
+  --c-gray-50: 26 33 56;        /* #1A2138 */
+  --c-gray-100: 35 43 72;       /* #232B48 */
+  --c-gray-200: 44 53 84;       /* #2C3554 */
+  --c-gray-300: 58 68 104;      /* #3A4468 */
+  --c-gray-400: 122 130 150;    /* #7A8296 */
+  --c-gray-500: 143 151 171;    /* #8F97AB */
+  --c-gray-600: 164 171 189;    /* #A4ABBD */
+  --c-gray-700: 192 198 214;    /* #C0C6D6 */
+  --c-gray-800: 216 220 232;    /* açık gri, koyu modda ağır metin/başlıklar için */
+  --c-gray-900: 232 234 242;    /* neredeyse beyaz, koyu modda en yüksek kontrast */
+}
+
+/* ============================================================
+   KARANLIK MOD — geri kalan, "renk token'ı" olmayan (yani doğrudan
+   sabit hex/arbitrary değer kullanan) birkaç özel durum. "white" rengi
+   bilinçli olarak token sistemine dahil edilmedi — çünkü text-white
+   (lacivert butonlardaki beyaz yazı gibi) HER İKİ modda da beyaz kalmalı;
+   sadece bg-white (kart yüzeyleri) koyu moda göre değişmeli, bu yüzden
+   ayrı ele alınıyor.
+   ============================================================ */
 .dark body {
   background-color: #0B0F1A;
   color: #E8EAF2;
@@ -159,93 +199,12 @@ span[class*="rounded"][class*="bg-info-bg"] {
   background-color: #141A2E !important;
 }
 
-/* Ana metin rengi (koyu lacivert, açık zeminde okunaklıydı — koyu zeminde
-   açık renge dönmesi lazım) */
-.dark .text-navy-3 {
-  color: #E8EAF2 !important;
-}
+/* "navy" rengi hem metin (nadiren) hem arka plan (butonlar, sidebar — çok
+   sık) için kullanıldığından tamamen token yapılamadı; bg-navy zaten koyu
+   olduğu için değişmemeli, ama text-navy koyu zeminde okunaksız kalıyordu —
+   bu yüzden sadece METİN kullanımı ayrıca düzeltiliyor. */
 .dark .text-navy {
   color: #C7CEE8 !important;
-}
-
-/* İkincil/soluk metinler */
-.dark .text-gray-300 {
-  color: #6A7188 !important;
-}
-.dark .text-gray-400 {
-  color: #7A8296 !important;
-}
-.dark .text-gray-500 {
-  color: #8F97AB !important;
-}
-.dark .text-gray-600 {
-  color: #A4ABBD !important;
-}
-.dark .text-gray-700 {
-  color: #C0C6D6 !important;
-}
-
-/* Çerçeveler */
-.dark .border-gray-50 {
-  border-color: #1A2138 !important;
-}
-.dark .border-gray-100 {
-  border-color: #232B48 !important;
-}
-.dark .border-gray-200 {
-  border-color: #2C3554 !important;
-}
-.dark .border-gray-300 {
-  border-color: #3A4468 !important;
-}
-
-/* Hafif gri arka planlar (iç bölmeler, hover alanları, vurgulu sütunlar) */
-.dark .bg-gray-50 {
-  background-color: #1A2138 !important;
-}
-.dark .bg-gray-100 {
-  background-color: #232B48 !important;
-}
-.dark .bg-gray-200 {
-  background-color: #2C3554 !important;
-}
-
-/* Opaklık modifikatörlü gri arka planlar (bg-gray-50/60 gibi) — bunlar
-   Tailwind'de tamamen ayrı sınıf isimleri olduğu için düz bg-gray-50
-   kuralı bunları yakalamıyor, ayrıca eklenmesi gerekiyor. */
-.dark .bg-gray-50\/30 {
-  background-color: rgba(26, 33, 56, 0.5) !important;
-}
-.dark .bg-gray-50\/50 {
-  background-color: rgba(26, 33, 56, 0.7) !important;
-}
-.dark .bg-gray-50\/60 {
-  background-color: rgba(26, 33, 56, 0.8) !important;
-}
-.dark .bg-gray-50\/70 {
-  background-color: rgba(26, 33, 56, 0.85) !important;
-}
-.dark .bg-gray-100\/60 {
-  background-color: rgba(35, 43, 72, 0.8) !important;
-}
-
-/* Durum rozetleri / uyarı kutuları — açık tonlu zeminler yerine koyu,
-   renkli tonlamalar; üzerlerindeki text-success/text-danger/text-info
-   renkleri zaten yeterince canlı olduğu için okunurluk korunuyor. */
-.dark .bg-success-bg {
-  background-color: #14251A !important;
-}
-.dark .bg-danger-bg {
-  background-color: #2A1616 !important;
-}
-.dark .bg-info-bg {
-  background-color: #142230 !important;
-}
-.dark .bg-accent\/10 {
-  background-color: rgba(192, 138, 46, 0.15) !important;
-}
-.dark .bg-accent\/15 {
-  background-color: rgba(192, 138, 46, 0.18) !important;
 }
 
 /* Input, select, textarea alanları */
@@ -261,10 +220,7 @@ span[class*="rounded"][class*="bg-info-bg"] {
   color: #5C6480;
 }
 
-/* Tablo satır çizgileri ve hover'ları */
-.dark table tr {
-  border-color: #232B48;
-}
+/* Tablo satır hover'ı (border rengi artık --c-gray-200 token'ından geliyor) */
 .dark tbody tr:hover {
   background-color: #1A2138 !important;
 }
