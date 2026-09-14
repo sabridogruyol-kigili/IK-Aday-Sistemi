@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CikisButonu from "./CikisButonu";
+import AiAsistan from "./ai/AiAsistan";
 import SidebarNav from "./SidebarNav";
 
 const navItems = [
@@ -87,6 +88,7 @@ export default async function AppLayout({
       <main className="flex-1 overflow-y-auto bg-[#FAFAF8]">
         <div className="p-5">{children}</div>
       </main>
+      <AiAsistan />
     </div>
   );
 }
