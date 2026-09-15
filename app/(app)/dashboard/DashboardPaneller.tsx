@@ -631,34 +631,55 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {enSonAyOzeti?.degerler.map((d) => (
-                <KpiKart
-                  key={d.key}
-                  label={d.label}
-                  kendi={d.kendi}
-                  ortalama={d.ortalama}
-                  format={d.format}
-                  seciliVar={!!seciliMagaza}
-                />
-              ))}
-              {turnoverOzet && (
-                <>
-                  <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                  <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                  <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                </>
+            <div className="space-y-4">
+              {enSonAyOzeti && enSonAyOzeti.degerler.length > 0 && (
+                <div>
+                  <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Satış Verileri</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {enSonAyOzeti.degerler.map((d) => (
+                      <KpiKart
+                        key={d.key}
+                        label={d.label}
+                        kendi={d.kendi}
+                        ortalama={d.ortalama}
+                        format={d.format}
+                        seciliVar={!!seciliMagaza}
+                      />
+                    ))}
+                  </div>
+                </div>
               )}
-              <KpiKart label="Ana Kadro Norm" kendi={normKpiOzet.ana.kendi} ortalama={normKpiOzet.ana.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-              <KpiKart label="Dönemsel Norm" kendi={normKpiOzet.donemsel.kendi} ortalama={normKpiOzet.donemsel.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-              <KpiKart label="Part-Time Norm" kendi={normKpiOzet.part.kendi} ortalama={normKpiOzet.part.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-              <KpiKart label="Toplam Norm" kendi={normKpiOzet.toplam.kendi} ortalama={normKpiOzet.toplam.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+
+              {turnoverOzet && (
+                <div>
+                  <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Turnover Bilgileri</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                    <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                    <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Norm Verileri</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <KpiKart label="Ana Kadro Norm" kendi={normKpiOzet.ana.kendi} ortalama={normKpiOzet.ana.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                  <KpiKart label="Dönemsel Norm" kendi={normKpiOzet.donemsel.kendi} ortalama={normKpiOzet.donemsel.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                  <KpiKart label="Part-Time Norm" kendi={normKpiOzet.part.kendi} ortalama={normKpiOzet.part.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                  <KpiKart label="Toplam Norm" kendi={normKpiOzet.toplam.kendi} ortalama={normKpiOzet.toplam.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                </div>
+              </div>
+
               {calisanKpiOzet && (
-                <>
-                  <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                  <KpiKart label="Satış Yapan Çalışan" kendi={calisanKpiOzet.satisYapan.kendi} ortalama={calisanKpiOzet.satisYapan.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                  <KpiKart label="Satış Yapan Oranı" kendi={calisanKpiOzet.oran.kendi} ortalama={calisanKpiOzet.oran.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} />
-                </>
+                <div>
+                  <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Çalışan Bilgileri</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                    <KpiKart label="Satış Yapan Çalışan" kendi={calisanKpiOzet.satisYapan.kendi} ortalama={calisanKpiOzet.satisYapan.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                    <KpiKart label="Satış Yapan Oranı" kendi={calisanKpiOzet.oran.kendi} ortalama={calisanKpiOzet.oran.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} />
+                  </div>
+                </div>
               )}
             </div>
 
