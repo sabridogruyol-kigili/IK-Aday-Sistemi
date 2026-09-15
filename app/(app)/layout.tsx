@@ -7,7 +7,7 @@ import SidebarNav from "./SidebarNav";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/norm", label: "Mağazalarım / Norm", icon: "norm" },
+  { href: "/norm", label: "HR Connect", icon: "norm" },
   { href: "/talepler/yeni", label: "Yeni Talep", icon: "yeni" },
   { href: "/talepler", label: "Talepler", icon: "talepler" },
   { href: "/onay-bekleyenler", label: "Onay Bekleyenler", icon: "onay" },
