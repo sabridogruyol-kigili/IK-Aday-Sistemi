@@ -224,9 +224,14 @@ export type PersonelDetay = {
 // aynı kural: ardışık atama dönemleri arasında 2 aydan fazla boşluk varsa kıdem
 // o yeni dönemden itibaren sıfırdan sayılır.
 function kidemAyHesapla(donemler: { baslama_tarihi: string | null; ayrilma_tarihi: string | null }[]): number | null {
+  const suankiYil = new Date().getFullYear();
   const gecerliler = donemler
     .filter((d) => d.baslama_tarihi)
     .map((d) => ({ baslama: new Date(d.baslama_tarihi as string), ayrilma: d.ayrilma_tarihi ? new Date(d.ayrilma_tarihi) : null }))
+    // Veride (özellikle geçmiş Excel importlarından) hatalı ayrıştırılmış,
+    // mantıksız (örn. 1897) bir başlama tarihi kalmışsa, "129 yıl kıdem"
+    // gibi saçma sonuçlara yol açmaması için burada da eleniyor.
+    .filter((d) => d.baslama.getFullYear() >= 1970 && d.baslama.getFullYear() <= suankiYil + 1)
     .sort((a, b) => a.baslama.getTime() - b.baslama.getTime());
 
   if (gecerliler.length === 0) return null;
