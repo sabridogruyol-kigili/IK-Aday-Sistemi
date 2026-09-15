@@ -237,7 +237,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     };
 
     const donem: GecerliSatir | AyrilanSatir = gercektenAyrilmisMi
-      ? { ...ortakAlanlar, ayrilma_tarihi: ayrilmaTarihiParsed as string, sgk_aciklama: r["İşten Ayrılma Açıklaması"] ? String(r["İşten Ayrılma Açıklaması"]).trim() : null }
+      ? { ...ortakAlanlar, ayrilma_tarihi: ayrilmaTarihiParsed as string, sgk_aciklama: (r["SGK İşten Ayrılma Açıklaması"] ?? r["İşten Ayrılma Açıklaması"]) ? String(r["SGK İşten Ayrılma Açıklaması"] ?? r["İşten Ayrılma Açıklaması"]).trim() : null }
       : ortakAlanlar;
 
     if (!tcDonemleri.has(tcKimlikNo)) tcDonemleri.set(tcKimlikNo, []);
