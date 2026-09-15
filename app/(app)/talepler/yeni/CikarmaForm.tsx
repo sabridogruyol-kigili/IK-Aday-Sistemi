@@ -107,6 +107,18 @@ export default function CikarmaForm({
   }, [gecmis]);
   const toplamCiro = useMemo(() => gecmis.reduce((s, g) => s + (g.gerceklesen_ciro_kdv_dahil ?? 0), 0), [gecmis]);
   const toplamAdet = useMemo(() => gecmis.reduce((s, g) => s + (g.gerceklesen_adet ?? 0), 0), [gecmis]);
+  // KPI kutularındaki "kaç ay" sayaçları, personel tablosundaki önceden
+  // hesaplanmış (ve senkron dışı kalabilen) sütunlar yerine, grafiğin de
+  // kullandığı aynı aylık veriden (gecmis) anlık hesaplanıyor — basit ve
+  // her zaman güncel.
+  const performansKategorileri = useMemo(() => {
+    const degerler = gecmis.map((g) => g.hgo).filter((v): v is number => v !== null);
+    return {
+      altmisAlti: degerler.filter((v) => v < 80).length,
+      arasi: degerler.filter((v) => v >= 80 && v <= 100).length,
+      ustu: degerler.filter((v) => v > 100).length,
+    };
+  }, [gecmis]);
 
   const yas = detay ? yasHesapla(detay.dogum_tarihi) : null;
 
@@ -273,9 +285,9 @@ export default function CikarmaForm({
             <MiniKpi label="Toplam Adet" value={toplamAdet.toLocaleString("tr-TR")} />
             <MiniKpi label="Toplam Ay" value={String(gecmis.length)} />
             <MiniKpi label="Kıdem (Yıl.Ay)" value={detay ? kidemYilAyFormat(detay.kidem_ay) : "—"} />
-            <MiniKpi label="%80 Altı" value={`${seciliPersonel.performans_80_alti_sayisi ?? 0} ay`} />
-            <MiniKpi label="%80–100" value={`${seciliPersonel.performans_80_100_arasi_sayisi ?? 0} ay`} />
-            <MiniKpi label="%100 Üstü" value={`${seciliPersonel.performans_100_ustu_sayisi ?? 0} ay`} />
+            <MiniKpi label="%80 Altı" value={`${performansKategorileri.altmisAlti} ay`} />
+            <MiniKpi label="%80–100" value={`${performansKategorileri.arasi} ay`} />
+            <MiniKpi label="%100 Üstü" value={`${performansKategorileri.ustu} ay`} />
           </div>
         </div>
 
