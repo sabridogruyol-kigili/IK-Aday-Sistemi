@@ -66,9 +66,67 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
 
   const { data: magazalarHam } = await supabase.from("magazalar").select("id, magaza_kodu");
   const magazaMap: Record<string, string> = {};
-  (magazalarHam ?? []).forEach((m: any) => { magazaMap[m.magaza_kodu] = m.id; });
+  (magazalarHam ?? []).forEach((m: any) => { magazaMap[m.magaza_kodu.toUpperCase()] = m.id; });
 
   const hatalar: SatirHata[] = [];
+
+  // "A" ve "C" harfiyle başlayan mağaza kodları gerçek mağaza kodu deseniyle
+  // eşleşiyor (diğer önekler — YYM, D005, E001 gibi — muhtemelen veri girişi
+  // hatası ya da mağaza dışı özel kodlar, onlara dokunulmuyor). Personel
+  // Şablonu'nda böyle bir kod geçip sistemde hiç kaydı yoksa (ki bu genelde
+  // uzun süre önce kapanmış bir mağaza anlamına gelir — Mağaza Bilgisi
+  // importu sadece GÜNCEL/aktif mağazaları içeriyordu), artık burada
+  // otomatik oluşturuluyor. Bu kod, dosyada o mağaza için hâlâ AÇIK (yani
+  // ayrılmamış/aktif) bir çalışan varsa mağazayı aktif, sadece geçmiş
+  // (ayrılmış) çalışanlar tarafından referans veriliyorsa pasif işaretler
+  // — aktif çalışanı ya da güncel performansı olmayan bir mağazanın zaten
+  // fiilen pasif olması beklenir.
+  const acKoduDesenleri = /^[ac]/i;
+  const eksikMagazaDurumu = new Map<string, boolean>(); // kod(büyük harf) -> en az bir açık (aktif) satır var mı
+  for (const rowHam of rowsHam) {
+    const r = satirNormallestir(rowHam);
+    const kodHam = String(r["Departman Kodu"] ?? "").trim();
+    if (!kodHam || magazaMap[kodHam.toUpperCase()] || !acKoduDesenleri.test(kodHam)) continue;
+    const kodBuyuk = kodHam.toUpperCase();
+    const ayrilmaTarihiTest = excelTarih(r["İşten Ayrılma Tarihi"]);
+    const ayrilmaYiliTest = ayrilmaTarihiTest ? parseInt(ayrilmaTarihiTest.slice(0, 4), 10) : null;
+    const acikMi = !(ayrilmaYiliTest !== null && ayrilmaYiliTest > 1901);
+    eksikMagazaDurumu.set(kodBuyuk, (eksikMagazaDurumu.get(kodBuyuk) ?? false) || acikMi);
+  }
+
+  if (eksikMagazaDurumu.size > 0) {
+    // Bu tür otomatik oluşturulan, bölgesi bilinmeyen mağazalar için ortak
+    // bir "yedek" bölge — daha sonra Ayarlar > Mağazalar'dan elle doğru
+    // bölgeye taşınabilir.
+    let yedekBolgeId: string;
+    const { data: mevcutYedekBolge } = await supabase.from("bolgeler").select("id").eq("ad", "Tanımsız / Geçmiş Mağazalar").maybeSingle();
+    if (mevcutYedekBolge) {
+      yedekBolgeId = mevcutYedekBolge.id;
+    } else {
+      const { data: yeniBolge, error: bolgeHata } = await supabase.from("bolgeler").insert({ ad: "Tanımsız / Geçmiş Mağazalar" }).select("id").single();
+      if (bolgeHata || !yeniBolge) {
+        hatalar.push({ satir: 0, hata: "Yedek bölge oluşturulamadı: " + (bolgeHata?.message ?? "bilinmeyen hata") });
+        yedekBolgeId = "";
+      } else {
+        yedekBolgeId = yeniBolge.id;
+      }
+    }
+
+    if (yedekBolgeId) {
+      for (const [kod, acikMi] of eksikMagazaDurumu) {
+        const { data: yeniMagaza, error: magazaHata } = await supabase
+          .from("magazalar")
+          .insert({ magaza_kodu: kod, magaza_adi: `${kod} (otomatik oluşturuldu)`, bolge_id: yedekBolgeId, aktif: acikMi })
+          .select("id")
+          .single();
+        if (magazaHata || !yeniMagaza) {
+          hatalar.push({ satir: 0, hata: `Mağaza (${kod}) otomatik oluşturulamadı: ` + (magazaHata?.message ?? "bilinmeyen hata") });
+          continue;
+        }
+        magazaMap[kod] = yeniMagaza.id;
+      }
+    }
+  }
 
   type GecerliSatir = {
     satirNo: number;
@@ -160,7 +218,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
       hatalar.push({ satir: satirNo, hata: `TC ${tcKimlikNo}: isim geçersiz ("${adSoyad}") — özet/junk satır olarak atlandı.` });
       continue;
     }
-    const magazaId = magazaMap[departmanKodu];
+    const magazaId = magazaMap[departmanKodu.toUpperCase()];
     if (!magazaId) {
       hatalar.push({ satir: satirNo, hata: `Departman Kodu (${departmanKodu}) sistemde tanımlı bir mağaza koduna karşılık gelmiyor.` });
       continue;
