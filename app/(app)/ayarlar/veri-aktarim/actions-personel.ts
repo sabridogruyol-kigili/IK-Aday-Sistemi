@@ -92,9 +92,17 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     evli: string | null;
     notlar: string | null;
   };
+  // Ayrılmış (İşten Ayrılma Tarihi dolu) kişiler için de AYNI alanlar +
+  // ayrılma tarihi/açıklaması — daha önce sistemde hiç "aktif" olarak
+  // görünmemiş (yani doğrudan geçmişte ayrılmış olarak Excel'e giren)
+  // kişiler için de tam bir personel kaydı ve kapalı bir atama geçmişi
+  // oluşturulabilsin diye, artık bu satırlar da diğerleri gibi tam
+  // ayrıştırılıyor (önceden sadece TC+tarih notu alınıp atlanıyordu).
+  type AyrilanSatir = GecerliSatir & { ayrilma_tarihi: string; sgk_aciklama: string | null };
+
   const gecerliler: GecerliSatir[] = [];
+  const ayrilanlar: AyrilanSatir[] = [];
   const tcGorulen = new Set<string>();
-  const gercektenAyrilanlar = new Map<string, { tarih: string; aciklama: string | null }>(); // tc -> {ayrılma tarihi, sgk açıklaması}
 
   for (let i = 0; i < rowsHam.length; i++) {
     const satirNo = i + 2;
@@ -108,14 +116,6 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     // tarihleri her zaman 1901'den çok sonra olacaktır).
     const ayrilmaYili = ayrilmaTarihiParsed ? parseInt(ayrilmaTarihiParsed.slice(0, 4), 10) : null;
     const gercektenAyrilmisMi = ayrilmaYili !== null && ayrilmaYili > 1901;
-    if (gercektenAyrilmisMi) {
-      const tc = String(r["TC Kimlik No"] ?? "").trim();
-      if (tc) gercektenAyrilanlar.set(tc, {
-        tarih: ayrilmaTarihiParsed as string,
-        aciklama: r["İşten Ayrılma Açıklaması"] ? String(r["İşten Ayrılma Açıklaması"]).trim() : null,
-      });
-      continue;
-    }
 
     const tcKimlikNo = String(r["TC Kimlik No"] ?? "").trim();
     const personelKodu = sicilNormalize(String(r["Personel Kodu"] ?? ""));
@@ -166,15 +166,25 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     }
     tcGorulen.add(tcKimlikNo);
 
-    gecerliler.push({
+    const ortakAlanlar = {
       satirNo, tc_kimlik_no: tcKimlikNo, personel_kodu: personelKodu || null, ad_soyad: adSoyad,
       dogum_tarihi: dogumTarihi, cinsiyet, guncel_magaza_id: magazaId, guncel_unvan: unvanHam,
       kadro_kategorisi: kategori, kidem_baslangic_tarihi: iseBaslamaTarihi,
       onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, kan_grubu_kodu, uyruk, ozel_mobil, evli, notlar,
-    });
+    };
+
+    if (gercektenAyrilmisMi) {
+      ayrilanlar.push({
+        ...ortakAlanlar,
+        ayrilma_tarihi: ayrilmaTarihiParsed as string,
+        sgk_aciklama: r["İşten Ayrılma Açıklaması"] ? String(r["İşten Ayrılma Açıklaması"]).trim() : null,
+      });
+    } else {
+      gecerliler.push(ortakAlanlar);
+    }
   }
 
-  if (gecerliler.length === 0) {
+  if (gecerliler.length === 0 && ayrilanlar.length === 0) {
     return { basarili: 0, hatalar };
   }
 
@@ -330,62 +340,66 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     await supabase.from("personel_atama_gecmisi").insert(parca);
   }
 
-  // Dosyada gerçek bir "İşten Ayrılma Tarihi" ile görünen kişiler, önceki bir
-  // importta "aktif" olarak eklenmiş olabilir. O satır import'a hiç alınmadığı
-  // (yukarıda "continue" ile atlandığı) için, bu kişileri burada AYRICA pasife
-  // çekmezsek veritabanında sonsuza dek "aktif" kalırlar — özellikle personel
-  // devir hızı yüksek Dönemsel/Part-Time kadroda sayının şişmesine yol açar.
-  if (gercektenAyrilanlar.size > 0) {
-    const ayrilanTcListesi = Array.from(gercektenAyrilanlar.keys());
-    for (const parca of parcala(ayrilanTcListesi, PARCA_BOYUTU)) {
-      const { data: pasifeAlinacaklar } = await supabase
-        .from("personel")
-        .select("id, tc_kimlik_no")
-        .in("tc_kimlik_no", parca)
-        .eq("durum", "aktif");
+  // Dosyada gerçek bir "İşten Ayrılma Tarihi" ile görünen kişiler için üç
+  // durum olabilir: (1) sistemde hâlâ "aktif" görünüyor → pasife çek,
+  // SGK açıklamasını kaydet, açık atama kaydını kapat. (2) zaten pasif ama
+  // açıklaması boş (bu alan sonradan eklendiği için) → sadece açıklamayı
+  // geriye dönük doldur. (3) sistemde HİÇ kaydı yok (yani hiç aktif olarak
+  // görünmeden doğrudan geçmişte ayrılmış olarak dosyaya girmiş) → bu kişi
+  // için SIFIRDAN, doğrudan pasif durumda bir personel kaydı VE kapalı bir
+  // atama geçmişi kaydı oluştur. Üçüncü durum önceden HİÇ ele alınmıyordu,
+  // bu yüzden hiç aktif olmamış geçmiş kişiler tamamen kayboluyordu
+  // (Turnover hesabı da bu yüzden eksik çıkıyordu).
+  let yeniOlusturulanGecmis = 0;
+  if (ayrilanlar.length > 0) {
+    const ayrilanTcListesi = ayrilanlar.map((a) => a.tc_kimlik_no);
+    const ayrilanMap = new Map(ayrilanlar.map((a) => [a.tc_kimlik_no, a]));
 
-      if (pasifeAlinacaklar && pasifeAlinacaklar.length > 0) {
-        // Her kişinin SGK açıklaması farklı olabileceği için tek tek
-        // güncelleniyor (toplu update aynı değeri herkese yazardı).
-        for (const p of pasifeAlinacaklar) {
-          const bilgi = gercektenAyrilanlar.get(p.tc_kimlik_no);
-          await supabase
+    for (const parca of parcala(ayrilanTcListesi, PARCA_BOYUTU)) {
+      const { data: mevcutKisiler } = await supabase
+        .from("personel")
+        .select("id, tc_kimlik_no, durum, sgk_isten_ayrilma_aciklamasi")
+        .in("tc_kimlik_no", parca);
+      const mevcutMap = new Map((mevcutKisiler ?? []).map((p: any) => [p.tc_kimlik_no, p]));
+
+      for (const tc of parca) {
+        const a = ayrilanMap.get(tc)!;
+        const mevcut = mevcutMap.get(tc);
+
+        if (!mevcut) {
+          // Durum 3: hiç kaydı yok — sıfırdan pasif bir personel + kapalı
+          // atama geçmişi oluştur.
+          const { data: yeniKisi, error: eklemeHata } = await supabase
             .from("personel")
-            .update({ durum: "pasif", sgk_isten_ayrilma_aciklamasi: bilgi?.aciklama ?? null })
-            .eq("id", p.id);
-
-          // Açık kalan atama kaydını da kapatıyoruz (norm doluluk hesabı için).
-          if (bilgi?.tarih) {
-            await supabase
-              .from("personel_atama_gecmisi")
-              .update({ ayrilma_tarihi: bilgi.tarih })
-              .eq("personel_id", p.id)
-              .is("ayrilma_tarihi", null);
+            .insert({
+              tc_kimlik_no: a.tc_kimlik_no, personel_kodu: a.personel_kodu, ad_soyad: a.ad_soyad,
+              dogum_tarihi: a.dogum_tarihi || null, cinsiyet: a.cinsiyet,
+              guncel_magaza_id: a.guncel_magaza_id, guncel_unvan: a.guncel_unvan,
+              kadro_kategorisi: a.kadro_kategorisi, kidem_baslangic_tarihi: a.kidem_baslangic_tarihi || null,
+              onceki_is_yeri: a.onceki_is_yeri, ihtarname: a.ihtarname, uyari_yazisi: a.uyari_yazisi,
+              tutanak: a.tutanak, savunma: a.savunma, kan_grubu_kodu: a.kan_grubu_kodu, uyruk: a.uyruk,
+              ozel_mobil: a.ozel_mobil, evli: a.evli, notlar: a.notlar,
+              durum: "pasif", sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama,
+            })
+            .select("id")
+            .single();
+          if (eklemeHata || !yeniKisi) {
+            hatalar.push({ satir: a.satirNo, hata: "Geçmiş kayıt oluşturulamadı: " + (eklemeHata?.message ?? "bilinmeyen hata") });
+            continue;
           }
+          await supabase.from("personel_atama_gecmisi").insert({
+            personel_id: yeniKisi.id, magaza_id: a.guncel_magaza_id,
+            baslama_tarihi: a.kidem_baslangic_tarihi || a.ayrilma_tarihi, ayrilma_tarihi: a.ayrilma_tarihi,
+          });
+          yeniOlusturulanGecmis++;
+        } else if (mevcut.durum === "aktif") {
+          // Durum 1: hâlâ aktif görünüyor — pasife çek, açıklamayı kaydet.
+          await supabase.from("personel").update({ durum: "pasif", sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id);
+          await supabase.from("personel_atama_gecmisi").update({ ayrilma_tarihi: a.ayrilma_tarihi }).eq("personel_id", mevcut.id).is("ayrilma_tarihi", null);
+        } else if (!mevcut.sgk_isten_ayrilma_aciklamasi && a.sgk_aciklama) {
+          // Durum 2: zaten pasif, sadece açıklaması eksik — geriye dönük doldur.
+          await supabase.from("personel").update({ sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id);
         }
-      }
-    }
-  }
-
-  // Zaten pasif olan kişiler için de SGK açıklaması geriye dönük dolduruluyor
-  // — bu alan sonradan eklendiği için, daha önceki bir import'ta pasife
-  // alınmış kişilerin açıklaması hiç kaydedilmemişti (Turnover hesabı bu
-  // yüzden 0 çıkıyordu). Sadece açıklaması BOŞ olanlar güncelleniyor,
-  // mevcut (varsa) durum/ayrılma tarihine dokunulmuyor.
-  if (gercektenAyrilanlar.size > 0) {
-    const ayrilanTcListesi = Array.from(gercektenAyrilanlar.keys());
-    for (const parca of parcala(ayrilanTcListesi, PARCA_BOYUTU)) {
-      const { data: doldurulacaklar } = await supabase
-        .from("personel")
-        .select("id, tc_kimlik_no")
-        .in("tc_kimlik_no", parca)
-        .eq("durum", "pasif")
-        .is("sgk_isten_ayrilma_aciklamasi", null);
-
-      for (const p of doldurulacaklar ?? []) {
-        const bilgi = gercektenAyrilanlar.get(p.tc_kimlik_no);
-        if (!bilgi?.aciklama) continue;
-        await supabase.from("personel").update({ sgk_isten_ayrilma_aciklamasi: bilgi.aciklama }).eq("id", p.id);
       }
     }
   }
@@ -394,5 +408,5 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   revalidatePath("/norm");
   revalidatePath("/dashboard");
   revalidatePath("/ayarlar/magazalar");
-  return { basarili, hatalar };
+  return { basarili: basarili + yeniOlusturulanGecmis, hatalar };
 }
