@@ -94,7 +94,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   };
   const gecerliler: GecerliSatir[] = [];
   const tcGorulen = new Set<string>();
-  const gercektenAyrilanlar = new Map<string, string>(); // tc -> ayrılma tarihi
+  const gercektenAyrilanlar = new Map<string, { tarih: string; aciklama: string | null }>(); // tc -> {ayrılma tarihi, sgk açıklaması}
 
   for (let i = 0; i < rowsHam.length; i++) {
     const satirNo = i + 2;
@@ -110,7 +110,10 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     const gercektenAyrilmisMi = ayrilmaYili !== null && ayrilmaYili > 1901;
     if (gercektenAyrilmisMi) {
       const tc = String(r["TC Kimlik No"] ?? "").trim();
-      if (tc) gercektenAyrilanlar.set(tc, ayrilmaTarihiParsed as string);
+      if (tc) gercektenAyrilanlar.set(tc, {
+        tarih: ayrilmaTarihiParsed as string,
+        aciklama: r["İşten Ayrılma Açıklaması"] ? String(r["İşten Ayrılma Açıklaması"]).trim() : null,
+      });
       continue;
     }
 
@@ -305,18 +308,23 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
         .eq("durum", "aktif");
 
       if (pasifeAlinacaklar && pasifeAlinacaklar.length > 0) {
-        const idler = pasifeAlinacaklar.map((p: any) => p.id);
-        await supabase.from("personel").update({ durum: "pasif" }).in("id", idler);
-
-        // Açık kalan atama kaydını da kapatıyoruz (norm doluluk hesabı için).
+        // Her kişinin SGK açıklaması farklı olabileceği için tek tek
+        // güncelleniyor (toplu update aynı değeri herkese yazardı).
         for (const p of pasifeAlinacaklar) {
-          const ayrilmaTarihi = gercektenAyrilanlar.get(p.tc_kimlik_no);
-          if (!ayrilmaTarihi) continue;
+          const bilgi = gercektenAyrilanlar.get(p.tc_kimlik_no);
           await supabase
-            .from("personel_atama_gecmisi")
-            .update({ ayrilma_tarihi: ayrilmaTarihi })
-            .eq("personel_id", p.id)
-            .is("ayrilma_tarihi", null);
+            .from("personel")
+            .update({ durum: "pasif", sgk_isten_ayrilma_aciklamasi: bilgi?.aciklama ?? null })
+            .eq("id", p.id);
+
+          // Açık kalan atama kaydını da kapatıyoruz (norm doluluk hesabı için).
+          if (bilgi?.tarih) {
+            await supabase
+              .from("personel_atama_gecmisi")
+              .update({ ayrilma_tarihi: bilgi.tarih })
+              .eq("personel_id", p.id)
+              .is("ayrilma_tarihi", null);
+          }
         }
       }
     }
