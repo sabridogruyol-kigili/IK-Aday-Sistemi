@@ -100,9 +100,19 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   // ayrıştırılıyor (önceden sadece TC+tarih notu alınıp atlanıyordu).
   type AyrilanSatir = GecerliSatir & { ayrilma_tarihi: string; sgk_aciklama: string | null };
 
+  // Aynı TC dosyada BİRDEN FAZLA kez geçebilir — bir kişi bir mağazadan
+  // ayrılıp başka birinde (ya da aynısında) tekrar işe girmiş olabilir.
+  // Kıdem hesabı zaten atama geçmişindeki >2 aylık boşluklara göre çoklu
+  // dönemleri destekliyor; import tarafının bunu reddetmesi (TC'yi sadece
+  // bir kez kabul edip gerisini atması) hem geçmiş dönemleri kaybettiriyor
+  // hem de turnover'ı yanlış hesaplatıyordu. Bu yüzden artık TC bazında REDDETMİYORUZ,
+  // her satırı bir "dönem adayı" olarak grupluyoruz; sonra her TC için tek bir
+  // "güncel durum" (aktif/pasif) belirleyip, TÜM dönemleri ayrıca atama
+  // geçmişine yazıyoruz.
+  const tcDonemleri = new Map<string, (GecerliSatir | AyrilanSatir)[]>();
+
   const gecerliler: GecerliSatir[] = [];
   const ayrilanlar: AyrilanSatir[] = [];
-  const tcGorulen = new Set<string>();
 
   for (let i = 0; i < rowsHam.length; i++) {
     const satirNo = i + 2;
@@ -160,11 +170,6 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
       hatalar.push({ satir: satirNo, hata: `İş Ünvanı Açıklaması (${unvanHam}) tanınan ünvan listesinde yok.` });
       continue;
     }
-    if (tcGorulen.has(tcKimlikNo)) {
-      hatalar.push({ satir: satirNo, hata: `TC Kimlik No (${tcKimlikNo}) dosyada birden fazla kez geçiyor, bu satır atlandı.` });
-      continue;
-    }
-    tcGorulen.add(tcKimlikNo);
 
     const ortakAlanlar = {
       satirNo, tc_kimlik_no: tcKimlikNo, personel_kodu: personelKodu || null, ad_soyad: adSoyad,
@@ -173,14 +178,33 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
       onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, kan_grubu_kodu, uyruk, ozel_mobil, evli, notlar,
     };
 
-    if (gercektenAyrilmisMi) {
-      ayrilanlar.push({
-        ...ortakAlanlar,
-        ayrilma_tarihi: ayrilmaTarihiParsed as string,
-        sgk_aciklama: r["İşten Ayrılma Açıklaması"] ? String(r["İşten Ayrılma Açıklaması"]).trim() : null,
-      });
-    } else {
-      gecerliler.push(ortakAlanlar);
+    const donem: GecerliSatir | AyrilanSatir = gercektenAyrilmisMi
+      ? { ...ortakAlanlar, ayrilma_tarihi: ayrilmaTarihiParsed as string, sgk_aciklama: r["İşten Ayrılma Açıklaması"] ? String(r["İşten Ayrılma Açıklaması"]).trim() : null }
+      : ortakAlanlar;
+
+    if (!tcDonemleri.has(tcKimlikNo)) tcDonemleri.set(tcKimlikNo, []);
+    tcDonemleri.get(tcKimlikNo)!.push(donem);
+  }
+
+  // Her TC için: en az bir "açık" (henüz ayrılmamış) dönem varsa kişi HÂLÂ
+  // aktif sayılır ve en güncel açık dönem "güncel durum" olarak kullanılır;
+  // hiç açık dönem yoksa en son ayrılma tarihine sahip kapalı dönem "güncel
+  // durum" (pasif) olarak kullanılır. TÜM dönemler (açık/kapalı, tek veya
+  // çok) atama geçmişine ayrıca yazılacak — aşağıda "tumDonemler" listesinde.
+  const tumDonemler: (GecerliSatir | AyrilanSatir)[] = [];
+  for (const [, donemler] of tcDonemleri) {
+    tumDonemler.push(...donemler);
+    const acikOlanlar = donemler.filter((d): d is GecerliSatir => !("ayrilma_tarihi" in d));
+    const kapalilar = donemler.filter((d): d is AyrilanSatir => "ayrilma_tarihi" in d);
+
+    if (acikOlanlar.length > 0) {
+      // Birden fazla "açık" dönem varsa (normalde olmamalı, veri
+      // tutarsızlığı) en yeni başlama tarihli olan güncel durum sayılır.
+      const guncel = acikOlanlar.slice().sort((a, b) => (b.kidem_baslangic_tarihi ?? "").localeCompare(a.kidem_baslangic_tarihi ?? ""))[0];
+      gecerliler.push(guncel);
+    } else if (kapalilar.length > 0) {
+      const guncel = kapalilar.slice().sort((a, b) => b.ayrilma_tarihi.localeCompare(a.ayrilma_tarihi))[0];
+      ayrilanlar.push(guncel);
     }
   }
 
@@ -312,34 +336,6 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
 
   const basarili = tcToId.size;
 
-  const ilgiliPersonelIdleri = Array.from(tcToId.values());
-  const mevcutAtamaAnahtarlari = new Set<string>();
-
-  for (const parca of parcala(ilgiliPersonelIdleri, PARCA_BOYUTU)) {
-    const { data: mevcutlar } = await supabase
-      .from("personel_atama_gecmisi")
-      .select("personel_id, magaza_id, baslama_tarihi")
-      .in("personel_id", parca);
-    (mevcutlar ?? []).forEach((m: any) => {
-      mevcutAtamaAnahtarlari.add(`${m.personel_id}|${m.magaza_id}|${m.baslama_tarihi}`);
-    });
-  }
-
-  const yeniAtamalar = gecerliler
-    .filter((p) => p.kidem_baslangic_tarihi && tcToId.has(p.tc_kimlik_no))
-    .map((p) => ({
-      personel_id: tcToId.get(p.tc_kimlik_no)!,
-      magaza_id: p.guncel_magaza_id,
-      unvan: p.guncel_unvan,
-      baslama_tarihi: p.kidem_baslangic_tarihi,
-      kaynak: "import",
-    }))
-    .filter((a) => !mevcutAtamaAnahtarlari.has(`${a.personel_id}|${a.magaza_id}|${a.baslama_tarihi}`));
-
-  for (const parca of parcala(yeniAtamalar, PARCA_BOYUTU)) {
-    await supabase.from("personel_atama_gecmisi").insert(parca);
-  }
-
   // Dosyada gerçek bir "İşten Ayrılma Tarihi" ile görünen kişiler için üç
   // durum olabilir: (1) sistemde hâlâ "aktif" görünüyor → pasife çek,
   // SGK açıklamasını kaydet, açık atama kaydını kapat. (2) zaten pasif ama
@@ -391,17 +387,62 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
             personel_id: yeniKisi.id, magaza_id: a.guncel_magaza_id,
             baslama_tarihi: a.kidem_baslangic_tarihi || a.ayrilma_tarihi, ayrilma_tarihi: a.ayrilma_tarihi,
           });
+          tcToId.set(a.tc_kimlik_no, yeniKisi.id);
           yeniOlusturulanGecmis++;
         } else if (mevcut.durum === "aktif") {
           // Durum 1: hâlâ aktif görünüyor — pasife çek, açıklamayı kaydet.
           await supabase.from("personel").update({ durum: "pasif", sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id);
           await supabase.from("personel_atama_gecmisi").update({ ayrilma_tarihi: a.ayrilma_tarihi }).eq("personel_id", mevcut.id).is("ayrilma_tarihi", null);
-        } else if (!mevcut.sgk_isten_ayrilma_aciklamasi && a.sgk_aciklama) {
-          // Durum 2: zaten pasif, sadece açıklaması eksik — geriye dönük doldur.
-          await supabase.from("personel").update({ sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id);
+          tcToId.set(a.tc_kimlik_no, mevcut.id);
+        } else {
+          // Durum 2: zaten pasif — açıklaması eksikse geriye dönük doldur.
+          // Her durumda tcToId'ye eklenir ki bu TC'nin varsa BAŞKA (daha
+          // eski) dönemleri de aşağıda atama geçmişine yazılabilsin.
+          if (!mevcut.sgk_isten_ayrilma_aciklamasi && a.sgk_aciklama) {
+            await supabase.from("personel").update({ sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id);
+          }
+          tcToId.set(a.tc_kimlik_no, mevcut.id);
         }
       }
     }
+  }
+
+  // Şimdi TÜM dönemleri (açık + kapalı, her TC için birden fazla olabilir)
+  // atama geçmişine yazıyoruz — tek bir kişinin birden fazla giriş-çıkış
+  // dönemi varsa hepsi burada ayrı ayrı kayıt olur (kıdem hesabı zaten
+  // bunları >2 aylık boşluk kuralıyla ayırt ediyor). tcToId bu noktada,
+  // hem aktif hem "durum 3" ile sıfırdan oluşturulan pasif kişiler dahil,
+  // artık tam olarak dolu.
+  const tumIlgiliIdler = Array.from(tcToId.values());
+  const tumAtamaAnahtarlari = new Set<string>();
+  for (const parca of parcala(tumIlgiliIdler, PARCA_BOYUTU)) {
+    const { data: mevcutlar } = await supabase
+      .from("personel_atama_gecmisi")
+      .select("personel_id, magaza_id, baslama_tarihi")
+      .in("personel_id", parca);
+    (mevcutlar ?? []).forEach((m: any) => {
+      tumAtamaAnahtarlari.add(`${m.personel_id}|${m.magaza_id}|${m.baslama_tarihi}`);
+    });
+  }
+
+  const tumYeniAtamalar = tumDonemler
+    .filter((d) => tcToId.has(d.tc_kimlik_no))
+    .map((d) => {
+      const ayrilmaTarihi = "ayrilma_tarihi" in d ? d.ayrilma_tarihi : null;
+      const baslamaTarihi = d.kidem_baslangic_tarihi || ayrilmaTarihi; // ikisi de yoksa (nadiren) atama kaydı anlamsız kalır, aşağıda elenir
+      return {
+        personel_id: tcToId.get(d.tc_kimlik_no)!,
+        magaza_id: d.guncel_magaza_id,
+        unvan: d.guncel_unvan,
+        baslama_tarihi: baslamaTarihi,
+        ayrilma_tarihi: ayrilmaTarihi,
+        kaynak: "import",
+      };
+    })
+    .filter((a) => a.baslama_tarihi && !tumAtamaAnahtarlari.has(`${a.personel_id}|${a.magaza_id}|${a.baslama_tarihi}`));
+
+  for (const parca of parcala(tumYeniAtamalar, PARCA_BOYUTU)) {
+    await supabase.from("personel_atama_gecmisi").insert(parca);
   }
 
   revalidatePath("/personel");
