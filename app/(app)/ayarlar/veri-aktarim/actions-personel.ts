@@ -46,6 +46,35 @@ function turkceBuyut(s: string): string {
   return s.toLocaleUpperCase("tr-TR").trim();
 }
 
+// Bazı Excel dosyalarında sütun başlıkları görünüşte aynı ama görünmeyen bir
+// farkla (fazladan boşluk, farklı Unicode karakteri, parantez içi ek not vb.)
+// gelebiliyor — bu yüzden EN AZ bir tanesi tam eşleşsin diye birkaç aday isim
+// denemek yeterli olmuyordu (örn. "SGK İşten Ayrılma Açıklaması" hiç
+// eşleşmemişti — muhtemelen Ç/Ş/İ gibi Türkçe karakterlerin farklı Unicode
+// kodlamasıyla geldiği bir durum). Bunun yerine, satırdaki TÜM sütun adlarını
+// tarayıp, Türkçe özel karakterleri ASCII benzerlerine indirgeyip verilen
+// anahtar kelimelerin HEPSİNİ içeren ilk sütunu buluyoruz — çok daha
+// dayanıklı bir eşleştirme.
+function sadelestir(s: string): string {
+  return s
+    .toUpperCase()
+    .replace(/[İIı]/g, "I")
+    .replace(/Ç/g, "C")
+    .replace(/Ş/g, "S")
+    .replace(/Ğ/g, "G")
+    .replace(/Ü/g, "U")
+    .replace(/Ö/g, "O")
+    .replace(/\s+/g, "");
+}
+function sutunBul(r: Record<string, any>, ...anahtarKelimeler: string[]): any {
+  const anahtarlarNorm = anahtarKelimeler.map(sadelestir);
+  for (const key of Object.keys(r)) {
+    const keyNorm = sadelestir(key);
+    if (anahtarlarNorm.every((a) => keyNorm.includes(a))) return r[key];
+  }
+  return undefined;
+}
+
 function parcala<T>(dizi: T[], boyut: number): T[][] {
   const parcalar: T[][] = [];
   for (let i = 0; i < dizi.length; i += boyut) parcalar.push(dizi.slice(i, i + boyut));
@@ -237,7 +266,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     };
 
     const donem: GecerliSatir | AyrilanSatir = gercektenAyrilmisMi
-      ? { ...ortakAlanlar, ayrilma_tarihi: ayrilmaTarihiParsed as string, sgk_aciklama: (r["SGK İşten Ayrılma Açıklaması"] ?? r["İşten Ayrılma Açıklaması"]) ? String(r["SGK İşten Ayrılma Açıklaması"] ?? r["İşten Ayrılma Açıklaması"]).trim() : null }
+      ? { ...ortakAlanlar, ayrilma_tarihi: ayrilmaTarihiParsed as string, sgk_aciklama: sutunBul(r, "SGK", "AYRILMA", "AÇIKLAMA") ? String(sutunBul(r, "SGK", "AYRILMA", "AÇIKLAMA")).trim() || null : null }
       : ortakAlanlar;
 
     if (!tcDonemleri.has(tcKimlikNo)) tcDonemleri.set(tcKimlikNo, []);
@@ -415,6 +444,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   // bu yüzden hiç aktif olmamış geçmiş kişiler tamamen kayboluyordu
   // (Turnover hesabı da bu yüzden eksik çıkıyordu).
   let yeniOlusturulanGecmis = 0;
+  let guncellenenAyrilanlar = 0; // Durum 1 ve Durum 2 — "başarılı" sayısının gerçekçi olması için
   if (ayrilanlar.length > 0) {
     const ayrilanTcListesi = ayrilanlar.map((a) => a.tc_kimlik_no);
     const ayrilanMap = new Map(ayrilanlar.map((a) => [a.tc_kimlik_no, a]));
@@ -473,6 +503,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
             supabase.from("personel_atama_gecmisi").update({ ayrilma_tarihi: a.ayrilma_tarihi }).eq("personel_id", mevcut.id).is("ayrilma_tarihi", null),
           ]);
           tcToId.set(a.tc_kimlik_no, mevcut.id);
+          guncellenenAyrilanlar++;
         } else {
           // Durum 2: zaten pasif — açıklaması eksikse geriye dönük doldur.
           // Her durumda tcToId'ye eklenir ki bu TC'nin varsa BAŞKA (daha
@@ -481,6 +512,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
             await supabase.from("personel").update({ sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id);
           }
           tcToId.set(a.tc_kimlik_no, mevcut.id);
+          guncellenenAyrilanlar++;
         }
       }));
       }
@@ -529,5 +561,5 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   revalidatePath("/norm");
   revalidatePath("/dashboard");
   revalidatePath("/ayarlar/magazalar");
-  return { basarili: basarili + yeniOlusturulanGecmis, hatalar };
+  return { basarili: basarili + yeniOlusturulanGecmis + guncellenenAyrilanlar, hatalar };
 }
