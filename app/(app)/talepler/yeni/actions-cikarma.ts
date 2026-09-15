@@ -210,6 +210,7 @@ export type PersonelDetay = {
   savunma: string | null;
   notlar: string | null;
   il_adi: string | null;
+  ise_giris_tarihi: string | null;
   ozel_mobil: string | null;
   tc_kimlik_no: string | null;
   personel_kodu: string | null;
@@ -224,14 +225,9 @@ export type PersonelDetay = {
 // aynı kural: ardışık atama dönemleri arasında 2 aydan fazla boşluk varsa kıdem
 // o yeni dönemden itibaren sıfırdan sayılır.
 function kidemAyHesapla(donemler: { baslama_tarihi: string | null; ayrilma_tarihi: string | null }[]): number | null {
-  const suankiYil = new Date().getFullYear();
   const gecerliler = donemler
     .filter((d) => d.baslama_tarihi)
     .map((d) => ({ baslama: new Date(d.baslama_tarihi as string), ayrilma: d.ayrilma_tarihi ? new Date(d.ayrilma_tarihi) : null }))
-    // Veride (özellikle geçmiş Excel importlarından) hatalı ayrıştırılmış,
-    // mantıksız (örn. 1897) bir başlama tarihi kalmışsa, "129 yıl kıdem"
-    // gibi saçma sonuçlara yol açmaması için burada da eleniyor.
-    .filter((d) => d.baslama.getFullYear() >= 1970 && d.baslama.getFullYear() <= suankiYil + 1)
     .sort((a, b) => a.baslama.getTime() - b.baslama.getTime());
 
   if (gecerliler.length === 0) return null;
@@ -284,7 +280,7 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
 
   const { data } = await supabase
     .from("personel")
-    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, guncel_unvan, magazalar(il_adi)")
+    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, guncel_unvan, kidem_baslangic_tarihi, magazalar(il_adi)")
     .eq("id", personelId)
     .single();
 
@@ -343,6 +339,7 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     savunma: magazaHam.savunma,
     notlar: magazaHam.notlar,
     il_adi: magazaHam.magazalar?.il_adi ?? null,
+    ise_giris_tarihi: magazaHam.kidem_baslangic_tarihi ?? null,
     kidem_ay: kidemAy,
     brut_maas: brutMaas,
     brut_maas_hata: brutMaasHata,
