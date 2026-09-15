@@ -62,6 +62,34 @@ function oranHesap(dolu: number, norm: number) {
   return norm > 0 ? Math.min(Math.round((dolu / norm) * 100), 100) : 0;
 }
 
+function farkRengi(fark: number): string {
+  if (fark < 0) return "text-danger";
+  if (fark > 0) return "text-accent";
+  return "text-success";
+}
+
+// Mağazalarım/Norm sayfasındaki NORM/FİİLİ/FARK üçlü gösterimiyle aynı —
+// Dashboard'un sol panelindeki "Liste" görünümünde kullanılıyor.
+function KadroGrubuMini({ norm, dolu }: { norm: number; dolu: number }) {
+  const fark = dolu - norm;
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <div className="text-center">
+        <div className="text-[8px] text-gray-400 uppercase">Norm</div>
+        <div className="font-mono text-gray-600">{norm}</div>
+      </div>
+      <div className="text-center">
+        <div className="text-[8px] text-gray-400 uppercase">Fiili</div>
+        <div className="font-mono text-gray-600">{dolu}</div>
+      </div>
+      <div className="text-center min-w-[28px]">
+        <div className="text-[8px] text-gray-400 uppercase">Fark</div>
+        <div className={`font-mono font-bold ${farkRengi(fark)}`}>{fark > 0 ? `+${fark}` : fark}</div>
+      </div>
+    </div>
+  );
+}
+
 function hgoRenk(hgo: number) {
   if (hgo < 80) return { bar: "bg-danger", metin: "text-danger" };
   if (hgo <= 100) return { bar: "bg-accent", metin: "text-accent" };
@@ -252,6 +280,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
   const [normMax, setNormMax] = useState("");
   const [durumFiltre, setDurumFiltre] = useState<Set<NormDurum>>(new Set());
   const [sadeceKapaliGoster, setSadeceKapaliGoster] = useState(false);
+  const [solGorunum, setSolGorunum] = useState<"kart" | "liste">("kart");
 
   // Bir mağaza, sistemdeki EN GÜNCEL dönemde (tüm veri setindeki en son yıl-ay)
   // Mağaza Performans verisi yoksa "Kapalı" sayılır — mağazanın kendisi aktif/pasif
@@ -492,12 +521,30 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
       <div className="bg-white border border-gray-200 rounded-card p-4 flex flex-col">
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-semibold text-navy-3">Mağazalar — Norm Doluluk</div>
-          <div className="text-[11px] text-gray-400">
-            {sadeceKapaliGoster
-              ? `${solFiltrelenmis.length} kapalı mağaza`
-              : solFiltrelenmis.length === acikMagazaSayisi
-                ? `${acikMagazaSayisi} açık mağaza`
-                : `${solFiltrelenmis.length} / ${acikMagazaSayisi} açık mağaza`}
+          <div className="flex items-center gap-2">
+            <div className="flex border border-gray-200 rounded-md overflow-hidden shrink-0">
+              <button
+                onClick={() => setSolGorunum("kart")}
+                title="Kart görünümü"
+                className={`px-2 py-1 text-[10px] font-medium transition-colors ${solGorunum === "kart" ? "bg-navy text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+              >
+                ▦ Kart
+              </button>
+              <button
+                onClick={() => setSolGorunum("liste")}
+                title="Liste görünümü"
+                className={`px-2 py-1 text-[10px] font-medium border-l border-gray-200 transition-colors ${solGorunum === "liste" ? "bg-navy text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+              >
+                ☰ Liste
+              </button>
+            </div>
+            <div className="text-[11px] text-gray-400 whitespace-nowrap">
+              {sadeceKapaliGoster
+                ? `${solFiltrelenmis.length} kapalı mağaza`
+                : solFiltrelenmis.length === acikMagazaSayisi
+                  ? `${acikMagazaSayisi} açık mağaza`
+                  : `${solFiltrelenmis.length} / ${acikMagazaSayisi} açık mağaza`}
+            </div>
           </div>
         </div>
         <div className="text-[10px] text-gray-400 mb-2">Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür.</div>
@@ -540,6 +587,49 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
 
         {solFiltrelenmis.length === 0 ? (
           <div className="text-xs text-gray-400">Bu filtreye uyan mağaza yok.</div>
+        ) : solGorunum === "liste" ? (
+          <div className="overflow-y-auto overflow-x-auto pr-1 max-h-[760px] border border-gray-100 rounded-md">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-gray-50 z-10">
+                <tr className="text-[10px] text-navy-3/70 uppercase tracking-wide border-b-2 border-navy">
+                  <th className="text-left p-2">Mağaza</th>
+                  <th className="text-center p-2 border-l border-gray-100">Ana Kadro</th>
+                  <th className="text-center p-2 border-l border-gray-100">Dönemsel</th>
+                  <th className="text-center p-2 border-l border-gray-100">Part-Time</th>
+                  <th className="text-center p-2 border-l border-gray-100 bg-gray-100/60">Toplam</th>
+                </tr>
+              </thead>
+              <tbody>
+                {solFiltrelenmis.map((m) => {
+                  const durum = normDurumu(m);
+                  const secili = seciliMagazaId === m.id;
+                  const kapali = kapaliMagazaIdSet.has(m.id);
+                  return (
+                    <tr
+                      key={m.id}
+                      onClick={() => setSeciliMagazaId(secili ? null : m.id)}
+                      className={`border-t border-gray-100 cursor-pointer transition-colors ${kapali ? "opacity-50 grayscale" : ""} ${secili ? "bg-navy/5" : "hover:bg-gray-50"}`}
+                    >
+                      <td className="p-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${DURUM_NOKTA[durum]}`} />
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium text-navy-3 truncate">{m.magaza_adi}</div>
+                            <div className="text-[9px] text-gray-400 truncate">{m.bolge_adi || "—"}</div>
+                          </div>
+                          {kapali && <span className="text-[8px] bg-gray-500 text-white rounded-full px-1.5 py-0.5 font-medium shrink-0">Kapalı</span>}
+                        </div>
+                      </td>
+                      <td className="p-2 border-l border-gray-50"><KadroGrubuMini norm={m.ana_norm} dolu={m.ana_dolu} /></td>
+                      <td className="p-2 border-l border-gray-50"><KadroGrubuMini norm={m.donemsel_norm} dolu={m.donemsel_dolu} /></td>
+                      <td className="p-2 border-l border-gray-50"><KadroGrubuMini norm={m.part_norm} dolu={m.part_dolu} /></td>
+                      <td className="p-2 border-l border-gray-50 bg-gray-50/60"><KadroGrubuMini norm={m.toplamNorm} dolu={m.toplamDolu} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto pr-1 max-h-[760px]">
             {solFiltrelenmis.map((m) => {
@@ -631,55 +721,34 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
                 ))}
               </select>
             </div>
-            <div className="space-y-4">
-              {enSonAyOzeti && enSonAyOzeti.degerler.length > 0 && (
-                <div>
-                  <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Satış Verileri</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {enSonAyOzeti.degerler.map((d) => (
-                      <KpiKart
-                        key={d.key}
-                        label={d.label}
-                        kendi={d.kendi}
-                        ortalama={d.ortalama}
-                        format={d.format}
-                        seciliVar={!!seciliMagaza}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {enSonAyOzeti?.degerler.map((d) => (
+                <KpiKart
+                  key={d.key}
+                  label={d.label}
+                  kendi={d.kendi}
+                  ortalama={d.ortalama}
+                  format={d.format}
+                  seciliVar={!!seciliMagaza}
+                />
+              ))}
               {turnoverOzet && (
-                <div>
-                  <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Turnover Bilgileri</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                    <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                    <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                  </div>
-                </div>
+                <>
+                  <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                </>
               )}
-
-              <div>
-                <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Norm Verileri</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  <KpiKart label="Ana Kadro Norm" kendi={normKpiOzet.ana.kendi} ortalama={normKpiOzet.ana.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                  <KpiKart label="Dönemsel Norm" kendi={normKpiOzet.donemsel.kendi} ortalama={normKpiOzet.donemsel.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                  <KpiKart label="Part-Time Norm" kendi={normKpiOzet.part.kendi} ortalama={normKpiOzet.part.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                  <KpiKart label="Toplam Norm" kendi={normKpiOzet.toplam.kendi} ortalama={normKpiOzet.toplam.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                </div>
-              </div>
-
+              <KpiKart label="Ana Kadro Norm" kendi={normKpiOzet.ana.kendi} ortalama={normKpiOzet.ana.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+              <KpiKart label="Dönemsel Norm" kendi={normKpiOzet.donemsel.kendi} ortalama={normKpiOzet.donemsel.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+              <KpiKart label="Part-Time Norm" kendi={normKpiOzet.part.kendi} ortalama={normKpiOzet.part.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+              <KpiKart label="Toplam Norm" kendi={normKpiOzet.toplam.kendi} ortalama={normKpiOzet.toplam.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
               {calisanKpiOzet && (
-                <div>
-                  <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Çalışan Bilgileri</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                    <KpiKart label="Satış Yapan Çalışan" kendi={calisanKpiOzet.satisYapan.kendi} ortalama={calisanKpiOzet.satisYapan.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                    <KpiKart label="Satış Yapan Oranı" kendi={calisanKpiOzet.oran.kendi} ortalama={calisanKpiOzet.oran.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} />
-                  </div>
-                </div>
+                <>
+                  <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                  <KpiKart label="Satış Yapan Çalışan" kendi={calisanKpiOzet.satisYapan.kendi} ortalama={calisanKpiOzet.satisYapan.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                  <KpiKart label="Satış Yapan Oranı" kendi={calisanKpiOzet.oran.kendi} ortalama={calisanKpiOzet.oran.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} />
+                </>
               )}
             </div>
 
