@@ -113,7 +113,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     }
 
     if (yedekBolgeId) {
-      for (const [kod, acikMi] of eksikMagazaDurumu) {
+      await Promise.all(Array.from(eksikMagazaDurumu.entries()).map(async ([kod, acikMi]) => {
         const { data: yeniMagaza, error: magazaHata } = await supabase
           .from("magazalar")
           .insert({ magaza_kodu: kod, magaza_adi: `${kod} (otomatik oluşturuldu)`, bolge_id: yedekBolgeId, aktif: acikMi })
@@ -121,10 +121,10 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
           .single();
         if (magazaHata || !yeniMagaza) {
           hatalar.push({ satir: 0, hata: `Mağaza (${kod}) otomatik oluşturulamadı: ` + (magazaHata?.message ?? "bilinmeyen hata") });
-          continue;
+          return;
         }
         magazaMap[kod] = yeniMagaza.id;
-      }
+      }));
     }
   }
 
@@ -271,6 +271,9 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   }
 
   const PARCA_BOYUTU = 500;
+  // Paralel (Promise.all) işlemlerde aynı anda açılacak azami bağlantı
+  // sayısı — bağlantı havuzunu taşırmadan zaman aşımını önlemek için.
+  const ESZAMANLILIK_SINIRI = 40;
   const tcToId = new Map<string, string>();
 
   // Performans importunun otomatik oluşturduğu "PLASIYER-<sicil>" yer tutucu kayıtlarını bul.
@@ -304,20 +307,27 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   // gerçek kayda taşı (o ay zaten varsa gerçek kayıt esas alınır), yer
   // tutucuyu sil, ve bu satırı normal güncelleme akışına (gerçek kaydın
   // id'siyle) dahil et.
-  for (const p of ikiziOlanlar) {
-    const yertutucuId = placeholderMap[p.personel_kodu!];
-    const gercekId = gercekIkizMap[p.tc_kimlik_no];
+  // ÖNEMLİ PERFORMANS NOTU: 2657 yer tutucu gibi büyük sayılarda, iç içe
+  // sıralı (await ... for) döngüler binlerce ağ gidiş-dönüşüne, dolayısıyla
+  // zaman aşımına yol açabiliyordu. Paralelleştirildi, ama TAMAMEN
+  // sınırsız paralellik (binlerce eşzamanlı bağlantı) bağlantı havuzunu
+  // taşırabileceği için EŞZAMANLILIK_SINIRI'lık parçalar hâlinde işleniyor.
+  for (const ikiziParcasi of parcala(ikiziOlanlar, ESZAMANLILIK_SINIRI)) {
+    await Promise.all(ikiziParcasi.map(async (p) => {
+      const yertutucuId = placeholderMap[p.personel_kodu!];
+      const gercekId = gercekIkizMap[p.tc_kimlik_no];
 
-    const { data: yertutucuPerformans } = await supabase.from("performans_kisi_aylik").select("yil, ay").eq("personel_id", yertutucuId);
-    for (const ay of yertutucuPerformans ?? []) {
-      const { data: cakisan } = await supabase.from("performans_kisi_aylik").select("id").eq("personel_id", gercekId).eq("yil", ay.yil).eq("ay", ay.ay).maybeSingle();
-      if (!cakisan) {
-        await supabase.from("performans_kisi_aylik").update({ personel_id: gercekId }).eq("personel_id", yertutucuId).eq("yil", ay.yil).eq("ay", ay.ay);
-      }
-    }
-    await supabase.from("performans_kisi_aylik").delete().eq("personel_id", yertutucuId);
-    await supabase.from("personel").delete().eq("id", yertutucuId);
-    tcToId.set(p.tc_kimlik_no, gercekId);
+      const { data: yertutucuPerformans } = await supabase.from("performans_kisi_aylik").select("yil, ay").eq("personel_id", yertutucuId);
+      await Promise.all((yertutucuPerformans ?? []).map(async (ay: any) => {
+        const { data: cakisan } = await supabase.from("performans_kisi_aylik").select("id").eq("personel_id", gercekId).eq("yil", ay.yil).eq("ay", ay.ay).maybeSingle();
+        if (!cakisan) {
+          await supabase.from("performans_kisi_aylik").update({ personel_id: gercekId }).eq("personel_id", yertutucuId).eq("yil", ay.yil).eq("ay", ay.ay);
+        }
+      }));
+      await supabase.from("performans_kisi_aylik").delete().eq("personel_id", yertutucuId);
+      await supabase.from("personel").delete().eq("id", yertutucuId);
+      tcToId.set(p.tc_kimlik_no, gercekId);
+    }));
   }
   // Gerçek ikizi bulunanlar artık normal upsert akışında (aşağıda) güncel
   // Excel bilgileriyle (ünvan, mağaza vb.) yenilenecek.
@@ -416,7 +426,16 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
         .in("tc_kimlik_no", parca);
       const mevcutMap = new Map((mevcutKisiler ?? []).map((p: any) => [p.tc_kimlik_no, p]));
 
-      for (const tc of parca) {
+      // ÖNEMLİ PERFORMANS NOTU: Bu işlem binlerce satır için tek tek,
+      // SIRAYLA veritabanı çağrısı yapıyorsa (await ... for-of içinde),
+      // her biri bir ağ gidiş-dönüşü olduğu için toplam süre dakikaları
+      // bulabilir ve sunucusuz fonksiyon zaman aşımına uğrayıp yarıda
+      // kesilebilir — "başarılı" sayısı da o noktada donmuş görünür.
+      // Bunun yerine EŞZAMANLILIK_SINIRI'lık alt-parçalar hâlinde PARALEL
+      // işleniyor (Promise.all) — ağ gidiş-dönüşleri aynı anda olur, ama
+      // bağlantı havuzunu taşıracak kadar da sınırsız değil.
+      for (const altParca of parcala(parca, ESZAMANLILIK_SINIRI)) {
+        await Promise.all(altParca.map(async (tc) => {
         const a = ayrilanMap.get(tc)!;
         const mevcut = mevcutMap.get(tc);
 
@@ -439,7 +458,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
             .single();
           if (eklemeHata || !yeniKisi) {
             hatalar.push({ satir: a.satirNo, hata: "Geçmiş kayıt oluşturulamadı: " + (eklemeHata?.message ?? "bilinmeyen hata") });
-            continue;
+            return;
           }
           await supabase.from("personel_atama_gecmisi").insert({
             personel_id: yeniKisi.id, magaza_id: a.guncel_magaza_id,
@@ -449,8 +468,10 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
           yeniOlusturulanGecmis++;
         } else if (mevcut.durum === "aktif") {
           // Durum 1: hâlâ aktif görünüyor — pasife çek, açıklamayı kaydet.
-          await supabase.from("personel").update({ durum: "pasif", sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id);
-          await supabase.from("personel_atama_gecmisi").update({ ayrilma_tarihi: a.ayrilma_tarihi }).eq("personel_id", mevcut.id).is("ayrilma_tarihi", null);
+          await Promise.all([
+            supabase.from("personel").update({ durum: "pasif", sgk_isten_ayrilma_aciklamasi: a.sgk_aciklama }).eq("id", mevcut.id),
+            supabase.from("personel_atama_gecmisi").update({ ayrilma_tarihi: a.ayrilma_tarihi }).eq("personel_id", mevcut.id).is("ayrilma_tarihi", null),
+          ]);
           tcToId.set(a.tc_kimlik_no, mevcut.id);
         } else {
           // Durum 2: zaten pasif — açıklaması eksikse geriye dönük doldur.
@@ -461,6 +482,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
           }
           tcToId.set(a.tc_kimlik_no, mevcut.id);
         }
+      }));
       }
     }
   }
