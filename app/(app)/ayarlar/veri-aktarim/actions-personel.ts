@@ -330,6 +330,29 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     }
   }
 
+  // Zaten pasif olan kişiler için de SGK açıklaması geriye dönük dolduruluyor
+  // — bu alan sonradan eklendiği için, daha önceki bir import'ta pasife
+  // alınmış kişilerin açıklaması hiç kaydedilmemişti (Turnover hesabı bu
+  // yüzden 0 çıkıyordu). Sadece açıklaması BOŞ olanlar güncelleniyor,
+  // mevcut (varsa) durum/ayrılma tarihine dokunulmuyor.
+  if (gercektenAyrilanlar.size > 0) {
+    const ayrilanTcListesi = Array.from(gercektenAyrilanlar.keys());
+    for (const parca of parcala(ayrilanTcListesi, PARCA_BOYUTU)) {
+      const { data: doldurulacaklar } = await supabase
+        .from("personel")
+        .select("id, tc_kimlik_no")
+        .in("tc_kimlik_no", parca)
+        .eq("durum", "pasif")
+        .is("sgk_isten_ayrilma_aciklamasi", null);
+
+      for (const p of doldurulacaklar ?? []) {
+        const bilgi = gercektenAyrilanlar.get(p.tc_kimlik_no);
+        if (!bilgi?.aciklama) continue;
+        await supabase.from("personel").update({ sgk_isten_ayrilma_aciklamasi: bilgi.aciklama }).eq("id", p.id);
+      }
+    }
+  }
+
   revalidatePath("/personel");
   revalidatePath("/norm");
   revalidatePath("/dashboard");
