@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ImportForm from "./ImportForm";
+import TurnoverHesaplaButonu from "./TurnoverHesaplaButonu";
 import VerilerTablosu from "../veriler/VerilerTablosu";
 import BolgeYonetimi from "../magazalar/BolgeYonetimi";
 import MagazaTablosu from "../magazalar/MagazaTablosu";
@@ -55,6 +56,8 @@ export default function VeriYonetimi({ bolgeler, magazalar }: { bolgeler: Bolge[
       </div>
 
       <ImportForm onBasarili={() => setYenilemeSayaci((c) => c + 1)} />
+
+      <TurnoverHesaplaButonu />
 
       <div>
         <div className="text-sm font-semibold text-navy-3 mb-1">İçe Aktarılan Veriler</div>
