@@ -194,8 +194,45 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   const birlestirilecekler = gecerliler.filter((p) => p.personel_kodu && placeholderMap[p.personel_kodu]);
   const normalSatirlar = gecerliler.filter((p) => !(p.personel_kodu && placeholderMap[p.personel_kodu]));
 
-  if (birlestirilecekler.length > 0) {
-    const guncellemeler = birlestirilecekler.map((p) => ({
+  // Bir yer tutucunun TC'si, o TC'yle ZATEN var olan gerçek bir kayda
+  // (örn. önceki bir importtan kalma) çakışabilir — bu durumda TC'yi
+  // güncellemek "duplicate key" hatası verir. Önce bunu tespit edip, bu
+  // satırları AYRI bir "gerçek ikizi var" grubuna ayırıyoruz.
+  const hedefTcListesi = birlestirilecekler.map((p) => p.tc_kimlik_no);
+  const { data: gercekIkizlerHam } = hedefTcListesi.length > 0
+    ? await supabase.from("personel").select("id, tc_kimlik_no").in("tc_kimlik_no", hedefTcListesi).not("tc_kimlik_no", "like", "PLASIYER-%")
+    : { data: [] as any[] };
+  const gercekIkizMap: Record<string, string> = {};
+  (gercekIkizlerHam ?? []).forEach((g: any) => { gercekIkizMap[g.tc_kimlik_no] = g.id; });
+
+  const ikiziOlanlar = birlestirilecekler.filter((p) => gercekIkizMap[p.tc_kimlik_no]);
+  const normalBirlesecekler = birlestirilecekler.filter((p) => !gercekIkizMap[p.tc_kimlik_no]);
+
+  // "Gerçek ikizi var" durumu: yer tutucuya bağlı performans kayıtlarını
+  // gerçek kayda taşı (o ay zaten varsa gerçek kayıt esas alınır), yer
+  // tutucuyu sil, ve bu satırı normal güncelleme akışına (gerçek kaydın
+  // id'siyle) dahil et.
+  for (const p of ikiziOlanlar) {
+    const yertutucuId = placeholderMap[p.personel_kodu!];
+    const gercekId = gercekIkizMap[p.tc_kimlik_no];
+
+    const { data: yertutucuPerformans } = await supabase.from("performans_kisi_aylik").select("yil, ay").eq("personel_id", yertutucuId);
+    for (const ay of yertutucuPerformans ?? []) {
+      const { data: cakisan } = await supabase.from("performans_kisi_aylik").select("id").eq("personel_id", gercekId).eq("yil", ay.yil).eq("ay", ay.ay).maybeSingle();
+      if (!cakisan) {
+        await supabase.from("performans_kisi_aylik").update({ personel_id: gercekId }).eq("personel_id", yertutucuId).eq("yil", ay.yil).eq("ay", ay.ay);
+      }
+    }
+    await supabase.from("performans_kisi_aylik").delete().eq("personel_id", yertutucuId);
+    await supabase.from("personel").delete().eq("id", yertutucuId);
+    tcToId.set(p.tc_kimlik_no, gercekId);
+  }
+  // Gerçek ikizi bulunanlar artık normal upsert akışında (aşağıda) güncel
+  // Excel bilgileriyle (ünvan, mağaza vb.) yenilenecek.
+  normalSatirlar.push(...ikiziOlanlar);
+
+  if (normalBirlesecekler.length > 0) {
+    const guncellemeler = normalBirlesecekler.map((p) => ({
       id: placeholderMap[p.personel_kodu!],
       tc_kimlik_no: p.tc_kimlik_no,
       ad_soyad: p.ad_soyad,
@@ -219,7 +256,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     for (const parca of parcala(guncellemeler, PARCA_BOYUTU)) {
       const { error } = await supabase.rpc("personel_placeholder_birlestir", { p_guncellemeler: parca });
       if (error) {
-        birlestirilecekler.forEach((p) => hatalar.push({ satir: p.satirNo, hata: "Yer tutucu kayıtla birleştirilemedi: " + error.message }));
+        normalBirlesecekler.forEach((p) => hatalar.push({ satir: p.satirNo, hata: "Yer tutucu kayıtla birleştirilemedi: " + error.message }));
       } else {
         parca.forEach((g) => tcToId.set(g.tc_kimlik_no, g.id));
       }
