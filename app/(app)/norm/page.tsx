@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import NormTablosu from "./NormTablosu";
+import { getSonYorumlarHepsi } from "./actions-yorum";
 
 // Supabase tek sorguda en fazla 1000 satır döndürür — personel sayımız bunu
 // aşabileceği için sayfalayarak (1000'erlik parçalar hâlinde) çekiyoruz.
@@ -23,6 +24,9 @@ export default async function NormPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  const sonYorumlar = await getSonYorumlarHepsi();
 
   // RLS (magazalar_select / norm_select) zaten bölge bazlı kısıtlıyor — ek filtre gerekmez.
   const { data: magazalarHam, error: magazaHata } = await supabase
@@ -97,10 +101,10 @@ export default async function NormPage() {
   return (
     <div>
       <div className="mb-4">
-        <div className="text-lg font-semibold text-navy-3">Mağazalarım / Norm Bilgisi</div>
-        <div className="text-xs text-gray-400 mt-0.5">Ana Kadro / Dönemsel / Part-Time norm ve doluluk durumu</div>
+        <div className="text-lg font-semibold text-navy-3">HR Connect</div>
+        <div className="text-xs text-gray-400 mt-0.5">Ana Kadro / Dönemsel / Part-Time norm ve doluluk durumu — İK, BM ve Yönetim yorumlarıyla birlikte</div>
       </div>
-      <NormTablosu satirlar={satirlar} />
+      <NormTablosu satirlar={satirlar} sonYorumlar={sonYorumlar} benimRolum={me?.rol ?? ""} />
     </div>
   );
 }
