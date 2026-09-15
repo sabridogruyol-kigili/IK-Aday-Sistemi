@@ -114,6 +114,7 @@ export default function PersonelDetayModal({
                   <OzlukAlani label="Uyruk" value={detay?.uyruk ?? null} />
                   <OzlukAlani label="Medeni Hal" value={detay?.evli ?? null} />
                   <OzlukAlani label="Görev Yeri (İl)" value={detay?.il_adi ?? null} />
+                  <OzlukAlani label="İşe Giriş Tarihi" value={detay?.ise_giris_tarihi ? new Date(detay.ise_giris_tarihi).toLocaleDateString("tr-TR") : null} />
                   <OzlukAlani label="Cep Telefonu" value={detay?.ozel_mobil ?? null} />
                   <OzlukAlani label="Önceki İş Yeri" value={detay?.onceki_is_yeri ?? null} />
                 </div>
