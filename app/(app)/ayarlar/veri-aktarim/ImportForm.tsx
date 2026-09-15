@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import * as XLSX from "xlsx";
 import { iceAktarMagazaNorm } from "./actions";
 import { iceAktarPersonel } from "./actions-personel";
-import { iceAktarTurnover } from "./actions-turnover";
 import { iceAktarMagazaPerformans2 } from "./actions-magaza-perf";
 import { iceAktarCalisanPerformans } from "./actions-calisan-perf";
 import { iceAktarMagazaAdresKonum } from "./actions-magaza-adres";
@@ -32,17 +31,9 @@ const SABLONLAR: Sablon[] = [
     key: "personel",
     label: "Personel",
     aciklama:
-      "Şablon sütunları: Personel Kodu, TC Kimlik No, Adı-Soyadı, Departman Kodu, Departman Açıklaması, İş Ünvanı Açıklaması, İşyeri Başlama Tarihi, İşten Ayrılma Tarihi, Doğum Tarihi, Cinsiyet Açıklaması, Bölge Açıklama, Bölge Müdürü Açıklama, İlk Başlama Tarihi. Not: İşten Ayrılma Tarihi dolu olan satırlar otomatik atlanır. Mağaza (Departman Kodu) sistemde önceden kayıtlı olmalı.",
+      "Şablon sütunları: Personel Kodu, TC Kimlik No, Adı-Soyadı, Departman Kodu, Departman Açıklaması, İş Ünvanı Açıklaması, İşyeri Başlama Tarihi, İşten Ayrılma Tarihi, İşten Ayrılma Açıklaması (SGK), Doğum Tarihi, Cinsiyet Açıklaması, Bölge Açıklama, Bölge Müdürü Açıklama, İlk Başlama Tarihi. Not: İşten Ayrılma Tarihi dolu olan satırlar otomatik atlanır (kişi pasife alınır, SGK açıklaması kaydedilir — Turnover artık bu bilgiden otomatik hesaplanır, ayrıca Turnover şablonu yüklemenize gerek yok). Mağaza (Departman Kodu) sistemde önceden kayıtlı olmalı.",
     action: iceAktarPersonel,
     parcaBoyutu: 800,
-  },
-  {
-    key: "turnover",
-    label: "Turnover",
-    aciklama:
-      "Şablon sütunları: Mağaza Kodu, İstifa Turnover, Fesih Turnover, Toplam Turnover. Kümülatif bir bilgidir (aylık değil) — her mağaza için tek bir değer olarak üzerine yazılır. Mağaza sistemde önceden kayıtlı olmalı.",
-    action: iceAktarTurnover,
-    parcaBoyutu: 2000,
   },
   {
     key: "magaza_performans2",
