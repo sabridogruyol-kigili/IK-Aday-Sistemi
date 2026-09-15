@@ -11,6 +11,8 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
   const [kategoriFiltre, setKategoriFiltre] = useState<"AKTIF" | "PASIF" | "TUMU">("AKTIF");
   const [acanFiltre, setAcanFiltre] = useState("");
   const [turFiltre, setTurFiltre] = useState("");
+  const [bolgeFiltre, setBolgeFiltre] = useState("");
+  const [unvanFiltre, setUnvanFiltre] = useState("");
   const [arama, setArama] = useState("");
 
   // Filtreler birbirini etkiler: her dropdown, DİĞER filtrelerin sonucuna göre
@@ -37,10 +39,24 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
     return Array.from(set);
   }, [kategoriyeGoreFiltrelenmis, acanFiltre]);
 
+  const bolgeListesi = useMemo(() => {
+    const set = new Set<string>();
+    kategoriyeGoreFiltrelenmis.forEach((t) => { if (t.magazalar?.bolgeler?.ad) set.add(t.magazalar.bolgeler.ad); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
+  }, [kategoriyeGoreFiltrelenmis]);
+
+  const unvanListesi = useMemo(() => {
+    const set = new Set<string>();
+    kategoriyeGoreFiltrelenmis.forEach((t) => { if (t.pozisyon_tipi) set.add(t.pozisyon_tipi); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
+  }, [kategoriyeGoreFiltrelenmis]);
+
   const filtrelenmis = useMemo(() => {
     return kategoriyeGoreFiltrelenmis.filter((t) => {
       if (acanFiltre && t.acan_kullanici_id !== acanFiltre) return false;
       if (turFiltre && t.talep_turu !== turFiltre) return false;
+      if (bolgeFiltre && t.magazalar?.bolgeler?.ad !== bolgeFiltre) return false;
+      if (unvanFiltre && t.pozisyon_tipi !== unvanFiltre) return false;
       if (arama) {
         const q = arama.toLocaleLowerCase("tr-TR");
         const hedefMetin = `${t.talep_no} ${t.magazalar?.magaza_adi ?? ""} ${t.acanAdi ?? ""} ${t.pozisyon_tipi ?? ""}`.toLocaleLowerCase("tr-TR");
@@ -48,7 +64,7 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
       }
       return true;
     });
-  }, [kategoriyeGoreFiltrelenmis, acanFiltre, turFiltre, arama]);
+  }, [kategoriyeGoreFiltrelenmis, acanFiltre, turFiltre, bolgeFiltre, unvanFiltre, arama]);
 
   // Seçili ama artık mevcut seçeneklerde olmayan bir filtre kalırsa (diğer
   // filtre daraltınca) otomatik temizlensin diye basit bir koruma.
@@ -90,6 +106,18 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
           className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
           <option value="">Tüm Türler</option>
           {turListesi.map((k) => <option key={k} value={k}>{TALEP_TURU_ETIKET[k] ?? k}</option>)}
+        </select>
+
+        <select value={bolgeFiltre} onChange={(e) => setBolgeFiltre(e.target.value)}
+          className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
+          <option value="">Tüm Bölgeler</option>
+          {bolgeListesi.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+
+        <select value={unvanFiltre} onChange={(e) => setUnvanFiltre(e.target.value)}
+          className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
+          <option value="">Tüm Ünvanlar</option>
+          {unvanListesi.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
 
         <div className="relative flex-1 min-w-[180px] max-w-xs">
