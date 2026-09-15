@@ -31,7 +31,7 @@ const SABLONLAR: Sablon[] = [
     key: "personel",
     label: "Personel",
     aciklama:
-      "Şablon sütunları: Personel Kodu, TC Kimlik No, Adı-Soyadı, Departman Kodu, Departman Açıklaması, İş Ünvanı Açıklaması, İşyeri Başlama Tarihi, İşten Ayrılma Tarihi, İşten Ayrılma Açıklaması (SGK), Doğum Tarihi, Cinsiyet Açıklaması, Bölge Açıklama, Bölge Müdürü Açıklama, İlk Başlama Tarihi. Not: İşten Ayrılma Tarihi dolu olan satırlar otomatik atlanır (kişi pasife alınır, SGK açıklaması kaydedilir — Turnover artık bu bilgiden otomatik hesaplanır, ayrıca Turnover şablonu yüklemenize gerek yok). Mağaza (Departman Kodu) sistemde önceden kayıtlı olmalı.",
+      "Şablon sütunları: Personel Kodu, TC Kimlik No, Adı-Soyadı, Departman Kodu, Departman Açıklaması, İş Ünvanı Açıklaması, İşyeri Başlama Tarihi, İşten Ayrılma Tarihi, SGK İşten Ayrılma Açıklaması, Doğum Tarihi, Cinsiyet Açıklaması, Bölge Açıklama, Bölge Müdürü Açıklama, İlk Başlama Tarihi. Not: İşten Ayrılma Tarihi dolu olan satırlar otomatik atlanır (kişi pasife alınır, SGK açıklaması kaydedilir — Turnover artık bu bilgiden otomatik hesaplanır, ayrıca Turnover şablonu yüklemenize gerek yok). Mağaza (Departman Kodu) sistemde önceden kayıtlı olmalı.",
     action: iceAktarPersonel,
     parcaBoyutu: 800,
   },
