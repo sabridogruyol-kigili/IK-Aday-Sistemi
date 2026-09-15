@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import MagazaYorumModal from "./MagazaYorumModal";
+import type { MagazaYorum } from "./actions-yorum";
 
 type Satir = {
   id: string;
@@ -58,7 +60,12 @@ function KadroGrubu({ norm, dolu }: { norm: number; dolu: number }) {
   );
 }
 
-export default function NormTablosu({ satirlar }: { satirlar: Satir[] }) {
+export default function NormTablosu({ satirlar, sonYorumlar, benimRolum }: {
+  satirlar: Satir[];
+  sonYorumlar: Record<string, Partial<Record<"IK" | "BM" | "YONETIM", MagazaYorum>>>;
+  benimRolum: string;
+}) {
+  const [yorumModal, setYorumModal] = useState<{ magazaId: string; magazaAdi: string; rol: "IK" | "BM" | "YONETIM" } | null>(null);
   const [arama, setArama] = useState("");
   const [bolgeFiltre, setBolgeFiltre] = useState("");
   const [durumFiltre, setDurumFiltre] = useState<Set<Durum>>(new Set());
@@ -138,12 +145,15 @@ export default function NormTablosu({ satirlar }: { satirlar: Satir[] }) {
               <th className="text-center p-3 border-l border-gray-100">Dönemsel</th>
               <th className="text-center p-3 border-l border-gray-100">Part-Time</th>
               <th className="text-center p-3 border-l border-gray-100 bg-gray-100/60">Toplam</th>
+              <th className="text-left p-3 border-l border-gray-100">İK Yorum</th>
+              <th className="text-left p-3 border-l border-gray-100">BM Yorum</th>
+              <th className="text-left p-3 border-l border-gray-100">Yönetim Yorum</th>
             </tr>
           </thead>
           <tbody>
             {filtrelenmis.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-gray-400 text-xs">
+                <td colSpan={10} className="p-8 text-center text-gray-400 text-xs">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-2 opacity-50">
                     <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
                   </svg>
@@ -165,12 +175,45 @@ export default function NormTablosu({ satirlar }: { satirlar: Satir[] }) {
                   <td className="p-3 border-l border-gray-50"><KadroGrubu norm={s.donemsel_norm} dolu={s.donemsel_dolu} /></td>
                   <td className="p-3 border-l border-gray-50"><KadroGrubu norm={s.part_time_norm} dolu={s.part_time_dolu} /></td>
                   <td className="p-3 border-l border-gray-50 bg-gray-50/60"><KadroGrubu norm={s.toplam_norm} dolu={s.toplam_dolu} /></td>
+                  {(["IK", "BM", "YONETIM"] as const).map((rol) => {
+                    const son = sonYorumlar[s.id]?.[rol];
+                    return (
+                      <td key={rol} className="p-3 border-l border-gray-50 align-top max-w-[160px]">
+                        {son ? (
+                          <>
+                            <div className="text-[11px] text-gray-600 line-clamp-2">{son.yorum}</div>
+                            <div className="text-[9px] text-gray-400 mt-0.5">
+                              {son.yazan_ad_soyad} · {new Date(son.created_at).toLocaleDateString("tr-TR")}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-[11px] text-gray-300 italic">Yorum yok</div>
+                        )}
+                        <button
+                          onClick={() => setYorumModal({ magazaId: s.id, magazaAdi: s.magaza_adi, rol })}
+                          className="text-[10px] font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-1.5 py-0.5 mt-1 transition-colors"
+                        >
+                          Detay
+                        </button>
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {yorumModal && (
+        <MagazaYorumModal
+          magazaId={yorumModal.magazaId}
+          magazaAdi={yorumModal.magazaAdi}
+          rol={yorumModal.rol}
+          benimRolum={benimRolum}
+          onClose={() => setYorumModal(null)}
+        />
+      )}
     </div>
   );
 }
