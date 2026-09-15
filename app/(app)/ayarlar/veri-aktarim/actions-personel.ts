@@ -197,6 +197,7 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
   // "güncel durum" (aktif/pasif) belirleyip, TÜM dönemleri ayrıca atama
   // geçmişine yazıyoruz.
   const tcDonemleri = new Map<string, (GecerliSatir | AyrilanSatir)[]>();
+  let teshisSayaci = 0; // Geçici teşhis sayacı — SGK sütunu eşleşmesini görmek için
 
   const gecerliler: GecerliSatir[] = [];
   const ayrilanlar: AyrilanSatir[] = [];
@@ -266,7 +267,25 @@ export async function iceAktarPersonel(rowsHam: any[]): Promise<Sonuc> {
     };
 
     const donem: GecerliSatir | AyrilanSatir = gercektenAyrilmisMi
-      ? { ...ortakAlanlar, ayrilma_tarihi: ayrilmaTarihiParsed as string, sgk_aciklama: sutunBul(r, "SGK", "AYRILMA", "AÇIKLAMA") ? String(sutunBul(r, "SGK", "AYRILMA", "AÇIKLAMA")).trim() || null : null }
+      ? { ...ortakAlanlar, ayrilma_tarihi: ayrilmaTarihiParsed as string, sgk_aciklama: (() => {
+          const sgkDeger = sutunBul(r, "SGK", "AYRILMA", "AÇIKLAMA");
+          // Teşhis: ilk 3 ayrılmış satır için, SGK sütunu için gerçekte
+          // hangi anahtarın bulunduğunu ve ham değerini rapor et — sorunun
+          // "sütun bulunamıyor" mu yoksa "sütun bulunuyor ama değer boş/
+          // farklı" mı olduğunu netleştirmek için.
+          if (teshisSayaci < 3) {
+            teshisSayaci++;
+            const eslesenAnahtar = Object.keys(r).find((k) => {
+              const n = sadelestir(k);
+              return n.includes("SGK") && n.includes("AYRILMA") && n.includes("ACIKLAMA");
+            });
+            hatalar.push({
+              satir: satirNo,
+              hata: `[TEŞHİS] Eşleşen sütun adı: ${eslesenAnahtar ? `"${eslesenAnahtar}"` : "BULUNAMADI"} — ham değer: ${JSON.stringify(sgkDeger)}`,
+            });
+          }
+          return sgkDeger ? String(sgkDeger).trim() || null : null;
+        })() }
       : ortakAlanlar;
 
     if (!tcDonemleri.has(tcKimlikNo)) tcDonemleri.set(tcKimlikNo, []);
