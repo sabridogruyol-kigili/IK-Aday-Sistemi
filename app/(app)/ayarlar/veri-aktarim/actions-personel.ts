@@ -18,17 +18,48 @@ function sicilNormalize(kod: string): string {
 
 function excelTarih(v: any): string | null {
   if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "number") {
-    const ms = Math.round((v - 25569) * 86400 * 1000);
+
+  function seriTarihtenCevir(sayi: number): string {
+    const ms = Math.round((sayi - 25569) * 86400 * 1000);
     return new Date(ms).toISOString().slice(0, 10);
   }
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  const s = String(v).trim();
-  const m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  return null;
+
+  // Makul bir tarih aralığında mı? (1970 - şu anki yıl + 1). Bu aralığın
+  // dışına çıkan bir sonuç, gerçek bir tarih değil, bir ayrıştırma
+  // hatasıdır (örn. "129 yıl kıdem" gibi saçma sonuçlara yol açan asıl
+  // sebep buydu) — bu yüzden tarih olarak KABUL EDİLMEZ, null döner.
+  function makulMu(isoTarih: string): boolean {
+    const yil = parseInt(isoTarih.slice(0, 4), 10);
+    return yil >= 1970 && yil <= new Date().getFullYear() + 1;
+  }
+
+  let sonuc: string | null = null;
+
+  if (typeof v === "number") {
+    sonuc = seriTarihtenCevir(v);
+  } else if (v instanceof Date) {
+    sonuc = v.toISOString().slice(0, 10);
+  } else {
+    const s = String(v).trim();
+    // Excel'in sayısal tarih kodu bazen METİN olarak geliyor (örn. "44197")
+    // — bu durumda önce seri tarih olarak yorumlanmayı deniyoruz, aksi
+    // halde bu, aşağıdaki genel "new Date(string)" ayrıştırıcısına düşüp
+    // tamamen anlamsız bir tarihe (dolayısıyla saçma bir kıdeme) yol açabiliyordu.
+    if (/^\d{4,6}(\.\d+)?$/.test(s)) {
+      sonuc = seriTarihtenCevir(parseFloat(s));
+    } else {
+      const m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+      if (m) {
+        sonuc = `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+      } else {
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) sonuc = d.toISOString().slice(0, 10);
+      }
+    }
+  }
+
+  if (sonuc && !makulMu(sonuc)) return null;
+  return sonuc;
 }
 
 function baslikNormallestir(s: string): string {
