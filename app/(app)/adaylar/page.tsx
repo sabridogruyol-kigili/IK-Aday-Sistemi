@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import HavuzKarti from "./HavuzKarti";
+import AdayHavuzuIcerik from "./AdayHavuzuIcerik";
 
 export default async function AdaylarPage() {
   const supabase = createClient();
@@ -16,11 +16,12 @@ export default async function AdaylarPage() {
   // yönlendirilebileceği bir bekleme alanı. Aktif süreçteki adaylar burada
   // DEĞİL, ilgili oldukları talebin altında (Talepler sayfası) görünür —
   // burası sadece talepten bağımsızlaşmış (talep_id NULL, durum HAVUZDA)
-  // kayıtları listeler.
+  // kayıtları listeler. Artık "Yeni Aday Ekle" ile hiç talebe bağlı olmadan
+  // da doğrudan buraya aday eklenebiliyor.
   const [{ data: havuzdakiler }, { data: aktifIseAlimTalepleri }] = await Promise.all([
     supabase
       .from("adaylar")
-      .select("id, ad_soyad, telefon, email, cv_drive_link, tc_kimlik_no, updated_at, magazalar!havuz_magaza_id(magaza_adi)")
+      .select("id, ad_soyad, telefon, email, cv_drive_link, tc_kimlik_no, unvan, referans, updated_at, magazalar!havuz_magaza_id(magaza_adi)")
       .eq("durum", "HAVUZDA")
       .order("updated_at", { ascending: false }),
     supabase
@@ -39,28 +40,16 @@ export default async function AdaylarPage() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        {(havuzdakiler ?? []).map((h: any) => (
-          <HavuzKarti
-            key={h.id}
-            adayId={h.id}
-            adSoyad={h.ad_soyad}
-            telefon={h.telefon}
-            email={h.email}
-            cvLink={h.cv_drive_link}
-            tcKimlikNo={h.tc_kimlik_no}
-            havuzMagaza={h.magazalar?.magaza_adi}
-            aktifIseAlimTalepleri={(aktifIseAlimTalepleri ?? []).map((t: any) => ({
-              id: t.id, talep_no: t.talep_no, magaza_adi: t.magazalar?.magaza_adi ?? "—",
-            }))}
-          />
-        ))}
-        {(havuzdakiler ?? []).length === 0 && (
-          <div className="bg-white border border-gray-200 rounded-card p-6 text-center text-gray-400 text-xs">
-            Havuzda hiç aday yok. Bir adayı havuza almak için, ilgili talebin süreç detayında "Beklesin" kararı verip ardından "Aday Havuzuna Al"a basın.
-          </div>
-        )}
-      </div>
+      <AdayHavuzuIcerik
+        havuzdakiler={(havuzdakiler ?? []).map((h: any) => ({
+          id: h.id, ad_soyad: h.ad_soyad, telefon: h.telefon, email: h.email,
+          cv_drive_link: h.cv_drive_link, tc_kimlik_no: h.tc_kimlik_no, unvan: h.unvan, referans: h.referans,
+          havuz_magaza_adi: h.magazalar?.magaza_adi,
+        }))}
+        aktifIseAlimTalepleri={(aktifIseAlimTalepleri ?? []).map((t: any) => ({
+          id: t.id, talep_no: t.talep_no, magaza_adi: t.magazalar?.magaza_adi ?? "—",
+        }))}
+      />
     </div>
   );
 }
