@@ -5,10 +5,10 @@ import { adayiHavuzdanYonlendir } from "./actions";
 import CvGoruntuleyici from "./CvGoruntuleyici";
 
 export default function HavuzKarti({
-  adayId, adSoyad, telefon, email, cvLink, tcKimlikNo, havuzMagaza, aktifIseAlimTalepleri,
+  adayId, adSoyad, telefon, email, cvLink, tcKimlikNo, havuzMagaza, unvan, referans, aktifIseAlimTalepleri,
 }: {
   adayId: string; adSoyad: string; telefon: string | null; email: string | null; cvLink: string | null;
-  tcKimlikNo: string | null; havuzMagaza?: string;
+  tcKimlikNo: string | null; havuzMagaza?: string; unvan?: string | null; referans?: string | null;
   aktifIseAlimTalepleri: { id: string; talep_no: string; magaza_adi: string }[];
 }) {
   const [pending, startTransition] = useTransition();
@@ -42,10 +42,15 @@ export default function HavuzKarti({
     <div className="bg-white border border-gray-200 rounded-card p-3">
       <div className="flex items-start justify-between mb-1.5">
         <div>
-          <div className="font-medium text-navy-3 text-sm">{adSoyad}</div>
+          <div className="font-medium text-navy-3 text-sm flex items-center gap-1.5">
+            {adSoyad}
+            {unvan && <span className="text-[10px] font-normal bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">{unvan}</span>}
+            {referans && <span className="text-[10px] font-normal bg-accent/15 text-accent rounded-full px-2 py-0.5">Referanslı</span>}
+          </div>
           <div className="text-[11px] text-gray-500 mt-0.5">
             Son mağaza: {havuzMagaza ?? "—"} · {telefon ?? "Telefon —"} · {email ?? "E-posta —"}
           </div>
+          {referans && <div className="text-[11px] text-gray-400 mt-0.5">Referans: {referans}</div>}
           {cvLink && (
             <button onClick={() => setCvAcik(true)} className="text-xs font-medium bg-white border border-info/40 text-info hover:bg-info/5 rounded-md px-2.5 py-1 transition-colors">CV Görüntüle</button>
           )}
