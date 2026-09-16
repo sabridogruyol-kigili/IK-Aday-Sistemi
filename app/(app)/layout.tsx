@@ -8,6 +8,7 @@ import SidebarNav from "./SidebarNav";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/benim-performansim", label: "Performansım", icon: "dashboard" },
   { href: "/norm", label: "HR Connect", icon: "norm" },
   { href: "/talepler/yeni", label: "Yeni Talep", icon: "yeni" },
   { href: "/talepler", label: "Talepler", icon: "talepler" },
@@ -55,11 +56,19 @@ export default async function AppLayout({
     "/dashboard", "/norm", "/onay-bekleyenler", "/talepler", "/personel", "/evrak-onay",
   ]);
 
+  // Çalışan: hiçbir talep/aday/evrak/rapor bilgisine erişimi yok — sadece
+  // kendi performansını görebilir ve kendisini ilgilendiren onaylar (örn.
+  // bir rotasyon talebinde kendi onayı istendiğinde) için Onay
+  // Bekleyenler'e erişir.
+  const CALISAN_GORUNUR_HREFLER = new Set(["/benim-performansim", "/onay-bekleyenler"]);
+
   const visibleNavItems = navItems.filter((item) => {
     if (item.href === "/ayarlar/kullanicilar" && profile?.rol !== "YONETIM") return false;
     if (item.href === "/evrak-onay" && profile?.rol !== "IK" && profile?.rol !== "YONETIM" && profile?.rol !== "BORDRO") return false;
     if (profile?.rol === "MAGAZALAR_DIREKTORLUGU" && !DIREKTOR_GORUNUR_HREFLER.has(item.href)) return false;
     if (profile?.rol === "BORDRO" && !BORDRO_GORUNUR_HREFLER.has(item.href)) return false;
+    if (profile?.rol === "CALISAN" && !CALISAN_GORUNUR_HREFLER.has(item.href)) return false;
+    if (item.href === "/benim-performansim" && profile?.rol !== "CALISAN") return false;
     return true;
   });
 
