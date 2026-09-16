@@ -7,6 +7,7 @@ const SEKMELER = [
   { href: "/ayarlar/veri-aktarim", label: "Veri Yönetimi" },
   { href: "/ayarlar/maas-bilgileri", label: "Maaş Bilgileri" },
   { href: "/ayarlar/sistem", label: "Sistem Ayarları" },
+  { href: "/ayarlar/simulasyon", label: "Simülasyon" },
 ];
 
 export default async function AyarlarLayout({ children }: { children: React.ReactNode }) {
