@@ -630,3 +630,46 @@ export async function getAdaySurecGecmisi(adayId: string): Promise<{ data: Surec
 
   return { data: adimlar };
 }
+
+// Aday Havuzu'na, hiçbir talebe bağlı olmadan DOĞRUDAN aday ekler — normal
+// işe alım sürecindeki gibi bilgiler (ad soyad, telefon, e-posta, CV) artı
+// ünvan, not ve referans bilgisi alınır. talep_id NULL, durum doğrudan
+// HAVUZDA olarak kaydedilir.
+export async function havuzaDogrudanAdayEkle(formData: FormData): Promise<{ error?: string }> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Giriş yapmalısınız." };
+
+  const { data: me } = await supabase.from("kullanicilar").select("id, rol").eq("email", user.email).single();
+  if (!me || !["BM", "IK", "YONETIM"].includes(me.rol)) return { error: "Aday ekleme yetkiniz yok." };
+
+  const adSoyad = String(formData.get("ad_soyad") ?? "").trim();
+  const telefon = String(formData.get("telefon") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const unvan = String(formData.get("unvan") ?? "").trim();
+  const notlar = String(formData.get("notlar") ?? "").trim();
+  const referans = String(formData.get("referans") ?? "").trim();
+  const cvYolu = String(formData.get("cv_yolu") ?? "").trim();
+
+  if (!adSoyad) return { error: "Aday adı zorunlu." };
+  if (!unvan) return { error: "Ünvan zorunlu." };
+  if (!cvYolu) return { error: "CV yüklemeden aday eklenemez." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Geçerli bir e-posta adresi zorunlu." };
+
+  const { error } = await supabase.from("adaylar").insert({
+    talep_id: null,
+    ad_soyad: adSoyad,
+    telefon: telefon || null,
+    email: email,
+    unvan: unvan,
+    notlar: notlar || null,
+    referans: referans || null,
+    cv_drive_link: cvYolu,
+    yonlendiren_kullanici_id: me.id,
+    yonlendiren_rol: me.rol,
+    karari_veren_rol: me.rol === "YONETIM" ? "BM_VE_IK" : (me.rol === "BM" ? "IK" : "BM"),
+    durum: "HAVUZDA",
+  });
+
+  return { error: error?.message };
+}
