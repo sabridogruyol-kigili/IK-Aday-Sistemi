@@ -10,8 +10,17 @@ export async function createKullanici(formData: FormData): Promise<{ error?: str
   const adSoyad = String(formData.get("ad_soyad") ?? "").trim();
   const rol = String(formData.get("rol") ?? "");
   const bolgeIds = formData.getAll("bolge_ids").map(String);
+  const personelTc = String(formData.get("personel_tc") ?? "").trim();
 
   if (!email || !adSoyad || !rol) return { error: "E-posta, ad soyad ve rol zorunlu." };
+
+  let personelId: string | null = null;
+  if (rol === "CALISAN") {
+    if (!personelTc) return { error: "Çalışan rolü için personel TC'si zorunlu." };
+    const { data: personel } = await supabase.from("personel").select("id").eq("tc_kimlik_no", personelTc).maybeSingle();
+    if (!personel) return { error: "Bu TC ile eşleşen bir personel bulunamadı." };
+    personelId = personel.id;
+  }
 
   // Bu e-posta zaten kayıtlıysa (örn. birisi var olan bir kullanıcıyı bu
   // formdan tekrar eklemeye çalıştıysa) eskiden burada SESSİZCE hiçbir şey
@@ -34,7 +43,7 @@ export async function createKullanici(formData: FormData): Promise<{ error?: str
 
   const { data: yeniKullanici, error } = await supabase
     .from("kullanicilar")
-    .insert({ email, ad_soyad: adSoyad, rol })
+    .insert({ email, ad_soyad: adSoyad, rol, personel_id: personelId })
     .select("id")
     .single();
 
