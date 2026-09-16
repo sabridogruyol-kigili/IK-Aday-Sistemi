@@ -11,6 +11,7 @@ export default function YeniKullaniciFormu({ bolgeler }: { bolgeler: Bolge[] }) 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const bolgeGerekli = rol === "BM" || rol === "IK";
+  const personelGerekli = rol === "CALISAN";
 
   function ekle(formData: FormData) {
     setError(null);
@@ -41,11 +42,18 @@ export default function YeniKullaniciFormu({ bolgeler }: { bolgeler: Bolge[] }) 
             <option value="YONETIM">Yönetim</option>
             <option value="MAGAZALAR_DIREKTORLUGU">Mağazalar Direktörlüğü</option>
             <option value="BORDRO">Bordro ve Çalışma İlişkileri</option>
+            <option value="CALISAN">Çalışan</option>
           </select>
         </div>
         {bolgeGerekli && (
           <div className="col-span-3">
             <BolgeDropdown bolgeler={bolgeler} />
+          </div>
+        )}
+        {personelGerekli && (
+          <div className="col-span-3">
+            <label className="block text-[10px] font-semibold text-navy-3 uppercase mb-1">Personel TC *</label>
+            <input name="personel_tc" required placeholder="Bağlanacak personelin TC'si" className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
           </div>
         )}
         <div className="col-span-1">
