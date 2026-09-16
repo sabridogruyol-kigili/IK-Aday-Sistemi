@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CikisButonu from "./CikisButonu";
 import TemaDegistirici from "./TemaDegistirici";
+import ProfilKarti from "./ProfilKarti";
 import AiAsistan from "./ai/AiAsistan";
 import SidebarNav from "./SidebarNav";
 
@@ -76,15 +77,7 @@ export default async function AppLayout({
           <div className="text-white/40 text-[9px] uppercase tracking-wide text-center">Organizasyonel Gelişim</div>
           <TemaDegistirici />
           <CikisButonu />
-          <div className="flex items-center gap-2.5">
-            <div className="w-[30px] h-[30px] rounded-full bg-accent border border-white/20 flex items-center justify-center text-[11px] font-semibold text-navy-3 shrink-0">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-white text-xs font-medium leading-tight truncate">{displayName}</div>
-              <div className="text-white/40 text-[10px] tracking-wide">{profile?.rol ?? "—"}</div>
-            </div>
-          </div>
+          <ProfilKarti displayName={displayName} rol={profile?.rol ?? ""} initials={initials} />
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto bg-[#FAFAF8]">
