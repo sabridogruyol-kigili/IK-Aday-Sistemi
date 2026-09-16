@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OnayKarti from "./OnayKarti";
 import BordroBekleyenListesi from "./BordroBekleyenListesi";
+import ProfilTalepleriListesi from "./ProfilTalepleriListesi";
+import { getBekleyenProfilTalepleri } from "../ProfilActions";
 import { BELGE_LISTESI, belgeGorunurMu } from "@/lib/evrakSabitleri";
 
 export default async function OnayBekleyenlerPage() {
@@ -41,12 +43,23 @@ export default async function OnayBekleyenlerPage() {
         .map((p: any) => ({ id: p.id, ad_soyad: p.ad_soyad, guncel_unvan: p.guncel_unvan, magaza_adi: p.magazalar?.magaza_adi ?? null }));
     }
 
+    const profilTalepleri = await getBekleyenProfilTalepleri();
+
     return (
       <div>
         <div className="mb-4">
           <div className="text-lg font-semibold text-navy-3">Onay Bekleyenler</div>
-          <div className="text-xs text-gray-400 mt-0.5">Evrakları onaylanmış, sisteme giriş bekleyen kişiler</div>
+          <div className="text-xs text-gray-400 mt-0.5">Evrakları onaylanmış, sisteme giriş bekleyen kişiler ve profil değişiklik talepleri</div>
         </div>
+
+        {profilTalepleri.length > 0 && (
+          <div className="mb-5">
+            <div className="text-[11px] font-semibold text-navy-3 uppercase tracking-wide mb-2">Profil Değişiklik Talepleri</div>
+            <ProfilTalepleriListesi talepler={profilTalepleri} />
+          </div>
+        )}
+
+        <div className="text-[11px] font-semibold text-navy-3 uppercase tracking-wide mb-2">Sisteme Giriş Bekleyenler</div>
         <BordroBekleyenListesi kisiler={bekleyenler} benimRolum={me.rol} />
       </div>
     );
