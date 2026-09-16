@@ -301,18 +301,24 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
   // kişinin güncel ünvanına göre karşılık gelen maaş burada aranır.
   // Personel_Şablonu'ndan gelen ünvanlar TAMAMEN BÜYÜK HARF ("MAĞAZA
   // MÜDÜRÜ"), Ayarlar'daki unvan_maas tablosu ise normal yazım ("Mağaza
-  // Müdürü") kullanıyor — bu yüzden eşleştirme büyük/küçük harf duyarsız
-  // yapılıyor (eq değil ilike).
+  // Müdürü") kullanıyor. "ilike" büyük/küçük harfi tolere ediyor ama
+  // baştaki/sondaki görünmeyen boşlukları etmiyor — bu yüzden artık TÜM
+  // unvan_maas satırları çekilip JS tarafında, HER İKİ taraf da
+  // (boşluklardan arındırılmış + büyük harfe çevrilmiş hâliyle)
+  // karşılaştırılıyor. Küçük bir tablo olduğu için performans sorunu
+  // yaratmaz, ama görünmeyen boşluk farkı gibi durumlara karşı çok daha
+  // dayanıklı.
   let brutMaas: number | null = null;
   let brutMaasHata: string | null = null;
   if (magazaHam.guncel_unvan) {
-    const { data: unvanMaasKaydi, error: unvanMaasHata } = await supabase
-      .from("unvan_maas")
-      .select("brut_maas")
-      .ilike("unvan", magazaHam.guncel_unvan)
-      .maybeSingle();
-    if (unvanMaasHata) brutMaasHata = unvanMaasHata.message;
-    brutMaas = unvanMaasKaydi?.brut_maas ?? null;
+    const { data: tumUnvanMaaslar, error: unvanMaasHata } = await supabase.from("unvan_maas").select("unvan, brut_maas");
+    if (unvanMaasHata) {
+      brutMaasHata = unvanMaasHata.message;
+    } else {
+      const aranan = magazaHam.guncel_unvan.trim().toLocaleUpperCase("tr-TR");
+      const eslesen = (tumUnvanMaaslar ?? []).find((u: any) => u.unvan.trim().toLocaleUpperCase("tr-TR") === aranan);
+      brutMaas = eslesen?.brut_maas ?? null;
+    }
   }
 
   // Basit tahmini kıdem tazminatı: (tavanı aşmayan brüt maaş) × kıdem yılı.
