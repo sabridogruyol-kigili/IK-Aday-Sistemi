@@ -7,6 +7,7 @@ import { getMagazaBilgi, type MagazaBilgi } from "../talepler/yeni/actions-magaz
 import { getPersonelPerformansGecmisi, getPersonelDetay, type PersonelAylikHgo, type PersonelDetay } from "../talepler/yeni/actions-cikarma";
 import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 import MagazaGrafikPaneli from "../talepler/yeni/MagazaGrafikPaneli";
+import PersonelDetayModal from "../personel/PersonelDetayModal";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
@@ -34,6 +35,7 @@ export default function OnayKarti({
   normKategori?: string; normEski?: number; normYeni?: number;
 }) {
   const [pending, startTransition] = useTransition();
+  const [detayModalAcik, setDetayModalAcik] = useState(false);
   const [redMod, setRedMod] = useState(false);
   const koyuMu = useTemaKoyuMu();
   const rk = grafikRenkleri(koyuMu);
@@ -91,8 +93,27 @@ export default function OnayKarti({
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
             {talepTuru === "ISE_ALIM" && <>{magaza} — {pozisyon} — {kisiSayisi} kişi</>}
-            {talepTuru === "ISTEN_CIKARMA" && <>{magaza} — {cikarilacakPersonelAdi} ({cikarilacakPersonelUnvan})</>}
-            {talepTuru === "ROTASYON" && <>{cikarilacakPersonelAdi} — {magaza} → {hedefMagaza}</>}
+            {talepTuru === "ISTEN_CIKARMA" && (
+              <>
+                {magaza} —{" "}
+                {cikarilacakPersonelId ? (
+                  <button onClick={() => setDetayModalAcik(true)} className="underline decoration-dotted hover:text-navy">
+                    {cikarilacakPersonelAdi}
+                  </button>
+                ) : cikarilacakPersonelAdi}{" "}
+                ({cikarilacakPersonelUnvan})
+              </>
+            )}
+            {talepTuru === "ROTASYON" && (
+              <>
+                {cikarilacakPersonelId ? (
+                  <button onClick={() => setDetayModalAcik(true)} className="underline decoration-dotted hover:text-navy">
+                    {cikarilacakPersonelAdi}
+                  </button>
+                ) : cikarilacakPersonelAdi}{" "}
+                — {magaza} → {hedefMagaza}
+              </>
+            )}
             {talepTuru === "NORM_DEGISIKLIK" && <>{magaza} — {KATEGORI_LABEL[normKategori ?? ""] ?? normKategori}: {normEski} → {normYeni}</>}
             {" "}— Açan: {acanRol}
           </div>
@@ -221,6 +242,15 @@ export default function OnayKarti({
         </div>
       )}
       {error && <div className="text-xs text-danger mt-2">{error}</div>}
+      {detayModalAcik && cikarilacakPersonelId && (
+        <PersonelDetayModal
+          personelId={cikarilacakPersonelId}
+          adSoyad={cikarilacakPersonelAdi ?? ""}
+          guncelUnvan={cikarilacakPersonelUnvan ?? ""}
+          magazaAdi={magaza ?? ""}
+          onClose={() => setDetayModalAcik(false)}
+        />
+      )}
     </div>
   );
 }
