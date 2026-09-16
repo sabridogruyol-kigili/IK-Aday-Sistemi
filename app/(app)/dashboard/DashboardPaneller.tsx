@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getMagazaCalisanGecmisi, type MagazaCalisanSatiri } from "./actions";
 import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
+import PersonelDetayModal from "../personel/PersonelDetayModal";
 
 type Magaza = {
   id: string; magaza_kodu: string; magaza_adi: string; bolge_id: string | null; bolge_adi: string; il_adi: string | null;
@@ -305,6 +306,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
   const [ayFiltre, setAyFiltre] = useState("");
 
   const [seciliMagazaId, setSeciliMagazaId] = useState<string | null>(null);
+  const [detayPersonel, setDetayPersonel] = useState<{ id: string; adSoyad: string; unvan: string } | null>(null);
 
   // "Mağazalar — Performans" kutusundaki KPI'lar için elle dönem seçimi (null ise
   // otomatik en güncel dönem kullanılır).
@@ -510,7 +512,7 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
     if (calisanListesiDonem === null) return [];
     return magazaCalisanGecmisi
       .filter((s) => s.yil * 100 + s.ay === calisanListesiDonem)
-      .map((s) => ({ ad_soyad: s.ad_soyad, unvan: s.guncel_unvan, hgo: s.hgo }))
+      .map((s) => ({ personel_id: s.personel_id, ad_soyad: s.ad_soyad, unvan: s.guncel_unvan, hgo: s.hgo }))
       .sort((a, b) => (b.hgo ?? -Infinity) - (a.hgo ?? -Infinity));
   }, [magazaCalisanGecmisi, calisanListesiDonem]);
 
@@ -783,7 +785,11 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
                         const renk = c.hgo !== null ? hgoRenk(c.hgo) : null;
                         return (
                           <tr key={i} className="border-t border-gray-50">
-                            <td className="px-2 py-1.5 text-navy-3 font-medium">{c.ad_soyad}</td>
+                            <td className="px-2 py-1.5 text-navy-3 font-medium">
+                              <button onClick={() => setDetayPersonel({ id: c.personel_id, adSoyad: c.ad_soyad, unvan: c.unvan ?? "" })} className="underline decoration-dotted hover:text-navy">
+                                {c.ad_soyad}
+                              </button>
+                            </td>
                             <td className="px-2 py-1.5 text-gray-500">{c.unvan ?? "—"}</td>
                             <td className={`px-2 py-1.5 text-right font-mono font-semibold ${renk ? renk.metin : "text-gray-400"}`}>
                               {c.hgo !== null ? `%${c.hgo.toFixed(1)}` : "—"}
@@ -803,6 +809,15 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
 
     <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="hgo" />
     <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="adet_hgo" />
+    {detayPersonel && (
+      <PersonelDetayModal
+        personelId={detayPersonel.id}
+        adSoyad={detayPersonel.adSoyad}
+        guncelUnvan={detayPersonel.unvan}
+        magazaAdi={seciliMagaza?.magaza_adi ?? ""}
+        onClose={() => setDetayPersonel(null)}
+      />
+    )}
     </>
   );
 }
