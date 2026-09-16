@@ -111,6 +111,15 @@ export async function createRotasyonTalebi(formData: FormData): Promise<Sonuc> {
 
   roleMap.delete(me.id); // açan taraf kendi talebini onaylamaz
 
+  // Taşınan personelin KENDİ bir kullanıcı hesabı (Çalışan rolü) varsa, o da
+  // onaylayıcılara eklenir — rotasyon, ilgili kişinin de onayı olmadan
+  // tamamlanamaz.
+  const { data: personelinHesabi } = await supabase
+    .from("kullanicilar").select("id").eq("personel_id", personelId).eq("aktif", true).maybeSingle();
+  if (personelinHesabi && personelinHesabi.id !== me.id) {
+    roleMap.set(personelinHesabi.id, "CALISAN");
+  }
+
   const onaySatirlari = Array.from(roleMap.entries()).map(([kullanici_id, rol]) => ({
     gonderim_id: gonderim.id, onaylayici_kullanici_id: kullanici_id, onaylayici_rol_baglami: rol,
   }));
