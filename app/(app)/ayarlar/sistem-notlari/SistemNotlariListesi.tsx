@@ -1,16 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { getSistemNotlari, sistemNotuEkle, sistemNotuDurumDegistir, sistemNotuDuzenle, sistemNotuSil, type SistemNotu } from "./actions";
+import { getSistemNotlari, sistemNotuEkle, sistemNotuDurumDegistir, sistemNotuDuzenle, sistemNotuSil, sistemNotuOnemDegistir, type SistemNotu } from "./actions";
+
+const ONEM_ETIKET: Record<string, { ad: string; sinif: string }> = {
+  AZ: { ad: "Az Önemli", sinif: "bg-gray-100 text-gray-500" },
+  ORTA: { ad: "Orta Önemli", sinif: "bg-accent/15 text-accent" },
+  COK: { ad: "Çok Önemli", sinif: "bg-danger-bg text-danger" },
+};
 
 export default function SistemNotlariListesi({ ilkNotlar }: { ilkNotlar: SistemNotu[] }) {
   const [notlar, setNotlar] = useState<SistemNotu[]>(ilkNotlar);
   const [yeniMetin, setYeniMetin] = useState("");
+  const [yeniOnem, setYeniOnem] = useState<"AZ" | "ORTA" | "COK">("ORTA");
   const [ekleniyor, setEkleniyor] = useState(false);
   const [duzenlenenId, setDuzenlenenId] = useState<string | null>(null);
   const [duzenlemeMetni, setDuzenlemeMetni] = useState("");
   const [hata, setHata] = useState<string | null>(null);
   const [sadeceBeklemede, setSadeceBeklemede] = useState(false);
+  const [onemFiltre, setOnemFiltre] = useState<"" | "AZ" | "ORTA" | "COK">("");
 
   function yenile() {
     getSistemNotlari().then(setNotlar);
@@ -20,10 +28,11 @@ export default function SistemNotlariListesi({ ilkNotlar }: { ilkNotlar: SistemN
     if (!yeniMetin.trim()) return;
     setEkleniyor(true);
     setHata(null);
-    sistemNotuEkle(yeniMetin).then((res) => {
+    sistemNotuEkle(yeniMetin, yeniOnem).then((res) => {
       setEkleniyor(false);
       if (res.error) { setHata(res.error); return; }
       setYeniMetin("");
+      setYeniOnem("ORTA");
       yenile();
     });
   }
@@ -32,6 +41,13 @@ export default function SistemNotlariListesi({ ilkNotlar }: { ilkNotlar: SistemN
     const yeniDurum = n.durum === "BEKLEMEDE" ? "TAMAMLANDI" : "BEKLEMEDE";
     setNotlar((liste) => liste.map((x) => (x.id === n.id ? { ...x, durum: yeniDurum } : x)));
     sistemNotuDurumDegistir(n.id, yeniDurum).then((res) => {
+      if (res.error) { setHata(res.error); yenile(); }
+    });
+  }
+
+  function onemDegistir(n: SistemNotu, yeniOnemDegeri: "AZ" | "ORTA" | "COK") {
+    setNotlar((liste) => liste.map((x) => (x.id === n.id ? { ...x, onem: yeniOnemDegeri } : x)));
+    sistemNotuOnemDegistir(n.id, yeniOnemDegeri).then((res) => {
       if (res.error) { setHata(res.error); yenile(); }
     });
   }
@@ -53,7 +69,9 @@ export default function SistemNotlariListesi({ ilkNotlar }: { ilkNotlar: SistemN
     });
   }
 
-  const gosterilenler = sadeceBeklemede ? notlar.filter((n) => n.durum === "BEKLEMEDE") : notlar;
+  const gosterilenler = notlar
+    .filter((n) => !sadeceBeklemede || n.durum === "BEKLEMEDE")
+    .filter((n) => !onemFiltre || n.onem === onemFiltre);
   const beklemedeSayisi = notlar.filter((n) => n.durum === "BEKLEMEDE").length;
 
   return (
@@ -68,25 +86,49 @@ export default function SistemNotlariListesi({ ilkNotlar }: { ilkNotlar: SistemN
           rows={2}
           className="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-navy resize-none"
         />
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex gap-1.5">
+            {(["AZ", "ORTA", "COK"] as const).map((o) => (
+              <button
+                key={o}
+                onClick={() => setYeniOnem(o)}
+                className={`text-[10px] font-medium px-2 py-1 rounded-md border transition-colors ${
+                  yeniOnem === o ? ONEM_ETIKET[o].sinif + " border-transparent" : "bg-white border-gray-300 text-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                {ONEM_ETIKET[o].ad}
+              </button>
+            ))}
+          </div>
+          <button onClick={ekle} disabled={ekleniyor || !yeniMetin.trim()}
+            className="bg-navy hover:bg-navy-2 text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-40 transition-colors">
+            {ekleniyor ? "Ekleniyor..." : "Not Ekle"}
+          </button>
+        </div>
         {hata && <div className="text-[11px] text-danger mt-1.5">{hata}</div>}
-        <button onClick={ekle} disabled={ekleniyor || !yeniMetin.trim()}
-          className="mt-2 bg-navy hover:bg-navy-2 text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-40 transition-colors">
-          {ekleniyor ? "Ekleniyor..." : "Not Ekle"}
-        </button>
       </div>
 
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div className="text-[11px] text-gray-400">{beklemedeSayisi} beklemede / {notlar.length} toplam</div>
-        <label className="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer">
-          <input type="checkbox" checked={sadeceBeklemede} onChange={(e) => setSadeceBeklemede(e.target.checked)} />
-          Sadece beklemede olanlar
-        </label>
+        <div className="flex items-center gap-3">
+          <select value={onemFiltre} onChange={(e) => setOnemFiltre(e.target.value as any)}
+            className="border border-gray-300 rounded-md px-2 py-1 text-[11px] bg-white">
+            <option value="">Tüm önem dereceleri</option>
+            <option value="COK">Sadece Çok Önemli</option>
+            <option value="ORTA">Sadece Orta Önemli</option>
+            <option value="AZ">Sadece Az Önemli</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer">
+            <input type="checkbox" checked={sadeceBeklemede} onChange={(e) => setSadeceBeklemede(e.target.checked)} />
+            Sadece beklemede
+          </label>
+        </div>
       </div>
 
       <div className="space-y-2">
         {gosterilenler.length === 0 && (
           <div className="text-xs text-gray-400 text-center py-8 bg-white border border-gray-200 rounded-card">
-            {sadeceBeklemede ? "Bekleyen not yok." : "Henüz not eklenmemiş."}
+            Bu filtreye uyan not yok.
           </div>
         )}
         {gosterilenler.map((n) => (
@@ -118,6 +160,17 @@ export default function SistemNotlariListesi({ ilkNotlar }: { ilkNotlar: SistemN
                   </div>
                 ) : (
                   <>
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                      <select
+                        value={n.onem}
+                        onChange={(e) => onemDegistir(n, e.target.value as "AZ" | "ORTA" | "COK")}
+                        className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border-0 cursor-pointer ${ONEM_ETIKET[n.onem].sinif}`}
+                      >
+                        <option value="AZ">Az Önemli</option>
+                        <option value="ORTA">Orta Önemli</option>
+                        <option value="COK">Çok Önemli</option>
+                      </select>
+                    </div>
                     <div className={`text-sm whitespace-pre-wrap ${n.durum === "TAMAMLANDI" ? "text-gray-400 line-through" : "text-navy-3"}`}>
                       {n.metin}
                     </div>
