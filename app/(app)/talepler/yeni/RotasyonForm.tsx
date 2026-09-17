@@ -50,7 +50,7 @@ function MagazaOzetPaneli({ baslik, bilgi, yukleniyor }: { baslik: string; bilgi
         <MiniKpi label="Part-Time" value={`${bilgi.part_dolu} / ${bilgi.part_norm}`} vurgu={bilgi.part_dolu >= bilgi.part_norm} />
       </div>
 
-      <MagazaGrafikPaneli aylikVeri={bilgi.aylikVeri} varsayilanDegisken="hgo" />
+      <MagazaGrafikPaneli aylikVeri={bilgi.aylikVeri} varsayilanDegisken="hgo" sirketOrtalamasi={bilgi.sirketOrtalamasi} bolgeOrtalamasi={bilgi.bolgeOrtalamasi} bolgeAdi={bilgi.bolge_adi} />
 
       {bilgi.calisanlar.length > 0 && (
         <div className="pt-3 border-t border-gray-100">
