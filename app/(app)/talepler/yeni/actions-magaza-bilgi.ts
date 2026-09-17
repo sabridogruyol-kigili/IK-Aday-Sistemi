@@ -9,20 +9,33 @@ export type MagazaAylikSatiri = {
   toplam_ciro_kdv_dahil: number | null; satis_adeti: number | null;
 };
 
+// magaza_performans_aylik_ortalama SQL fonksiyonunun döndürdüğü satır (Şirket Geneli / Bu Bölge).
+export type MagazaAylikOrtalamaSatiri = {
+  yil: number; ay: number; ort_hgo: number | null; ort_adet_hgo: number | null;
+  ort_toplam_ciro_kdv_dahil: number | null; ort_satis_adeti: number | null;
+  ort_sepet_ortalamasi: number | null; ort_sepet_derinligi: number | null;
+  ort_donusum_orani: number | null; ort_giren_musteri_sayisi: number | null;
+};
+
 export type MagazaBilgi = {
   magaza_adi: string;
+  bolge_id: string | null;
   bolge_adi: string;
   magaza_muduru: string | null;
   ana_norm: number; ana_dolu: number;
   donemsel_norm: number; donemsel_dolu: number;
   part_norm: number; part_dolu: number;
   aylikVeri: MagazaAylikSatiri[];
+  sirketOrtalamasi: MagazaAylikOrtalamaSatiri[];
+  bolgeOrtalamasi: MagazaAylikOrtalamaSatiri[];
   calisanlar: { ad_soyad: string; unvan: string | null; kategori: string | null; hgo: number | null }[];
 };
 
 // Yeni Talep formunda bir mağaza seçilince, o mağazanın norm/doluluk ve aylık
 // performans geçmişini anlık (on-demand) getirir — tüm mağazaların verisini
 // önceden yüklemek yerine sadece seçilen mağazanınki çekilir (performans için).
+// Ayrıca Şirket Geneli ve Bu Bölge ortalamalarını da (SQL fonksiyonu ile) getirir —
+// MagazaGrafikPaneli'ndeki karşılaştırma çizgisi için.
 export async function getMagazaBilgi(magazaId: string): Promise<MagazaBilgi | null> {
   if (!magazaId) return null;
   const supabase = createClient();
@@ -31,7 +44,7 @@ export async function getMagazaBilgi(magazaId: string): Promise<MagazaBilgi | nu
 
   const { data: magaza } = await supabase
     .from("magazalar")
-    .select("magaza_adi, bolgeler(ad), norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
+    .select("magaza_adi, bolge_id, bolgeler(ad), norm(ana_kadro_norm, donemsel_norm, part_time_norm)")
     .eq("id", magazaId)
     .single();
   if (!magaza) return null;
@@ -55,12 +68,20 @@ export async function getMagazaBilgi(magazaId: string): Promise<MagazaBilgi | nu
     }
   });
 
-  const { data: aylikVeriHam } = await supabase
-    .from("performans_magaza_aylik")
-    .select("yil, ay, hgo, adet_hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, toplam_ciro_kdv_dahil, satis_adeti")
-    .eq("magaza_id", magazaId)
-    .order("yil", { ascending: true })
-    .order("ay", { ascending: true });
+  const bolgeId = (magaza as any).bolge_id ?? null;
+
+  const [{ data: aylikVeriHam }, { data: sirketOrtHam }, { data: bolgeOrtHam }] = await Promise.all([
+    supabase
+      .from("performans_magaza_aylik")
+      .select("yil, ay, hgo, adet_hgo, sepet_ortalamasi, sepet_derinligi, donusum_orani, giren_musteri_sayisi, toplam_ciro_kdv_dahil, satis_adeti")
+      .eq("magaza_id", magazaId)
+      .order("yil", { ascending: true })
+      .order("ay", { ascending: true }),
+    supabase.rpc("magaza_performans_aylik_ortalama", { p_bolge_id: null }),
+    bolgeId
+      ? supabase.rpc("magaza_performans_aylik_ortalama", { p_bolge_id: bolgeId })
+      : Promise.resolve({ data: [] as MagazaAylikOrtalamaSatiri[] }),
+  ]);
 
   const normSatiri = Array.isArray(magaza.norm) ? magaza.norm[0] : (magaza.norm as any);
 
@@ -73,12 +94,15 @@ export async function getMagazaBilgi(magazaId: string): Promise<MagazaBilgi | nu
 
   return {
     magaza_adi: magaza.magaza_adi,
+    bolge_id: bolgeId,
     bolge_adi: (magaza.bolgeler as any)?.ad ?? "",
     magaza_muduru: magazaMuduru,
     ana_norm: normSatiri?.ana_kadro_norm ?? 0, ana_dolu: dolu.ANA_KADRO,
     donemsel_norm: normSatiri?.donemsel_norm ?? 0, donemsel_dolu: dolu.DONEMSEL,
     part_norm: normSatiri?.part_time_norm ?? 0, part_dolu: dolu.PART_TIME,
     aylikVeri: (aylikVeriHam ?? []) as MagazaAylikSatiri[],
+    sirketOrtalamasi: (sirketOrtHam ?? []) as MagazaAylikOrtalamaSatiri[],
+    bolgeOrtalamasi: (bolgeOrtHam ?? []) as MagazaAylikOrtalamaSatiri[],
     calisanlar,
   };
 }
