@@ -14,6 +14,10 @@ export type ProfilBilgisi = {
   telefon: string | null;
   adres: string | null;
   profil_foto_url: string | null;
+  beden_ceket: string | null;
+  beden_pantolon: string | null;
+  beden_gomlek: string | null;
+  beden_tisort: string | null;
   magazalar: string[];
   sertifikalar: { id: string; sertifika_adi: string }[];
   yillik_izin_hakki: number;
@@ -37,7 +41,7 @@ export async function getBenimProfilim(): Promise<ProfilBilgisi | null> {
 
   const { data: kullanici } = await supabase
     .from("kullanicilar")
-    .select("ad_soyad, email, rol, dogum_tarihi, egitim_duzeyi, okul, bolum, telefon, adres, profil_foto_url, yillik_izin_hakki, kullanilan_izin_gun")
+    .select("ad_soyad, email, rol, dogum_tarihi, egitim_duzeyi, okul, bolum, telefon, adres, profil_foto_url, yillik_izin_hakki, kullanilan_izin_gun, beden_ceket, beden_pantolon, beden_gomlek, beden_tisort")
     .eq("id", me.id)
     .single();
   if (!kullanici) return null;
@@ -70,6 +74,8 @@ export async function getBenimProfilim(): Promise<ProfilBilgisi | null> {
     dogum_tarihi: kullanici.dogum_tarihi, egitim_duzeyi: kullanici.egitim_duzeyi,
     okul: kullanici.okul, bolum: kullanici.bolum, telefon: kullanici.telefon, adres: kullanici.adres,
     profil_foto_url: kullanici.profil_foto_url,
+    beden_ceket: kullanici.beden_ceket, beden_pantolon: kullanici.beden_pantolon,
+    beden_gomlek: kullanici.beden_gomlek, beden_tisort: kullanici.beden_tisort,
     magazalar: magazaAdlari,
     sertifikalar: sertifikalar ?? [],
     yillik_izin_hakki: kullanici.yillik_izin_hakki ?? 14,
@@ -90,6 +96,10 @@ export type ProfilDegisiklikPaketi = {
   email: string | null;
   profil_foto_url: string | null;
   sertifikalar: string[]; // tam liste — talep onaylanınca eskisinin yerine geçer
+  beden_ceket: string;
+  beden_pantolon: string;
+  beden_gomlek: string;
+  beden_tisort: string;
 };
 
 // Doğrudan güncellemek yerine, bir ONAY TALEBİ oluşturur — Bordro
@@ -97,6 +107,10 @@ export type ProfilDegisiklikPaketi = {
 export async function profilDegisiklikTalebiGonder(paket: ProfilDegisiklikPaketi): Promise<{ error?: string }> {
   const { supabase, me } = await benimKullanicim();
   if (!me) return { error: "Giriş yapmalısınız." };
+
+  if (!paket.beden_ceket || !paket.beden_pantolon || !paket.beden_gomlek || !paket.beden_tisort) {
+    return { error: "Ceket, pantolon, gömlek ve tişört bedeni — dördü de zorunludur." };
+  }
 
   const { data: mevcutBekleyen } = await supabase
     .from("kullanici_profil_talepleri")
@@ -176,6 +190,8 @@ export async function profilDegisiklikOnayla(talepId: string): Promise<{ error?:
     .update({
       telefon: p.telefon, egitim_duzeyi: p.egitim_duzeyi, okul: p.okul, bolum: p.bolum,
       adres: p.adres, email: p.email ?? undefined, profil_foto_url: p.profil_foto_url,
+      beden_ceket: p.beden_ceket, beden_pantolon: p.beden_pantolon,
+      beden_gomlek: p.beden_gomlek, beden_tisort: p.beden_tisort,
     })
     .eq("id", talep.kullanici_id);
   if (guncelleHata) return { error: guncelleHata.message };
