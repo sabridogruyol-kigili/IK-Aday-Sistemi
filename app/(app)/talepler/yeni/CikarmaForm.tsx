@@ -71,8 +71,8 @@ export default function CikarmaForm({
   const [yerineAlim, setYerineAlim] = useState(false);
   const [seciliPersonelId, setSeciliPersonelId] = useState("");
   const [aciklama, setAciklama] = useState("");
-  const [karaListesineEkle, setKaraListesineEkle] = useState(false);
-  const [karaListeAciklamasi, setKaraListeAciklamasi] = useState("");
+  const [olumsuzReferansaEkleMi, setOlumsuzReferansaEkleMi] = useState(false);
+  const [olumsuzReferansAciklamasi, setOlumsuzReferansAciklamasi] = useState("");
 
   const seciliPersonel = personelListesi.find((p) => p.id === seciliPersonelId) ?? null;
   // İyi performans gösteren birinin çıkarılması, düşük performanslı birininkinden
@@ -148,8 +148,8 @@ export default function CikarmaForm({
     setError(null);
     formData.set("yerine_alim", String(yerineAlim));
     formData.set("israrli", String(israrli));
-    formData.set("kara_listesine_ekle", String(karaListesineEkle));
-    formData.set("kara_liste_aciklamasi", karaListeAciklamasi);
+    formData.set("olumsuz_referansa_ekle", String(olumsuzReferansaEkleMi));
+    formData.set("olumsuz_referans_aciklamasi", olumsuzReferansAciklamasi);
     startTransition(async () => {
       const sonuc = await createIstenCikarmaTalebi(formData);
       if (sonuc?.norm_uyari) setNormUyari(sonuc.norm_uyari);
@@ -252,16 +252,16 @@ export default function CikarmaForm({
 
       <div className="border border-gray-200 rounded-md p-3 space-y-2">
         <label className="flex items-center gap-2 text-xs text-gray-600">
-          <input type="checkbox" checked={karaListesineEkle} onChange={(e) => setKaraListesineEkle(e.target.checked)} />
-          Bu kişiyi kara listeye ekle
+          <input type="checkbox" checked={olumsuzReferansaEkleMi} onChange={(e) => setOlumsuzReferansaEkleMi(e.target.checked)} />
+          Bu kişiyi olumsuz referans listesine ekle
         </label>
-        {karaListesineEkle && (
+        {olumsuzReferansaEkleMi && (
           <div>
             <textarea
-              value={karaListeAciklamasi}
-              onChange={(e) => setKaraListeAciklamasi(e.target.value)}
+              value={olumsuzReferansAciklamasi}
+              onChange={(e) => setOlumsuzReferansAciklamasi(e.target.value)}
               rows={2}
-              placeholder="Kara listeye ekleme gerekçesi (en az 10 karakter)..."
+              placeholder="Olumsuz referans gerekçesi (en az 10 karakter)..."
               className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
             />
             <div className="text-[10px] text-gray-400 mt-1">
@@ -287,7 +287,7 @@ export default function CikarmaForm({
 
       {error && <div className="text-xs text-danger">{error}</div>}
 
-      <button type="submit" disabled={pending || (aciklamaZorunlu && aciklama.trim().length < 100) || (karaListesineEkle && karaListeAciklamasi.trim().length < 10)} className="bg-navy text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50">
+      <button type="submit" disabled={pending || (aciklamaZorunlu && aciklama.trim().length < 100) || (olumsuzReferansaEkleMi && olumsuzReferansAciklamasi.trim().length < 10)} className="bg-navy text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50">
         {pending ? (<span className="flex items-center justify-center gap-2"><span className="yukleniyor-donen" /> Gönderiliyor</span>) : "Talebi Gönder"}
       </button>
     </form>
