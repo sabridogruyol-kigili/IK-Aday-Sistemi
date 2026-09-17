@@ -112,19 +112,62 @@ function KpiKart({
   const iyiMi = fark !== null ? (tersYon ? fark <= 0 : fark >= 0) : null;
 
   return (
-    <div className="bg-gray-50 rounded-lg px-3 py-3">
-      <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">{label}</div>
-      <div className="text-xl font-mono font-semibold text-navy-3 mb-1.5">{anaDeger !== null ? format(anaDeger) : "—"}</div>
+    <div className="bg-gray-50 rounded-lg px-2.5 py-2.5">
+      <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-1 leading-tight">{label}</div>
+      <div className="text-lg font-mono font-semibold text-navy-3 mb-1">{anaDeger !== null ? format(anaDeger) : "—"}</div>
       {farkGoster ? (
         <div className="space-y-0.5">
-          <div className="text-[10px] text-gray-400">Ortalama: {format(ortalama!)}</div>
-          <div className={`text-[11px] font-mono font-semibold ${iyiMi ? "text-success" : "text-danger"}`}>
+          <div className="text-[9px] text-gray-400">Ort: {format(ortalama!)}</div>
+          <div className={`text-[10px] font-mono font-semibold ${iyiMi ? "text-success" : "text-danger"}`}>
             {fark! >= 0 ? "▲" : "▼"} {fark! >= 0 ? "+" : ""}{fark!.toFixed(2)}
           </div>
         </div>
       ) : (
-        !seciliVar && <div className="text-[10px] text-gray-300">Genel ortalama</div>
+        !seciliVar && <div className="text-[9px] text-gray-300">Genel ortalama</div>
       )}
+    </div>
+  );
+}
+
+// KPI bloklarını anlamlı gruplara ayırmak için kullanılan başlık.
+function KpiGrupBasligi({ children }: { children: React.ReactNode }) {
+  return <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{children}</div>;
+}
+
+// Norm/Kadro'nun 4 ayrı kutuya bölünmesi yerine tek kutuda, ünvan gruplarının
+// yan yana dizildiği kompakt bir özet — "Toplam" en altta ayrı vurgulanır.
+function NormKpiKutusu({
+  normKpiOzet, seciliVar,
+}: {
+  normKpiOzet: { ana: { kendi: number | null; ortalama: number | null }; donemsel: { kendi: number | null; ortalama: number | null }; part: { kendi: number | null; ortalama: number | null }; toplam: { kendi: number | null; ortalama: number | null } };
+  seciliVar: boolean;
+}) {
+  const satirlar: { label: string; data: { kendi: number | null; ortalama: number | null } }[] = [
+    { label: "Ana Kadro", data: normKpiOzet.ana },
+    { label: "Dönemsel", data: normKpiOzet.donemsel },
+    { label: "Part-Time", data: normKpiOzet.part },
+  ];
+  function deger(d: { kendi: number | null; ortalama: number | null }) {
+    const v = seciliVar ? d.kendi : d.ortalama;
+    return v !== null ? v.toFixed(0) : "—";
+  }
+  return (
+    <div className="bg-gray-50 rounded-lg px-3 py-2.5">
+      <div className="grid grid-cols-3 divide-x divide-gray-200">
+        {satirlar.map((s) => (
+          <div key={s.label} className="px-2.5 first:pl-0 text-center">
+            <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-1 leading-tight">{s.label}</div>
+            <div className="text-base font-mono font-semibold text-navy-3">{deger(s.data)}</div>
+            {seciliVar && s.data.kendi !== null && s.data.ortalama !== null && (
+              <div className="text-[9px] text-gray-400 mt-0.5">Ort: {s.data.ortalama.toFixed(0)}</div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-2.5 pt-2 border-t border-gray-200 flex items-center justify-between">
+        <span className="text-[9px] text-gray-400 uppercase tracking-wide">Toplam Norm</span>
+        <span className="text-base font-mono font-semibold text-navy">{deger(normKpiOzet.toplam)}</span>
+      </div>
     </div>
   );
 }
@@ -790,34 +833,50 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {enSonAyOzeti?.degerler.map((d) => (
-                <KpiKart
-                  key={d.key}
-                  label={d.label}
-                  kendi={d.kendi}
-                  ortalama={d.ortalama}
-                  format={d.format}
-                  seciliVar={!!seciliMagaza}
-                />
-              ))}
-              {turnoverOzet && (
-                <>
-                  <KpiKart label="İstifa Turnover" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                  <KpiKart label="Fesih Turnover" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                  <KpiKart label="Toplam Turnover" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
-                </>
+            <div className="space-y-3.5">
+              {enSonAyOzeti && enSonAyOzeti.degerler.length > 0 && (
+                <div>
+                  <KpiGrupBasligi>Satış Performansı</KpiGrupBasligi>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {enSonAyOzeti.degerler.map((d) => (
+                      <KpiKart
+                        key={d.key}
+                        label={d.label}
+                        kendi={d.kendi}
+                        ortalama={d.ortalama}
+                        format={d.format}
+                        seciliVar={!!seciliMagaza}
+                      />
+                    ))}
+                  </div>
+                </div>
               )}
-              <KpiKart label="Ana Kadro Norm" kendi={normKpiOzet.ana.kendi} ortalama={normKpiOzet.ana.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-              <KpiKart label="Dönemsel Norm" kendi={normKpiOzet.donemsel.kendi} ortalama={normKpiOzet.donemsel.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-              <KpiKart label="Part-Time Norm" kendi={normKpiOzet.part.kendi} ortalama={normKpiOzet.part.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-              <KpiKart label="Toplam Norm" kendi={normKpiOzet.toplam.kendi} ortalama={normKpiOzet.toplam.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+
+              {turnoverOzet && (
+                <div>
+                  <KpiGrupBasligi>Personel Devir Oranı</KpiGrupBasligi>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <KpiKart label="İstifa" kendi={turnoverOzet.istifa.kendi} ortalama={turnoverOzet.istifa.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                    <KpiKart label="Fesih" kendi={turnoverOzet.fesih.kendi} ortalama={turnoverOzet.fesih.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                    <KpiKart label="Toplam" kendi={turnoverOzet.toplam.kendi} ortalama={turnoverOzet.toplam.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} tersYon />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <KpiGrupBasligi>Kadro / Norm</KpiGrupBasligi>
+                <NormKpiKutusu normKpiOzet={normKpiOzet} seciliVar={!!seciliMagaza} />
+              </div>
+
               {calisanKpiOzet && (
-                <>
-                  <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                  <KpiKart label="Satış Yapan Çalışan" kendi={calisanKpiOzet.satisYapan.kendi} ortalama={calisanKpiOzet.satisYapan.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
-                  <KpiKart label="Satış Yapan Oranı" kendi={calisanKpiOzet.oran.kendi} ortalama={calisanKpiOzet.oran.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} />
-                </>
+                <div>
+                  <KpiGrupBasligi>Çalışan</KpiGrupBasligi>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <KpiKart label="Çalışan Sayısı" kendi={calisanKpiOzet.calisanSayisi.kendi} ortalama={calisanKpiOzet.calisanSayisi.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                    <KpiKart label="Satış Yapan" kendi={calisanKpiOzet.satisYapan.kendi} ortalama={calisanKpiOzet.satisYapan.ortalama} format={(v) => v.toFixed(0)} seciliVar={!!seciliMagaza} />
+                    <KpiKart label="Satış Yapan Oranı" kendi={calisanKpiOzet.oran.kendi} ortalama={calisanKpiOzet.oran.ortalama} format={(v) => `%${v.toFixed(1)}`} seciliVar={!!seciliMagaza} />
+                  </div>
+                </div>
               )}
             </div>
 
