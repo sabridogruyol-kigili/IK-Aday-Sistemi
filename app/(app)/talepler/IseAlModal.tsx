@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { karaListeSorgula, type KaraListeUyarisi } from "../kara-liste/actions";
+import { olumsuzReferansSorgula, type OlumsuzReferansUyarisi } from "../adaylar/olumsuz-referans/actions";
 
 export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
   onClose: () => void; onConfirm: (tc: string, baslangic: string) => void; pending: boolean; hata?: string | null;
@@ -10,13 +10,13 @@ export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
   const [baslangic, setBaslangic] = useState(() => new Date().toISOString().slice(0, 10));
   const [yerelHata, setYerelHata] = useState<string | null>(null);
   const [kontrolEdiliyor, setKontrolEdiliyor] = useState(false);
-  const [karaListeKaydi, setKaraListeKaydi] = useState<KaraListeUyarisi | null>(null);
+  const [uyariKaydi, setUyariKaydi] = useState<OlumsuzReferansUyarisi | null>(null);
   const [uyariGorulduTc, setUyariGorulduTc] = useState<string | null>(null);
 
   function tcDegisti(v: string) {
     setTc(v.replace(/\D/g, "").slice(0, 11));
     // TC değişince önceki uyarı geçersiz olur, tekrar kontrol edilmeli.
-    setKaraListeKaydi(null);
+    setUyariKaydi(null);
     setUyariGorulduTc(null);
   }
 
@@ -31,14 +31,14 @@ export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
     }
     setYerelHata(null);
 
-    // Bu TC için uyarı daha önce gösterilmediyse önce kara liste kontrolü yapılır.
+    // Bu TC için uyarı daha önce gösterilmediyse önce olumsuz referans kontrolü yapılır.
     if (uyariGorulduTc !== tc) {
       setKontrolEdiliyor(true);
-      const kayit = await karaListeSorgula(tc);
+      const kayit = await olumsuzReferansSorgula(tc);
       setKontrolEdiliyor(false);
       setUyariGorulduTc(tc);
       if (kayit) {
-        setKaraListeKaydi(kayit);
+        setUyariKaydi(kayit);
         return; // ilk tıklamada sadece uyarı gösterilir, işe alım yapılmaz
       }
     }
@@ -49,7 +49,7 @@ export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
   const gosterilecekHata = yerelHata ?? hata;
   const butonEtiket = kontrolEdiliyor
     ? "Kontrol ediliyor..."
-    : karaListeKaydi
+    : uyariKaydi
     ? "Yine de İşe Al"
     : pending
     ? "Kaydediliyor..."
@@ -85,14 +85,14 @@ export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
             />
           </div>
 
-          {karaListeKaydi && (
+          {uyariKaydi && (
             <div className="bg-danger-bg border border-danger/30 rounded-md p-3 text-xs text-danger space-y-1">
               <div className="font-semibold">
-                ⚠ Bu TC kara listede{karaListeKaydi.durum === "ONAY_BEKLIYOR" ? " (onay bekliyor)" : ""}!
+                ⚠ Bu TC olumsuz referans listesinde{uyariKaydi.durum === "ONAY_BEKLIYOR" ? " (onay bekliyor)" : ""}!
               </div>
-              <div>{karaListeKaydi.aciklama}</div>
+              <div>{uyariKaydi.aciklama}</div>
               <div className="text-[10px] text-danger/70">
-                Ekleyen: {karaListeKaydi.ekleyen_rol} — {new Date(karaListeKaydi.created_at).toLocaleDateString("tr-TR")}
+                Ekleyen: {uyariKaydi.ekleyen_rol} — {new Date(uyariKaydi.created_at).toLocaleDateString("tr-TR")}
               </div>
             </div>
           )}
@@ -102,7 +102,7 @@ export default function IseAlModal({ onClose, onConfirm, pending, hata }: {
           )}
 
           <button onClick={gonder} disabled={pending || kontrolEdiliyor}
-            className={`w-full text-white rounded-md py-2 text-sm font-medium disabled:opacity-50 ${karaListeKaydi ? "bg-danger" : "bg-success"}`}>
+            className={`w-full text-white rounded-md py-2 text-sm font-medium disabled:opacity-50 ${uyariKaydi ? "bg-danger" : "bg-success"}`}>
             {butonEtiket}
           </button>
         </div>
