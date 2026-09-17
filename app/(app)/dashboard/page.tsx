@@ -58,9 +58,22 @@ export default async function DashboardPage() {
   );
 
   // Kişi bazlı TÜM geçmişi (binlerce personel × onlarca ay) önceden çekmek sayfa
-  // yüklenişini ciddi yavaşlatıyordu. Bunun yerine sadece "Çalışan Sayısı" KPI'sı
+  // yüklenişini ciddi yavaşlatıyordu. Bunun yerine sadece "Satış Yapan" KPI'sı
   // için gereken EN GÜNCEL dönemin özeti çekilir; bir mağaza seçilince detaylı
   // geçmiş ayrı bir server action ile anlık (on-demand) çekilir.
+  //
+  // "Çalışan Sayısı" TÜM aktif personelden (ünvan farketmeksizin — Terzi,
+  // Müdür, Müdür Yardımcısı dahil) hesaplanır; sadece "Satış Yapan" (ve ona
+  // bağlı oran) ciro hedefi olup en güncel ayda ciro yapan kişileri sayar —
+  // ikisi farklı paydalar üzerinden hesaplanan farklı sorular olduğu için
+  // birbirine karıştırılmamalı.
+  const calisanOzetMap: Record<string, { calisanSayisi: number; satisYapan: number }> = {};
+  (personelList ?? []).forEach((p: any) => {
+    if (!p.guncel_magaza_id) return;
+    if (!calisanOzetMap[p.guncel_magaza_id]) calisanOzetMap[p.guncel_magaza_id] = { calisanSayisi: 0, satisYapan: 0 };
+    calisanOzetMap[p.guncel_magaza_id].calisanSayisi++;
+  });
+
   const { data: enSonKisiDonem } = await supabase
     .from("performans_kisi_aylik")
     .select("yil, ay")
@@ -68,7 +81,6 @@ export default async function DashboardPage() {
     .order("ay", { ascending: false })
     .limit(1);
 
-  let calisanOzetMap: Record<string, { calisanSayisi: number; satisYapan: number }> = {};
   if (enSonKisiDonem && enSonKisiDonem.length > 0) {
     const { yil: enSonYil, ay: enSonAy } = enSonKisiDonem[0];
     const enSonAyVerisi = await tumSatirlariGetir<any>((bas, bitis) =>
@@ -81,9 +93,7 @@ export default async function DashboardPage() {
     );
     enSonAyVerisi.forEach((s: any) => {
       const magazaId = s.personel?.guncel_magaza_id;
-      if (!magazaId) return;
-      if (!calisanOzetMap[magazaId]) calisanOzetMap[magazaId] = { calisanSayisi: 0, satisYapan: 0 };
-      calisanOzetMap[magazaId].calisanSayisi++;
+      if (!magazaId || !calisanOzetMap[magazaId]) return;
       if ((s.gerceklesen_ciro_kdv_dahil ?? 0) > 0) calisanOzetMap[magazaId].satisYapan++;
     });
   }
