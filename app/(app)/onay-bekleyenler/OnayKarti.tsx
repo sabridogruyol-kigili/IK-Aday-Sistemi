@@ -182,7 +182,7 @@ export default function OnayKarti({
                 <MiniKpi label="Dönemsel" value={`${magazaBilgi.donemsel_dolu} / ${magazaBilgi.donemsel_norm}`} vurgu={magazaBilgi.donemsel_dolu < magazaBilgi.donemsel_norm} />
                 <MiniKpi label="Part-Time" value={`${magazaBilgi.part_dolu} / ${magazaBilgi.part_norm}`} vurgu={magazaBilgi.part_dolu < magazaBilgi.part_norm} />
               </div>
-              <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" />
+              <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" sirketOrtalamasi={magazaBilgi.sirketOrtalamasi} bolgeOrtalamasi={magazaBilgi.bolgeOrtalamasi} bolgeAdi={magazaBilgi.bolge_adi} />
               {magazaBilgi.calisanlar.length > 0 && (
                 <div>
                   <div className="text-[10px] font-semibold text-navy-3 mb-1">Mevcut Çalışanlar</div>
