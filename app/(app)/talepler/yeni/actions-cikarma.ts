@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { karaListeyeEkle } from "../../kara-liste/actions";
 
 type Sonuc = { error?: string; norm_uyari?: string };
 
@@ -26,7 +27,7 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
 
   const { data: personel } = await supabase
     .from("personel")
-    .select("id, ad_soyad, guncel_magaza_id, kadro_kategorisi, performans_ortalama_hgo")
+    .select("id, ad_soyad, tc_kimlik_no, guncel_magaza_id, kadro_kategorisi, performans_ortalama_hgo")
     .eq("id", personelId)
     .single();
   if (!personel) return { error: "Personel bulunamadı." };
@@ -167,6 +168,16 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
 
   if (onaySatirlari.length > 0) {
     await supabase.from("talep_onaylari").insert(onaySatirlari);
+  }
+
+  // Talep açılırken "Kara Listeye Ekle" işaretlendiyse — talebin kendisinin
+  // onaylanıp onaylanmayacağından bağımsız olarak, kişi burada kara listeye
+  // eklenir (ya da BM/İK ise Yönetim onayına düşer). Bu adımın başarısız
+  // olması ana talebi geçersiz kılmaz, sessizce yutulur.
+  const karaListesineEkle = formData.get("kara_listesine_ekle") === "true";
+  const karaListeAciklamasi = String(formData.get("kara_liste_aciklamasi") ?? "").trim();
+  if (karaListesineEkle && karaListeAciklamasi && personel.tc_kimlik_no) {
+    await karaListeyeEkle(personel.tc_kimlik_no, personel.ad_soyad, karaListeAciklamasi).catch(() => {});
   }
 
   revalidatePath("/talepler");
