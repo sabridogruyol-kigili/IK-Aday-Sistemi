@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { olumsuzReferansaEkle } from "../../adaylar/olumsuz-referans/actions";
+import { rolGorunurlukleri, type HassasAlan } from "@/lib/hassasVeri";
 
 type Sonuc = { error?: string; norm_uyari?: string };
 
@@ -227,8 +228,6 @@ export async function getKisiPerformansSirketOrtalamasi(): Promise<KisiPerforman
 // Kişi seçilince gösterilecek ek özlük bilgileri — sadece seçilen kişi için anlık
 // çekilir (tüm personel listesine bu ağır alanları eklemeyip performansı koruyoruz).
 export type PersonelDetay = {
-  dogum_tarihi: string | null;
-  kan_grubu_kodu: string | null;
   uyruk: string | null;
   evli: string | null;
   onceki_is_yeri: string | null;
@@ -239,14 +238,14 @@ export type PersonelDetay = {
   notlar: string | null;
   il_adi: string | null;
   ise_giris_tarihi: string | null;
-  ozel_mobil: string | null;
-  tc_kimlik_no: string | null;
   personel_kodu: string | null;
   kidem_ay: number | null;
-  brut_maas: number | null;
-  brut_maas_hata: string | null;
-  kidem_tazminati_tavani: number | null;
-  kidem_tazminati_tahmini: number | null;
+  // TC/telefon/doğum tarihi/kan grubu/maaş artık burada DÖNMÜYOR — rol
+  // yetkisi varsa ayrı bir server action ile (görüntülendiği anda denetim
+  // kaydı düşülerek) anlık getirilir. tc_var sadece "bu kişide TC kayıtlı mı"
+  // bilgisini, gerçek değeri sızdırmadan verir (buton aktif/pasif için).
+  tc_var: boolean;
+  gorunurlukler: Record<HassasAlan, boolean>;
 };
 
 // Personel Listesi sayfasındaki (app/(app)/personel/page.tsx) mantıkla birebir
@@ -306,9 +305,12 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const { data: me } = await supabase.from("kullanicilar").select("rol").eq("email", user.email).single();
+  if (!me) return null;
+
   const { data } = await supabase
     .from("personel")
-    .select("dogum_tarihi, kan_grubu_kodu, uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, ozel_mobil, tc_kimlik_no, personel_kodu, guncel_unvan, kidem_baslangic_tarihi, magazalar(il_adi)")
+    .select("uyruk, evli, onceki_is_yeri, ihtarname, uyari_yazisi, tutanak, savunma, notlar, tc_kimlik_no, personel_kodu, kidem_baslangic_tarihi, magazalar(il_adi)")
     .eq("id", personelId)
     .single();
 
@@ -319,65 +321,24 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
     .select("baslama_tarihi, ayrilma_tarihi")
     .eq("personel_id", personelId);
 
-  const { data: ayar } = await supabase.from("sistem_ayarlari").select("kidem_tazminati_tavani").eq("id", 1).single();
-  const tavan = ayar?.kidem_tazminati_tavani ?? null;
-
   const magazaHam = data as any;
   const kidemAy = kidemAyHesapla(atamalar ?? []);
-
-  // Maaş artık kişi bazlı değil, ünvan bazlı tek bir tabloda tutuluyor —
-  // kişinin güncel ünvanına göre karşılık gelen maaş burada aranır.
-  // Personel_Şablonu'ndan gelen ünvanlar TAMAMEN BÜYÜK HARF ("MAĞAZA
-  // MÜDÜRÜ"), Ayarlar'daki unvan_maas tablosu ise normal yazım ("Mağaza
-  // Müdürü") kullanıyor. "ilike" büyük/küçük harfi tolere ediyor ama
-  // baştaki/sondaki görünmeyen boşlukları etmiyor — bu yüzden artık TÜM
-  // unvan_maas satırları çekilip JS tarafında, HER İKİ taraf da
-  // (boşluklardan arındırılmış + büyük harfe çevrilmiş hâliyle)
-  // karşılaştırılıyor. Küçük bir tablo olduğu için performans sorunu
-  // yaratmaz, ama görünmeyen boşluk farkı gibi durumlara karşı çok daha
-  // dayanıklı.
-  let brutMaas: number | null = null;
-  let brutMaasHata: string | null = null;
-  if (magazaHam.guncel_unvan) {
-    const { data: tumUnvanMaaslar, error: unvanMaasHata } = await supabase.from("unvan_maas").select("unvan, brut_maas");
-    if (unvanMaasHata) {
-      brutMaasHata = unvanMaasHata.message;
-    } else {
-      const aranan = magazaHam.guncel_unvan.trim().toLocaleUpperCase("tr-TR");
-      const eslesen = (tumUnvanMaaslar ?? []).find((u: any) => u.unvan.trim().toLocaleUpperCase("tr-TR") === aranan);
-      brutMaas = eslesen?.brut_maas ?? null;
-    }
-  }
-
-  // Basit tahmini kıdem tazminatı: (tavanı aşmayan brüt maaş) × kıdem yılı.
-  // "Giydirilmiş ücret" değil, sade brüt maaş kullanılır — prim ve ek ücretler
-  // hariçtir, bu yüzden gerçek tutardan farklı (genelde daha düşük) çıkabilir.
-  let kidemTazminatiTahmini: number | null = null;
-  if (brutMaas != null && tavan != null && kidemAy != null) {
-    const esasAlinanMaas = Math.min(brutMaas, tavan);
-    kidemTazminatiTahmini = Math.round(esasAlinanMaas * (kidemAy / 12) * 100) / 100;
-  }
+  const gorunurlukler = await rolGorunurlukleri(supabase, me.rol);
 
   return {
-    dogum_tarihi: magazaHam.dogum_tarihi,
-    kan_grubu_kodu: magazaHam.kan_grubu_kodu,
     uyruk: magazaHam.uyruk,
     evli: magazaHam.evli,
     onceki_is_yeri: magazaHam.onceki_is_yeri,
     ihtarname: magazaHam.ihtarname,
     uyari_yazisi: magazaHam.uyari_yazisi,
     tutanak: magazaHam.tutanak,
-    ozel_mobil: magazaHam.ozel_mobil,
-    tc_kimlik_no: magazaHam.tc_kimlik_no,
-    personel_kodu: magazaHam.personel_kodu,
     savunma: magazaHam.savunma,
     notlar: magazaHam.notlar,
+    personel_kodu: magazaHam.personel_kodu,
     il_adi: magazaHam.magazalar?.il_adi ?? null,
     ise_giris_tarihi: magazaHam.kidem_baslangic_tarihi ?? null,
     kidem_ay: kidemAy,
-    brut_maas: brutMaas,
-    brut_maas_hata: brutMaasHata,
-    kidem_tazminati_tavani: tavan,
-    kidem_tazminati_tahmini: kidemTazminatiTahmini,
+    tc_var: !!magazaHam.tc_kimlik_no,
+    gorunurlukler,
   };
 }
