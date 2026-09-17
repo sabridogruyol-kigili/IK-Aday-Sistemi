@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import KullaniciDuzenle from "./KullaniciDuzenle";
 import YeniKullaniciFormu from "./YeniKullaniciFormu";
+import BilgiYetkileriTablosu from "./BilgiYetkileriTablosu";
+import { getAlanGorunurlukAyarlari } from "./actions-alan-gorunurluk";
 
 export default async function KullanicilarPage() {
   const supabase = createClient();
@@ -20,7 +22,7 @@ export default async function KullanicilarPage() {
     redirect("/dashboard");
   }
 
-  const [{ data: kullanicilar }, { data: bolgeler }, { data: atamalar }] =
+  const [{ data: kullanicilar }, { data: bolgeler }, { data: atamalar }, bilgiYetkileri] =
     await Promise.all([
       supabase
         .from("kullanicilar")
@@ -30,6 +32,7 @@ export default async function KullanicilarPage() {
       supabase
         .from("kullanici_bolge_atama")
         .select("kullanici_id, bolge_id, bolgeler(ad)"),
+      getAlanGorunurlukAyarlari(),
     ]);
 
   const bolgeAdMap: Record<string, string[]> = {};
@@ -53,6 +56,13 @@ export default async function KullanicilarPage() {
       <div className="bg-white border border-gray-200 rounded-card p-4 mb-5">
         <div className="text-sm font-semibold text-navy-3 mb-3">Yeni Kullanıcı</div>
         <YeniKullaniciFormu bolgeler={bolgeler ?? []} />
+      </div>
+
+      {/* Bilgi Yetkileri */}
+      <div className="bg-white border border-gray-200 rounded-card p-4 mb-5">
+        <div className="text-sm font-semibold text-navy-3 mb-1">Bilgi Yetkileri</div>
+        <div className="text-xs text-gray-400 mb-3">Rol bazlı hassas bilgi görünürlüğü (TC, telefon, doğum tarihi, kan grubu, maaş)</div>
+        <BilgiYetkileriTablosu ayarlar={bilgiYetkileri} />
       </div>
 
       {/* Liste */}
