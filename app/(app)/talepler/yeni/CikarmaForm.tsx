@@ -5,7 +5,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { createIstenCikarmaTalebi, getPersonelPerformansGecmisi, getPersonelDetay, getKisiPerformansSirketOrtalamasi, type PersonelAylikHgo, type PersonelDetay, type KisiPerformansOrtalama } from "./actions-cikarma";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
 import KisiGrafikPaneli from "./KisiGrafikPaneli";
-import TcGoster from "@/lib/TcGoster";
+import HassasAlanGoster from "@/lib/HassasAlanGoster";
+import BrutMaasGoster from "@/lib/BrutMaasGoster";
 
 
 
@@ -27,18 +28,6 @@ const KATEGORI_LABEL: Record<string, string> = {
   DONEMSEL: "Dönemsel",
   PART_TIME: "Part Time",
 };
-
-// Grafiklerde seçilebilecek kişi bazlı satış değişkenleri.
-function yasHesapla(dogumTarihi: string | null): number | null {
-  if (!dogumTarihi) return null;
-  const dogum = new Date(dogumTarihi);
-  if (isNaN(dogum.getTime())) return null;
-  const simdi = new Date();
-  let yas = simdi.getFullYear() - dogum.getFullYear();
-  const ayFarki = simdi.getMonth() - dogum.getMonth();
-  if (ayFarki < 0 || (ayFarki === 0 && simdi.getDate() < dogum.getDate())) yas--;
-  return yas;
-}
 
 function MiniKpi({ label, value, vurgu }: { label: string; value: string; vurgu?: boolean }) {
   return (
@@ -115,8 +104,6 @@ export default function CikarmaForm({
   }, [gecmis]);
   const toplamCiro = useMemo(() => gecmis.reduce((s, g) => s + (g.gerceklesen_ciro_kdv_dahil ?? 0), 0), [gecmis]);
   const toplamAdet = useMemo(() => gecmis.reduce((s, g) => s + (g.gerceklesen_adet ?? 0), 0), [gecmis]);
-
-  const yas = detay ? yasHesapla(detay.dogum_tarihi) : null;
 
   const bolgeler = useMemo(() => Array.from(new Set(personelListesi.map((p) => p.bolge_adi).filter(Boolean))).sort(), [personelListesi]);
   const [bolgeFiltre, setBolgeFiltre] = useState("");
@@ -327,13 +314,30 @@ export default function CikarmaForm({
                 <OzlukAlani label="Personel Kodu" value={detay.personel_kodu} />
                 <div>
                   <div className="text-[9px] text-gray-400 uppercase">TC Kimlik No</div>
-                  <div className="text-navy-3 font-medium"><TcGoster tc={detay.tc_kimlik_no} /></div>
+                  <div className="text-navy-3 font-medium">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={seciliPersonelId} alan="tc_kimlik_no" gorebilir={detay.gorunurlukler.tc_kimlik_no} placeholder="•••••••••••" />
+                  </div>
                 </div>
-                <OzlukAlani label="Telefon" value={detay.ozel_mobil} />
-                <OzlukAlani label="Yaş" value={yas != null ? String(yas) : null} />
+                <div>
+                  <div className="text-[9px] text-gray-400 uppercase">Telefon</div>
+                  <div className="text-navy-3 font-medium">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={seciliPersonelId} alan="ozel_mobil" gorebilir={detay.gorunurlukler.ozel_mobil} placeholder="••• ••• •• ••" />
+                  </div>
+                </div>
                 <OzlukAlani label="Görev Yeri (İl)" value={detay.il_adi} />
                 <OzlukAlani label="İşe Giriş Tarihi" value={detay.ise_giris_tarihi ? new Date(detay.ise_giris_tarihi).toLocaleDateString("tr-TR") : null} />
-                <OzlukAlani label="Kan Grubu" value={detay.kan_grubu_kodu} />
+                <div>
+                  <div className="text-[9px] text-gray-400 uppercase">Doğum Tarihi</div>
+                  <div className="text-navy-3 font-medium">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={seciliPersonelId} alan="dogum_tarihi" gorebilir={detay.gorunurlukler.dogum_tarihi} placeholder="••.••.••••" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-gray-400 uppercase">Kan Grubu</div>
+                  <div className="text-navy-3 font-medium">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={seciliPersonelId} alan="kan_grubu_kodu" gorebilir={detay.gorunurlukler.kan_grubu_kodu} placeholder="••" />
+                  </div>
+                </div>
                 <OzlukAlani label="Uyruk" value={detay.uyruk} />
                 <OzlukAlani label="Medeni Durum" value={detay.evli === "DOĞRU" || detay.evli === "true" ? "Evli" : detay.evli ? "Bekar" : null} />
                 <OzlukAlani label="Önceki İş Yeri" value={detay.onceki_is_yeri} />
@@ -353,27 +357,7 @@ export default function CikarmaForm({
                 <div className="text-[9px] text-gray-400 uppercase mb-1.5">
                   Kıdem Tazminatı Tahmini <span className="normal-case text-gray-400">(prim ve ek ücretler hariç)</span>
                 </div>
-                {detay.brut_maas == null ? (
-                  <div className="text-[11px] text-gray-400 bg-gray-50 rounded-md px-2.5 py-2">
-                    {detay.brut_maas_hata
-                      ? <span className="text-danger">Sorgu hatası: {detay.brut_maas_hata}</span>
-                      : "Bu personelin ünvanı için maaş bilgisi girilmemiş — Ayarlar > Maaş Bilgileri'nden ekleyebilirsiniz."}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-md px-2.5 py-2">
-                    <div className="text-sm font-mono font-semibold text-navy-3">
-                      {detay.kidem_tazminati_tahmini != null
-                        ? `${detay.kidem_tazminati_tahmini.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
-                        : "—"}
-                    </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">
-                      Brüt maaş: {detay.brut_maas.toLocaleString("tr-TR")} TL
-                      {detay.kidem_tazminati_tavani != null && detay.brut_maas > detay.kidem_tazminati_tavani && (
-                        <> — tavan aşıldığı için {detay.kidem_tazminati_tavani.toLocaleString("tr-TR")} TL üzerinden hesaplandı</>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <BrutMaasGoster personelId={seciliPersonelId} gorebilir={detay.gorunurlukler.brut_maas} />
               </div>
 
               {detay.notlar && (
