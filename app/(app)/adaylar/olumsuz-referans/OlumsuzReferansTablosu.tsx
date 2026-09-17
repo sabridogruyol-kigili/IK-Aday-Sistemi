@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { olumsuzReferansOnayla, olumsuzReferansReddet, type OlumsuzReferansKaydi } from "./actions";
 import OlumsuzReferansEkleModal from "./OlumsuzReferansEkleModal";
-import TcGoster from "@/lib/TcGoster";
+import HassasAlanGoster from "@/lib/HassasAlanGoster";
 
 const DURUM_ETIKET: Record<string, string> = {
   AKTIF: "Listede", ONAY_BEKLIYOR: "Onay Bekliyor", REDDEDILDI: "Reddedildi",
@@ -12,7 +12,7 @@ const DURUM_RENK: Record<string, string> = {
   AKTIF: "bg-danger-bg text-danger", ONAY_BEKLIYOR: "bg-accent/10 text-accent", REDDEDILDI: "bg-gray-100 text-gray-500",
 };
 
-export default function OlumsuzReferansTablosu({ kayitlar, rol }: { kayitlar: OlumsuzReferansKaydi[]; rol: string }) {
+export default function OlumsuzReferansTablosu({ kayitlar, rol, tcGorebilir }: { kayitlar: OlumsuzReferansKaydi[]; rol: string; tcGorebilir: boolean }) {
   const [durumFiltre, setDurumFiltre] = useState<"" | "AKTIF" | "ONAY_BEKLIYOR" | "REDDEDILDI">("");
   const [aramaMetni, setAramaMetni] = useState("");
   const [ekleModalAcik, setEkleModalAcik] = useState(false);
@@ -23,7 +23,7 @@ export default function OlumsuzReferansTablosu({ kayitlar, rol }: { kayitlar: Ol
     if (durumFiltre && k.durum !== durumFiltre) return false;
     if (aramaMetni) {
       const q = aramaMetni.toLocaleLowerCase("tr-TR");
-      if (!`${k.ad_soyad} ${k.tc_kimlik_no}`.toLocaleLowerCase("tr-TR").includes(q)) return false;
+      if (!k.ad_soyad.toLocaleLowerCase("tr-TR").includes(q)) return false;
     }
     return true;
   });
@@ -52,7 +52,7 @@ export default function OlumsuzReferansTablosu({ kayitlar, rol }: { kayitlar: Ol
           <input
             value={aramaMetni}
             onChange={(e) => setAramaMetni(e.target.value)}
-            placeholder="Ad soyad / TC ara..."
+            placeholder="Ad soyad ara..."
             className="border border-gray-300 rounded-md px-2 py-1.5 text-xs w-44"
           />
           <select
@@ -96,7 +96,9 @@ export default function OlumsuzReferansTablosu({ kayitlar, rol }: { kayitlar: Ol
             <tbody>
               {filtrelenmis.map((k) => (
                 <tr key={k.id} className="border-t border-gray-100">
-                  <td className="p-2 font-mono text-navy-3"><TcGoster tc={k.tc_kimlik_no} /></td>
+                  <td className="p-2 font-mono text-navy-3">
+                    <HassasAlanGoster hedefTablo="olumsuz_referans_listesi" hedefId={k.id} alan="tc_kimlik_no" gorebilir={tcGorebilir} placeholder="•••••••••••" />
+                  </td>
                   <td className="p-2 text-navy-3 font-medium">{k.ad_soyad}</td>
                   <td className="p-2 text-gray-600 max-w-xs truncate" title={k.aciklama}>{k.aciklama}</td>
                   <td className="p-2">
