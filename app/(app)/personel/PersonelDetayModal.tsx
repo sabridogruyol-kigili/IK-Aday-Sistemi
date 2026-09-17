@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  getPersonelDetay, getPersonelPerformansGecmisi, getPersonelIsGecmisi,
-  type PersonelDetay, type PersonelAylikHgo, type PersonelIsGecmisiSatiri,
+  getPersonelDetay, getPersonelPerformansGecmisi, getPersonelIsGecmisi, getKisiPerformansSirketOrtalamasi,
+  type PersonelDetay, type PersonelAylikHgo, type PersonelIsGecmisiSatiri, type KisiPerformansOrtalama,
 } from "../talepler/yeni/actions-cikarma";
 import KisiGrafikPaneli from "../talepler/yeni/KisiGrafikPaneli";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
@@ -52,6 +52,7 @@ export default function PersonelDetayModal({
   const [detay, setDetay] = useState<PersonelDetay | null>(null);
   const [gecmis, setGecmis] = useState<PersonelAylikHgo[]>([]);
   const [isGecmisi, setIsGecmisi] = useState<PersonelIsGecmisiSatiri[]>([]);
+  const [sirketOrtalamasi, setSirketOrtalamasi] = useState<KisiPerformansOrtalama[]>([]);
   const [yukleniyor, setYukleniyor] = useState(true);
 
   useEffect(() => {
@@ -60,10 +61,12 @@ export default function PersonelDetayModal({
       getPersonelDetay(personelId),
       getPersonelPerformansGecmisi(personelId),
       getPersonelIsGecmisi(personelId),
-    ]).then(([d, g, i]) => {
+      getKisiPerformansSirketOrtalamasi(),
+    ]).then(([d, g, i, o]) => {
       setDetay(d);
       setGecmis(g);
       setIsGecmisi(i);
+      setSirketOrtalamasi(o);
       setYukleniyor(false);
     });
   }, [personelId]);
@@ -102,6 +105,7 @@ export default function PersonelDetayModal({
                 yukleniyor={false}
                 varsayilanDegisken="hgo"
                 hgoYuksek={ortalamaHgo != null && ortalamaHgo < 80}
+                sirketOrtalamasi={sirketOrtalamasi}
               />
 
               <div className="pt-3 border-t border-gray-100">
