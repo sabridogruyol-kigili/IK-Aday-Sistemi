@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { alanGorunurlukGuncelle, type AlanGorunurlukAyari } from "./actions-alan-gorunurluk";
 import { HASSAS_ALANLAR, HASSAS_ALAN_ETIKET, KISITLANABILIR_ROLLER } from "@/lib/hassasVeri";
 
-const ROL_ETIKET: Record<string, string> = { BM: "BM", IK: "İK" };
+const ROL_ETIKET: Record<string, string> = {
+  BM: "BM", IK: "İK", MAGAZALAR_DIREKTORLUGU: "Mağazalar Direktörlüğü", BORDRO: "Bordro", CALISAN: "Çalışan",
+};
 
 // Rol bazlı hassas alan görünürlüğü — kullanıcı bazlı DEĞİL, rol bazlı.
 // Yönetim burada listelenmez çünkü Yönetim her zaman tüm alanları görür,
