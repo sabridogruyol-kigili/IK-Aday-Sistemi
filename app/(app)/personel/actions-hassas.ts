@@ -37,6 +37,39 @@ export async function hassasAlanGetir(
   return { deger: deger != null ? String(deger) : null };
 }
 
+export type BedenOlculeriSonucu = {
+  beden_ceket: string | null;
+  beden_pantolon: string | null;
+  beden_gomlek: string | null;
+  beden_tisort: string | null;
+};
+
+export async function bedenOlculeriGetir(personelId: string): Promise<Sonuc<BedenOlculeriSonucu>> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { deger: null, error: "Giriş yapmalısınız." };
+
+  const { data: me } = await supabase.from("kullanicilar").select("id, ad_soyad, rol").eq("email", user.email).single();
+  if (!me) return { deger: null, error: "Kullanıcı bulunamadı." };
+
+  const izinli = await rolGorebilirMi(supabase, me.rol, "beden_olculeri");
+  if (!izinli) return { deger: null, error: "Bu bilgiyi görüntüleme yetkiniz yok." };
+
+  const { data: satir } = await supabase
+    .from("personel")
+    .select("beden_ceket, beden_pantolon, beden_gomlek, beden_tisort")
+    .eq("id", personelId)
+    .single();
+  if (!satir) return { deger: null, error: "Kayıt bulunamadı." };
+
+  await denetimKaydet(supabase, {
+    kullaniciId: me.id, kullaniciAdSoyad: me.ad_soyad, rol: me.rol,
+    hedefTablo: "personel", hedefId: personelId, alan: "beden_olculeri",
+  });
+
+  return { deger: satir as BedenOlculeriSonucu };
+}
+
 export type BrutMaasSonucu = {
   brut_maas: number | null;
   brut_maas_hata: string | null;
