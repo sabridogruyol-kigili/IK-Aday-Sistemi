@@ -131,15 +131,41 @@ function KpiKart({
 
 // "Zaman İçinde Performans" grafiği — kendi değişken/dönem seçimini kendi içinde
 // tutar, böylece aynı sayfada birbirinden bağımsız birden fazla örneği kullanılabilir.
+// Karşılaştırma çizgileri için sabit renk/anahtar sırası — en fazla 3 ek mağaza.
+const EK_MAGAZA_LIMIT = 3;
+
 function ZamanGrafigi({
-  performansHam, seciliMagaza, seciliMagazaId, varsayilanDegisken,
+  performansHam, seciliMagaza, seciliMagazaId, varsayilanDegisken, magazalar,
 }: {
   performansHam: PerformansSatiri[]; seciliMagaza: Magaza | null; seciliMagazaId: string | null; varsayilanDegisken: keyof PerformansSatiri;
+  magazalar: Magaza[];
 }) {
   const [zamanDegisken, setZamanDegisken] = useState<keyof PerformansSatiri>(varsayilanDegisken);
   const zamanTanim = ZAMAN_DEGISKENLERI.find((d) => d.key === zamanDegisken)!;
   const koyuMu = useTemaKoyuMu();
   const rk = grafikRenkleri(koyuMu);
+  const ekRenkler = [rk.info, rk.accent, rk.success];
+
+  const [ekMagazaIdler, setEkMagazaIdler] = useState<string[]>([]);
+  const [ekSeciciAcik, setEkSeciciAcik] = useState(false);
+  const ekSeciciRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function disaTikla(e: MouseEvent) { if (ekSeciciRef.current && !ekSeciciRef.current.contains(e.target as Node)) setEkSeciciAcik(false); }
+    document.addEventListener("mousedown", disaTikla);
+    return () => document.removeEventListener("mousedown", disaTikla);
+  }, []);
+  function ekMagazaToggle(id: string) {
+    setEkMagazaIdler((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= EK_MAGAZA_LIMIT) return prev;
+      return [...prev, id];
+    });
+  }
+  const magazaMapYerel = useMemo(() => {
+    const m: Record<string, Magaza> = {};
+    magazalar.forEach((mag) => { m[mag.id] = mag; });
+    return m;
+  }, [magazalar]);
 
   const tumDonemler = useMemo(() => {
     const set = new Set<number>();
@@ -159,6 +185,9 @@ function ZamanGrafigi({
   const zamanVeri = useMemo(() => {
     const ortalamaMap = new Map<string, { yil: number; ay: number; toplam: number; sayi: number }>();
     const seciliMap = new Map<string, number>();
+    // ekMap[magazaId] -> (grupAnahtari -> değer)
+    const ekMap = new Map<string, Map<string, number>>();
+    ekMagazaIdler.forEach((id) => ekMap.set(id, new Map()));
 
     performansHam.forEach((p) => {
       const anahtar = zamanAnahtarUret(p.yil, p.ay);
@@ -173,16 +202,23 @@ function ZamanGrafigi({
       g.sayi += 1;
 
       if (seciliMagazaId && p.magaza_id === seciliMagazaId) seciliMap.set(grupAnahtari, deger as number);
+      if (ekMap.has(p.magaza_id)) ekMap.get(p.magaza_id)!.set(grupAnahtari, deger as number);
     });
 
     return Array.from(ortalamaMap.entries())
       .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([grupAnahtari, g]) => ({
-        etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`,
-        ortalama: g.sayi > 0 ? g.toplam / g.sayi : null,
-        secili: seciliMap.has(grupAnahtari) ? seciliMap.get(grupAnahtari)! : null,
-      }));
-  }, [performansHam, zamanDegisken, etkinBaslangic, etkinBitis, seciliMagazaId]);
+      .map(([grupAnahtari, g]) => {
+        const satir: Record<string, string | number | null> = {
+          etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`,
+          ortalama: g.sayi > 0 ? g.toplam / g.sayi : null,
+          secili: seciliMap.has(grupAnahtari) ? seciliMap.get(grupAnahtari)! : null,
+        };
+        ekMagazaIdler.forEach((id, i) => {
+          satir[`ek${i}`] = ekMap.get(id)?.get(grupAnahtari) ?? null;
+        });
+        return satir;
+      });
+  }, [performansHam, zamanDegisken, etkinBaslangic, etkinBitis, seciliMagazaId, ekMagazaIdler]);
 
   return (
     <div className="bg-white border border-gray-200 rounded-card p-4 mt-4">
@@ -192,6 +228,31 @@ function ZamanGrafigi({
           {seciliMagaza && <span className="text-gray-400 font-normal"> — {seciliMagaza.magaza_adi} vs. Tüm Mağaza Ortalaması</span>}
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative" ref={ekSeciciRef}>
+            <button type="button" onClick={() => setEkSeciciAcik((v) => !v)}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white flex items-center gap-1.5">
+              <span className={ekMagazaIdler.length === 0 ? "text-gray-500" : "text-navy-3"}>
+                {ekMagazaIdler.length === 0 ? "Mağaza Karşılaştır" : `${ekMagazaIdler.length} mağaza seçili`}
+              </span>
+              <span className={`text-[8px] text-gray-400 transition-transform ${ekSeciciAcik ? "rotate-180" : ""}`}>▼</span>
+            </button>
+            <div className={`absolute z-20 mt-1 w-56 bg-white border border-gray-300 rounded-md shadow-lg max-h-56 overflow-y-auto divide-y divide-gray-100 ${ekSeciciAcik ? "block" : "hidden"}`}>
+              {ekMagazaIdler.length > 0 && (
+                <button onClick={() => setEkMagazaIdler([])} className="w-full text-left text-[11px] text-info px-2.5 py-1.5 hover:bg-gray-50">Seçimi temizle</button>
+              )}
+              <div className="px-2.5 py-1 text-[9px] text-gray-400">En fazla {EK_MAGAZA_LIMIT} mağaza seçilebilir</div>
+              {magazalar.map((m) => {
+                const seciliMi = ekMagazaIdler.includes(m.id);
+                const limitDoldu = !seciliMi && ekMagazaIdler.length >= EK_MAGAZA_LIMIT;
+                return (
+                  <label key={m.id} className={`flex items-center gap-2 text-[11px] px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer ${limitDoldu ? "opacity-40 cursor-not-allowed" : "text-gray-600"}`}>
+                    <input type="checkbox" checked={seciliMi} disabled={limitDoldu} onChange={() => ekMagazaToggle(m.id)} />
+                    {m.magaza_adi}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
           <select value={etkinBaslangic} onChange={(e) => setZamanBaslangic(Number(e.target.value))} className="border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white">
             {tumDonemler.map((d) => <option key={d} value={d}>{donemEtiket(d)}</option>)}
           </select>
@@ -225,13 +286,19 @@ function ZamanGrafigi({
                 <LabelList dataKey="secili" position="top" style={{ fontSize: 10, fill: rk.navy }} formatter={(v: number) => zamanTanim.format(v)} />
               </Line>
             )}
+            {ekMagazaIdler.map((id, i) => (
+              <Line key={id} type="monotone" dataKey={`ek${i}`} stroke={ekRenkler[i % ekRenkler.length]} strokeWidth={2} dot={{ r: 2.5 }}
+                name={magazaMapYerel[id]?.magaza_adi ?? "Mağaza"} connectNulls />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       )}
       <div className="text-[10px] text-gray-400 mt-1">
-        {seciliMagaza
+        {ekMagazaIdler.length > 0
+          ? "Gri çizgi tüm mağaza ortalaması, renkli çizgiler seçtiğiniz mağazalar."
+          : seciliMagaza
           ? "Gri çizgi tüm mağazaların ortalaması, lacivert çizgi seçili mağaza — üstünde/altında olması karşılaştırma sağlar."
-          : "Soldaki listeden bir mağaza seçerseniz, o mağazanın çizgisi tüm mağaza ortalamasıyla birlikte gösterilir."}
+          : "Soldaki listeden bir mağaza seçerseniz, o mağazanın çizgisi tüm mağaza ortalamasıyla birlikte gösterilir. \"Mağaza Karşılaştır\" ile en fazla 3 mağaza daha ekleyebilirsiniz."}
       </div>
     </div>
   );
@@ -807,8 +874,8 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
       </div>
     </div>
 
-    <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="hgo" />
-    <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="adet_hgo" />
+    <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="hgo" magazalar={magazalar} />
+    <ZamanGrafigi performansHam={performansHam} seciliMagaza={seciliMagaza} seciliMagazaId={seciliMagazaId} varsayilanDegisken="adet_hgo" magazalar={magazalar} />
     {detayPersonel && (
       <PersonelDetayModal
         personelId={detayPersonel.id}
