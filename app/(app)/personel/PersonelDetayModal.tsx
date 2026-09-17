@@ -5,16 +5,27 @@ import {
   getPersonelDetay, getPersonelPerformansGecmisi, getPersonelIsGecmisi, getKisiPerformansSirketOrtalamasi,
   type PersonelDetay, type PersonelAylikHgo, type PersonelIsGecmisiSatiri, type KisiPerformansOrtalama,
 } from "../talepler/yeni/actions-cikarma";
+import { hassasAlanGetir } from "./actions-hassas";
 import KisiGrafikPaneli from "../talepler/yeni/KisiGrafikPaneli";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
 import OlumsuzReferansEkleModal from "../adaylar/olumsuz-referans/OlumsuzReferansEkleModal";
-import TcGoster from "@/lib/TcGoster";
+import HassasAlanGoster from "@/lib/HassasAlanGoster";
+import BrutMaasGoster from "@/lib/BrutMaasGoster";
 
 function OzlukAlani({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
       <div className="text-[9px] text-gray-400 uppercase">{label}</div>
       <div className="text-navy-3 font-medium">{value || "—"}</div>
+    </div>
+  );
+}
+
+function HassasOzlukAlani({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[9px] text-gray-400 uppercase">{label}</div>
+      <div className="text-navy-3 font-medium">{children}</div>
     </div>
   );
 }
@@ -26,17 +37,6 @@ function MiniKpi({ label, value, vurgu }: { label: string; value: string; vurgu?
       <div className={`text-sm font-mono font-semibold ${vurgu ? "text-danger" : "text-navy-3"}`}>{value}</div>
     </div>
   );
-}
-
-function yasHesapla(dogumTarihi: string | null): number | null {
-  if (!dogumTarihi) return null;
-  const dogum = new Date(dogumTarihi);
-  if (isNaN(dogum.getTime())) return null;
-  const simdi = new Date();
-  let yas = simdi.getFullYear() - dogum.getFullYear();
-  const ayFarki = simdi.getMonth() - dogum.getMonth();
-  if (ayFarki < 0 || (ayFarki === 0 && simdi.getDate() < dogum.getDate())) yas--;
-  return yas;
 }
 
 function tarihFormat(t: string | null): string {
@@ -57,6 +57,9 @@ export default function PersonelDetayModal({
   const [sirketOrtalamasi, setSirketOrtalamasi] = useState<KisiPerformansOrtalama[]>([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [olumsuzReferansModalAcik, setOlumsuzReferansModalAcik] = useState(false);
+  const [olumsuzReferansTc, setOlumsuzReferansTc] = useState<string | null>(null);
+  const [olumsuzReferansYukleniyor, setOlumsuzReferansYukleniyor] = useState(false);
+  const [olumsuzReferansHata, setOlumsuzReferansHata] = useState<string | null>(null);
 
   useEffect(() => {
     setYukleniyor(true);
@@ -74,10 +77,25 @@ export default function PersonelDetayModal({
     });
   }, [personelId]);
 
-  const yas = detay ? yasHesapla(detay.dogum_tarihi) : null;
   const ortalamaHgo = gecmis.filter((g) => g.hgo != null).length > 0
     ? gecmis.reduce((s, g) => s + (g.hgo ?? 0), 0) / gecmis.filter((g) => g.hgo != null).length
     : null;
+
+  // "Olumsuz Referansa Ekle" TC gerektirir — TC hiçbir zaman burada state'te
+  // saklı tutulmaz, butona basılınca anlık istenir (yetkisi yoksa burada engellenir
+  // ve denetim kaydına düşer).
+  async function olumsuzReferansAc() {
+    setOlumsuzReferansHata(null);
+    setOlumsuzReferansYukleniyor(true);
+    const sonuc = await hassasAlanGetir("personel", personelId, "tc_kimlik_no");
+    setOlumsuzReferansYukleniyor(false);
+    if (sonuc.error || !sonuc.deger) {
+      setOlumsuzReferansHata(sonuc.error ?? "TC Kimlik No bulunamadı.");
+      return;
+    }
+    setOlumsuzReferansTc(sonuc.deger);
+    setOlumsuzReferansModalAcik(true);
+  }
 
   return (
     <div className="fixed inset-0 bg-navy-3/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -89,28 +107,31 @@ export default function PersonelDetayModal({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setOlumsuzReferansModalAcik(true)}
-              disabled={!detay?.tc_kimlik_no}
-              title={!detay?.tc_kimlik_no ? "TC Kimlik No bulunamadı" : "Olumsuz Referans Listesine Ekle"}
+              onClick={olumsuzReferansAc}
+              disabled={!detay?.tc_var || olumsuzReferansYukleniyor}
+              title={!detay?.tc_var ? "TC Kimlik No bulunamadı" : "Olumsuz Referans Listesine Ekle"}
               className="text-[10px] font-medium bg-white border border-danger/40 text-danger hover:bg-danger-bg rounded-md px-2 py-1 transition-colors disabled:opacity-40"
             >
-              Olumsuz Referansa Ekle
+              {olumsuzReferansYukleniyor ? "Kontrol ediliyor…" : "Olumsuz Referansa Ekle"}
             </button>
             <button onClick={onClose} className="text-gray-400 text-lg leading-none">×</button>
           </div>
         </div>
 
         <div className="p-4 space-y-4">
+          {olumsuzReferansHata && (
+            <div className="text-[11px] text-danger bg-danger-bg rounded-md px-2.5 py-1.5">{olumsuzReferansHata}</div>
+          )}
+
           {yukleniyor ? (
             <div className="text-xs text-gray-400 py-8 text-center flex items-center justify-center gap-2">
               <span className="yukleniyor-donen" /> Yükleniyor...
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <MiniKpi label="Ort. HGO" value={ortalamaHgo != null ? `%${ortalamaHgo.toFixed(1)}` : "—"} vurgu={ortalamaHgo != null && ortalamaHgo < 80} />
                 <MiniKpi label="Kıdem" value={detay?.kidem_ay != null ? kidemYilAyFormat(detay.kidem_ay) : "—"} />
-                <MiniKpi label="Yaş" value={yas != null ? String(yas) : "—"} />
               </div>
 
               <KisiGrafikPaneli
@@ -124,20 +145,30 @@ export default function PersonelDetayModal({
               <div className="pt-3 border-t border-gray-100">
                 <div className="text-[11px] font-semibold text-navy-3 mb-2">Kişi Bilgileri</div>
                 <div className="grid grid-cols-2 gap-2.5 text-[11px]">
-                  <div>
-                    <div className="text-[9px] text-gray-400 uppercase">TC Kimlik No</div>
-                    <div className="text-navy-3 font-medium"><TcGoster tc={detay?.tc_kimlik_no ?? null} /></div>
-                  </div>
+                  <HassasOzlukAlani label="TC Kimlik No">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={personelId} alan="tc_kimlik_no" gorebilir={detay?.gorunurlukler.tc_kimlik_no ?? false} placeholder="•••••••••••" />
+                  </HassasOzlukAlani>
                   <OzlukAlani label="Personel Kodu" value={detay?.personel_kodu ?? null} />
-                  <OzlukAlani label="Doğum Tarihi" value={tarihFormat(detay?.dogum_tarihi ?? null)} />
-                  <OzlukAlani label="Kan Grubu" value={detay?.kan_grubu_kodu ?? null} />
+                  <HassasOzlukAlani label="Doğum Tarihi">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={personelId} alan="dogum_tarihi" gorebilir={detay?.gorunurlukler.dogum_tarihi ?? false} placeholder="••.••.••••" />
+                  </HassasOzlukAlani>
+                  <HassasOzlukAlani label="Kan Grubu">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={personelId} alan="kan_grubu_kodu" gorebilir={detay?.gorunurlukler.kan_grubu_kodu ?? false} placeholder="••" />
+                  </HassasOzlukAlani>
                   <OzlukAlani label="Uyruk" value={detay?.uyruk ?? null} />
                   <OzlukAlani label="Medeni Hal" value={detay?.evli ?? null} />
                   <OzlukAlani label="Görev Yeri (İl)" value={detay?.il_adi ?? null} />
                   <OzlukAlani label="İşe Giriş Tarihi" value={detay?.ise_giris_tarihi ? new Date(detay.ise_giris_tarihi).toLocaleDateString("tr-TR") : null} />
-                  <OzlukAlani label="Cep Telefonu" value={detay?.ozel_mobil ?? null} />
+                  <HassasOzlukAlani label="Cep Telefonu">
+                    <HassasAlanGoster hedefTablo="personel" hedefId={personelId} alan="ozel_mobil" gorebilir={detay?.gorunurlukler.ozel_mobil ?? false} placeholder="••• ••• •• ••" />
+                  </HassasOzlukAlani>
                   <OzlukAlani label="Önceki İş Yeri" value={detay?.onceki_is_yeri ?? null} />
                 </div>
+              </div>
+
+              <div className="pt-3 border-t border-gray-100">
+                <div className="text-[11px] font-semibold text-navy-3 mb-2">Brüt Maaş / Kıdem Tazminatı Tahmini</div>
+                <BrutMaasGoster personelId={personelId} gorebilir={detay?.gorunurlukler.brut_maas ?? false} />
               </div>
 
               {(Number(detay?.ihtarname) > 0 || Number(detay?.uyari_yazisi) > 0 || Number(detay?.tutanak) > 0 || Number(detay?.savunma) > 0) && (
@@ -195,10 +226,10 @@ export default function PersonelDetayModal({
         </div>
       </div>
 
-      {olumsuzReferansModalAcik && detay?.tc_kimlik_no && (
+      {olumsuzReferansModalAcik && olumsuzReferansTc && (
         <OlumsuzReferansEkleModal
           onClose={() => setOlumsuzReferansModalAcik(false)}
-          tcKimlikNo={detay.tc_kimlik_no}
+          tcKimlikNo={olumsuzReferansTc}
           adSoyad={adSoyad}
         />
       )}
