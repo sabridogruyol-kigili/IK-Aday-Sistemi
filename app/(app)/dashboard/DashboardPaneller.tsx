@@ -659,7 +659,9 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
             </div>
           </div>
         </div>
-        <div className="text-[10px] text-gray-400 mb-2">Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür.</div>
+        <div className="text-[10px] text-gray-400 mb-2">
+          Bir mağazaya tıklayınca sağda o mağazanın performans geçmişi görünür. Sayılar <span className="font-semibold text-navy-3">fiili</span> / <span className="text-gray-400">norm</span> sırasıyla gösterilir.
+        </div>
 
         <div className="flex flex-wrap gap-2 mb-2 items-center">
           <input value={solArama} onChange={(e) => setSolArama(e.target.value)} placeholder="Mağaza kodu/adı ara..."
@@ -769,22 +771,43 @@ export default function DashboardPaneller({ magazalar, bolgeler, performansHam, 
                       <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-navy rounded-full" style={{ width: `${oranHesap(m.ana_dolu, m.ana_norm)}%` }} />
                       </div>
-                      <span className="text-[8px] text-gray-400 font-mono w-14 text-right shrink-0">Ana {m.ana_dolu}/{m.ana_norm}</span>
+                      <span className="text-[8px] font-mono w-16 text-right shrink-0">
+                        <span className="text-gray-400">Ana </span>
+                        <span className="font-semibold text-navy-3">{m.ana_dolu}</span>
+                        <span className="text-gray-300">/</span>
+                        <span className="text-gray-400">{m.ana_norm}</span>
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-accent rounded-full" style={{ width: `${oranHesap(m.donemsel_dolu, m.donemsel_norm)}%` }} />
                       </div>
-                      <span className="text-[8px] text-gray-400 font-mono w-14 text-right shrink-0">Dön. {m.donemsel_dolu}/{m.donemsel_norm}</span>
+                      <span className="text-[8px] font-mono w-16 text-right shrink-0">
+                        <span className="text-gray-400">Dön. </span>
+                        <span className="font-semibold text-navy-3">{m.donemsel_dolu}</span>
+                        <span className="text-gray-300">/</span>
+                        <span className="text-gray-400">{m.donemsel_norm}</span>
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-info rounded-full" style={{ width: `${oranHesap(m.part_dolu, m.part_norm)}%` }} />
                       </div>
-                      <span className="text-[8px] text-gray-400 font-mono w-14 text-right shrink-0">P.T. {m.part_dolu}/{m.part_norm}</span>
+                      <span className="text-[8px] font-mono w-16 text-right shrink-0">
+                        <span className="text-gray-400">P.T. </span>
+                        <span className="font-semibold text-navy-3">{m.part_dolu}</span>
+                        <span className="text-gray-300">/</span>
+                        <span className="text-gray-400">{m.part_norm}</span>
+                      </span>
                     </div>
                   </div>
-                  <div className="text-[9px] text-gray-400 font-mono mt-1.5">Toplam: {m.toplamDolu}/{m.toplamNorm} (%{m.oran})</div>
+                  <div className="text-[9px] font-mono mt-1.5">
+                    <span className="text-gray-400">Toplam: </span>
+                    <span className="font-semibold text-navy-3">{m.toplamDolu}</span>
+                    <span className="text-gray-300">/</span>
+                    <span className="text-gray-400">{m.toplamNorm}</span>
+                    <span className="text-gray-400"> (%{m.oran})</span>
+                  </div>
                 </button>
               );
             })}
