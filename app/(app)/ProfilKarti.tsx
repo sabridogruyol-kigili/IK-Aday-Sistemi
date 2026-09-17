@@ -8,6 +8,11 @@ const ROL_ETIKET: Record<string, string> = {
   MAGAZALAR_DIREKTORLUGU: "Mağazalar Direktörlüğü", BORDRO: "Bordro ve Çalışma İlişkileri",
 };
 
+const CEKET_SECENEKLERI = ["44", "46", "48", "50", "52", "54", "56", "58", "60"];
+const PANTOLON_SECENEKLERI = ["36", "38", "40", "42", "44", "46", "48", "50", "52", "54"];
+const GOMLEK_SECENEKLERI = ["37", "38", "39", "40", "41", "42", "43", "44", "45"];
+const TISORT_SECENEKLERI = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+
 function yasHesapla(dogumTarihi: string | null): number | null {
   if (!dogumTarihi) return null;
   const dogum = new Date(dogumTarihi);
@@ -40,6 +45,10 @@ export default function ProfilKarti({ displayName, rol, initials }: { displayNam
   const [bolum, setBolum] = useState("");
   const [adres, setAdres] = useState("");
   const [email, setEmail] = useState("");
+  const [bedenCeket, setBedenCeket] = useState("");
+  const [bedenPantolon, setBedenPantolon] = useState("");
+  const [bedenGomlek, setBedenGomlek] = useState("");
+  const [bedenTisort, setBedenTisort] = useState("");
   const [sertifikalar, setSertifikalar] = useState<string[]>([]);
   const [yeniSertifika, setYeniSertifika] = useState("");
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
@@ -65,8 +74,17 @@ export default function ProfilKarti({ displayName, rol, initials }: { displayNam
         setBolum(p.bolum ?? "");
         setAdres(p.adres ?? "");
         setEmail(p.email ?? "");
+        setBedenCeket(p.beden_ceket ?? "");
+        setBedenPantolon(p.beden_pantolon ?? "");
+        setBedenGomlek(p.beden_gomlek ?? "");
+        setBedenTisort(p.beden_tisort ?? "");
         setSertifikalar(p.sertifikalar.map((s) => s.sertifika_adi));
         setFotoUrl(p.profil_foto_url);
+        // Beden ölçüleri zorunlu — eksikse ve bekleyen bir talep yoksa
+        // doğrudan düzenleme moduyla aç, kullanıcı doldurmaya yönlendirilsin.
+        if (!p.bekleyenTalep && (!p.beden_ceket || !p.beden_pantolon || !p.beden_gomlek || !p.beden_tisort)) {
+          setDuzenlemeModu(true);
+        }
       }
       setYukleniyor(false);
     });
@@ -102,6 +120,7 @@ export default function ProfilKarti({ displayName, rol, initials }: { displayNam
     profilDegisiklikTalebiGonder({
       telefon: telefon || null, egitim_duzeyi: egitimDuzeyi || null, okul: okul || null, bolum: bolum || null,
       adres: adres || null, email: email || null, profil_foto_url: fotoUrl, sertifikalar,
+      beden_ceket: bedenCeket, beden_pantolon: bedenPantolon, beden_gomlek: bedenGomlek, beden_tisort: bedenTisort,
     }).then((res) => {
       setKaydediliyor(false);
       if (res.error) { setHata(res.error); return; }
@@ -190,6 +209,52 @@ export default function ProfilKarti({ displayName, rol, initials }: { displayNam
                         <Alan label="Telefon" value={profil.telefon ?? "—"} />
                         <Alan label="Yaş" value={yas != null ? `${yas}` : "—"} />
                         <Alan label="Adres" value={profil.adres ?? "—"} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Beden Ölçüleri — kurumsal kıyafet için zorunlu */}
+                  <div>
+                    <div className="text-[10px] font-semibold text-navy-3 uppercase tracking-wide mb-2">
+                      Beden Ölçülerim {duzenlemeModu && <span className="text-danger normal-case font-normal">(zorunlu)</span>}
+                    </div>
+                    {duzenlemeModu ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-[9px] text-gray-400 uppercase mb-1">Ceket *</label>
+                          <select required value={bedenCeket} onChange={(e) => setBedenCeket(e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
+                            <option value="">Seçin</option>
+                            {CEKET_SECENEKLERI.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-gray-400 uppercase mb-1">Pantolon *</label>
+                          <select required value={bedenPantolon} onChange={(e) => setBedenPantolon(e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
+                            <option value="">Seçin</option>
+                            {PANTOLON_SECENEKLERI.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-gray-400 uppercase mb-1">Gömlek (Yaka) *</label>
+                          <select required value={bedenGomlek} onChange={(e) => setBedenGomlek(e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
+                            <option value="">Seçin</option>
+                            {GOMLEK_SECENEKLERI.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-gray-400 uppercase mb-1">Tişört *</label>
+                          <select required value={bedenTisort} onChange={(e) => setBedenTisort(e.target.value)} className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white">
+                            <option value="">Seçin</option>
+                            {TISORT_SECENEKLERI.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-3">
+                        <Alan label="Ceket" value={profil.beden_ceket ?? "—"} />
+                        <Alan label="Pantolon" value={profil.beden_pantolon ?? "—"} />
+                        <Alan label="Gömlek" value={profil.beden_gomlek ?? "—"} />
+                        <Alan label="Tişört" value={profil.beden_tisort ?? "—"} />
                       </div>
                     )}
                   </div>
@@ -292,7 +357,7 @@ export default function ProfilKarti({ displayName, rol, initials }: { displayNam
                   <div className="flex gap-2 pt-1">
                     {duzenlemeModu ? (
                       <>
-                        <button onClick={talebiGonder} disabled={kaydediliyor}
+                        <button onClick={talebiGonder} disabled={kaydediliyor || !bedenCeket || !bedenPantolon || !bedenGomlek || !bedenTisort}
                           className="bg-navy hover:bg-navy-2 text-white rounded-md px-4 py-2 text-xs font-medium disabled:opacity-50 transition-colors">
                           {kaydediliyor ? "Gönderiliyor..." : "Değişiklikleri Onaya Gönder"}
                         </button>
