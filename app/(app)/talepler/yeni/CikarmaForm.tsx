@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { createIstenCikarmaTalebi, getPersonelPerformansGecmisi, getPersonelDetay, getKisiPerformansSirketOrtalamasi, type PersonelAylikHgo, type PersonelDetay, type KisiPerformansOrtalama } from "./actions-cikarma";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
 import KisiGrafikPaneli from "./KisiGrafikPaneli";
+import TcGoster from "@/lib/TcGoster";
 
 
 
@@ -324,7 +325,10 @@ export default function CikarmaForm({
             <div className="space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
                 <OzlukAlani label="Personel Kodu" value={detay.personel_kodu} />
-                <OzlukAlani label="TC Kimlik No" value={detay.tc_kimlik_no} />
+                <div>
+                  <div className="text-[9px] text-gray-400 uppercase">TC Kimlik No</div>
+                  <div className="text-navy-3 font-medium"><TcGoster tc={detay.tc_kimlik_no} /></div>
+                </div>
                 <OzlukAlani label="Telefon" value={detay.ozel_mobil} />
                 <OzlukAlani label="Yaş" value={yas != null ? String(yas) : null} />
                 <OzlukAlani label="Görev Yeri (İl)" value={detay.il_adi} />
