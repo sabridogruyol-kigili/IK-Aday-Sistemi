@@ -2,6 +2,37 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { rolGorebilirMi, denetimKaydet } from "@/lib/hassasVeri";
+
+type BedenSonuc = { deger: { beden_ceket: string | null; beden_pantolon: string | null; beden_gomlek: string | null; beden_tisort: string | null } | null; error?: string };
+
+// Ayarlar > Kullanıcılar listesinde bir kullanıcının beden ölçülerini
+// gösterir — rol yetkisi kontrol edilir, her başarılı erişim denetime yazılır.
+export async function kullaniciBedenOlculeriGetir(kullaniciId: string): Promise<BedenSonuc> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { deger: null, error: "Giriş yapmalısınız." };
+
+  const { data: me } = await supabase.from("kullanicilar").select("id, ad_soyad, rol").eq("email", user.email).single();
+  if (!me) return { deger: null, error: "Kullanıcı bulunamadı." };
+
+  const izinli = await rolGorebilirMi(supabase, me.rol, "beden_olculeri");
+  if (!izinli) return { deger: null, error: "Bu bilgiyi görüntüleme yetkiniz yok." };
+
+  const { data: satir } = await supabase
+    .from("kullanicilar")
+    .select("beden_ceket, beden_pantolon, beden_gomlek, beden_tisort")
+    .eq("id", kullaniciId)
+    .single();
+  if (!satir) return { deger: null, error: "Kayıt bulunamadı." };
+
+  await denetimKaydet(supabase, {
+    kullaniciId: me.id, kullaniciAdSoyad: me.ad_soyad, rol: me.rol,
+    hedefTablo: "kullanicilar", hedefId: kullaniciId, alan: "beden_olculeri",
+  });
+
+  return { deger: satir };
+}
 
 export async function createKullanici(formData: FormData): Promise<{ error?: string }> {
   const supabase = createClient();
