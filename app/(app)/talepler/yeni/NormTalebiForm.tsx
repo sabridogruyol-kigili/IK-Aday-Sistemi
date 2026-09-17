@@ -180,7 +180,7 @@ export default function NormTalebiForm({
               </div>
             )}
 
-            <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" />
+            <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" sirketOrtalamasi={magazaBilgi.sirketOrtalamasi} bolgeOrtalamasi={magazaBilgi.bolgeOrtalamasi} bolgeAdi={magazaBilgi.bolge_adi} />
 
             {magazaBilgi.calisanlar.length > 0 && (
               <div className="pt-3 border-t border-gray-100">
