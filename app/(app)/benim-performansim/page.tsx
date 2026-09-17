@@ -41,7 +41,7 @@ export default async function BenimPerformansimPage() {
           {personel?.guncel_unvan ?? "—"} · {(personel as any)?.magazalar?.magaza_adi ?? "—"}
         </div>
       </div>
-      <BenimPerformansimIcerik detay={detay} gecmis={gecmis} adSoyad={me.ad_soyad} sirketOrtalamasi={sirketOrtalamasi} />
+      <BenimPerformansimIcerik personelId={me.personel_id} detay={detay} gecmis={gecmis} adSoyad={me.ad_soyad} sirketOrtalamasi={sirketOrtalamasi} />
     </div>
   );
 }
