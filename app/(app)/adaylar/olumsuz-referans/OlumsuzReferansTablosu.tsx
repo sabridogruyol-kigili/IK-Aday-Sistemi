@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { olumsuzReferansOnayla, olumsuzReferansReddet, type OlumsuzReferansKaydi } from "./actions";
 import OlumsuzReferansEkleModal from "./OlumsuzReferansEkleModal";
+import TcGoster from "@/lib/TcGoster";
 
 const DURUM_ETIKET: Record<string, string> = {
   AKTIF: "Listede", ONAY_BEKLIYOR: "Onay Bekliyor", REDDEDILDI: "Reddedildi",
@@ -95,7 +96,7 @@ export default function OlumsuzReferansTablosu({ kayitlar, rol }: { kayitlar: Ol
             <tbody>
               {filtrelenmis.map((k) => (
                 <tr key={k.id} className="border-t border-gray-100">
-                  <td className="p-2 font-mono text-navy-3">{k.tc_kimlik_no}</td>
+                  <td className="p-2 font-mono text-navy-3"><TcGoster tc={k.tc_kimlik_no} /></td>
                   <td className="p-2 text-navy-3 font-medium">{k.ad_soyad}</td>
                   <td className="p-2 text-gray-600 max-w-xs truncate" title={k.aciklama}>{k.aciklama}</td>
                   <td className="p-2">
