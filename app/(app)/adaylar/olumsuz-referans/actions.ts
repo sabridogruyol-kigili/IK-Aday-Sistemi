@@ -7,7 +7,6 @@ type Sonuc = { error?: string };
 
 export type OlumsuzReferansKaydi = {
   id: string;
-  tc_kimlik_no: string;
   ad_soyad: string;
   aciklama: string;
   durum: "AKTIF" | "ONAY_BEKLIYOR" | "REDDEDILDI";
@@ -127,12 +126,11 @@ export async function getOlumsuzReferansListesi(): Promise<OlumsuzReferansKaydi[
 
   const { data } = await supabase
     .from("olumsuz_referans_listesi")
-    .select("id, tc_kimlik_no, ad_soyad, aciklama, durum, ekleyen_rol, created_at, karar_tarihi, ekleyen:ekleyen_kullanici_id(ad_soyad), onaylayan:onaylayan_kullanici_id(ad_soyad)")
+    .select("id, ad_soyad, aciklama, durum, ekleyen_rol, created_at, karar_tarihi, ekleyen:ekleyen_kullanici_id(ad_soyad), onaylayan:onaylayan_kullanici_id(ad_soyad)")
     .order("created_at", { ascending: false });
 
   return (data ?? []).map((k: any) => ({
     id: k.id,
-    tc_kimlik_no: k.tc_kimlik_no,
     ad_soyad: k.ad_soyad,
     aciklama: k.aciklama,
     durum: k.durum,
