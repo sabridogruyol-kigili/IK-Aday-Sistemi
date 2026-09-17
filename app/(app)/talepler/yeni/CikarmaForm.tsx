@@ -7,7 +7,6 @@ import { kidemYilAyFormat } from "@/lib/kidemFormat";
 import KisiGrafikPaneli from "./KisiGrafikPaneli";
 import HassasAlanGoster from "@/lib/HassasAlanGoster";
 import BrutMaasGoster from "@/lib/BrutMaasGoster";
-import BedenOlculeriGoster from "@/lib/BedenOlculeriGoster";
 
 
 
@@ -359,11 +358,6 @@ export default function CikarmaForm({
                   Kıdem Tazminatı Tahmini <span className="normal-case text-gray-400">(prim ve ek ücretler hariç)</span>
                 </div>
                 <BrutMaasGoster personelId={seciliPersonelId} gorebilir={detay.gorunurlukler.brut_maas} />
-              </div>
-
-              <div className="pt-2 border-t border-gray-100">
-                <div className="text-[9px] text-gray-400 uppercase mb-1.5">Beden Ölçüleri</div>
-                <BedenOlculeriGoster personelId={seciliPersonelId} gorebilir={detay.gorunurlukler.beden_olculeri} />
               </div>
 
               {detay.notlar && (
