@@ -13,9 +13,10 @@ export const HASSAS_ALAN_ETIKET: Record<HassasAlan, string> = {
   brut_maas: "Brüt Maaş / Kıdem Tazminatı",
 };
 
-// Ayarları değiştirebilecek roller dışındakiler (BM/İK) için matris kullanılır.
-// Yönetim her zaman tüm hassas alanları görebilir — kendi kendini kısıtlayamaz.
-export const KISITLANABILIR_ROLLER = ["BM", "IK"] as const;
+// Ayarları değiştirebilecek roller dışındakiler (Yönetim hariç herkes) için
+// matris kullanılır. Yönetim her zaman tüm hassas alanları görebilir — kendi
+// kendini kısıtlayamaz.
+export const KISITLANABILIR_ROLLER = ["BM", "IK", "MAGAZALAR_DIREKTORLUGU", "BORDRO", "CALISAN"] as const;
 
 type SupabaseClient = any;
 
