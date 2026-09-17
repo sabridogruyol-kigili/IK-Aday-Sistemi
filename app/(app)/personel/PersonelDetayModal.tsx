@@ -8,6 +8,7 @@ import {
 import KisiGrafikPaneli from "../talepler/yeni/KisiGrafikPaneli";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
 import OlumsuzReferansEkleModal from "../adaylar/olumsuz-referans/OlumsuzReferansEkleModal";
+import TcGoster from "@/lib/TcGoster";
 
 function OzlukAlani({ label, value }: { label: string; value: string | null }) {
   return (
@@ -123,7 +124,10 @@ export default function PersonelDetayModal({
               <div className="pt-3 border-t border-gray-100">
                 <div className="text-[11px] font-semibold text-navy-3 mb-2">Kişi Bilgileri</div>
                 <div className="grid grid-cols-2 gap-2.5 text-[11px]">
-                  <OzlukAlani label="TC Kimlik No" value={detay?.tc_kimlik_no ?? null} />
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase">TC Kimlik No</div>
+                    <div className="text-navy-3 font-medium"><TcGoster tc={detay?.tc_kimlik_no ?? null} /></div>
+                  </div>
                   <OzlukAlani label="Personel Kodu" value={detay?.personel_kodu ?? null} />
                   <OzlukAlani label="Doğum Tarihi" value={tarihFormat(detay?.dogum_tarihi ?? null)} />
                   <OzlukAlani label="Kan Grubu" value={detay?.kan_grubu_kodu ?? null} />
