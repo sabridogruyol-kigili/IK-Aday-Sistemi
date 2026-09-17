@@ -33,13 +33,9 @@ export default async function AdaylarPage() {
 
   return (
     <div>
-      <div className="mb-4">
-        <div className="text-lg font-semibold text-navy-3">Aday Havuzu</div>
-        <div className="text-xs text-gray-400 mt-0.5">
-          "Aday Havuzuna Al" ile arşivlenmiş, herhangi bir talebe bağlı olmayan adaylar — buradan yeni bir İşe Alım talebine yeniden yönlendirilebilirler. Aktif süreçteki adaylar için Talepler sayfasına bakın.
-        </div>
+      <div className="text-xs text-gray-400 mb-3">
+        "Aday Havuzuna Al" ile arşivlenmiş, herhangi bir talebe bağlı olmayan adaylar — buradan yeni bir İşe Alım talebine yeniden yönlendirilebilirler. Aktif süreçteki adaylar için Talepler sayfasına bakın.
       </div>
-
       <AdayHavuzuIcerik
         havuzdakiler={(havuzdakiler ?? []).map((h: any) => ({
           id: h.id, ad_soyad: h.ad_soyad, telefon: h.telefon, email: h.email,
