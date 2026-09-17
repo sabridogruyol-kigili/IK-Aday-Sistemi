@@ -10,6 +10,7 @@ import AdayEkleModal from "./AdayEkleModal";
 import AdayStepper from "./AdayStepper";
 import IseAlModal from "./IseAlModal";
 import SurecDetayModal from "./SurecDetayModal";
+import TcGoster from "@/lib/TcGoster";
 
 const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon", NORM_DEGISIKLIK: "Norm Değişikliği" };
 const DURUM_RENK: Record<string, string> = {
@@ -409,7 +410,7 @@ export default function TalepRow({
                             {a.onay_tarihi ? new Date(a.onay_tarihi).toLocaleDateString("tr-TR") : "—"}
                           </td>
                           <td className="px-3 py-2 text-gray-600 font-mono text-[10px]">
-                            {a.tc_kimlik_no ?? "—"}
+                            <TcGoster tc={a.tc_kimlik_no} />
                           </td>
                           <td className="px-3 py-2 text-gray-600 font-mono text-[10px]">
                             {a.ise_baslama_tarihi ? new Date(a.ise_baslama_tarihi).toLocaleDateString("tr-TR") : "—"}
