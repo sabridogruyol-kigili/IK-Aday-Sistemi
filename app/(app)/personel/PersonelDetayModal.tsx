@@ -11,7 +11,6 @@ import { kidemYilAyFormat } from "@/lib/kidemFormat";
 import OlumsuzReferansEkleModal from "../adaylar/olumsuz-referans/OlumsuzReferansEkleModal";
 import HassasAlanGoster from "@/lib/HassasAlanGoster";
 import BrutMaasGoster from "@/lib/BrutMaasGoster";
-import BedenOlculeriGoster from "@/lib/BedenOlculeriGoster";
 
 function OzlukAlani({ label, value }: { label: string; value: string | null }) {
   return (
@@ -170,11 +169,6 @@ export default function PersonelDetayModal({
               <div className="pt-3 border-t border-gray-100">
                 <div className="text-[11px] font-semibold text-navy-3 mb-2">Brüt Maaş / Kıdem Tazminatı Tahmini</div>
                 <BrutMaasGoster personelId={personelId} gorebilir={detay?.gorunurlukler.brut_maas ?? false} />
-              </div>
-
-              <div className="pt-3 border-t border-gray-100">
-                <div className="text-[11px] font-semibold text-navy-3 mb-2">Beden Ölçüleri</div>
-                <BedenOlculeriGoster personelId={personelId} gorebilir={detay?.gorunurlukler.beden_olculeri ?? false} />
               </div>
 
               {(Number(detay?.ihtarname) > 0 || Number(detay?.uyari_yazisi) > 0 || Number(detay?.tutanak) > 0 || Number(detay?.savunma) > 0) && (
