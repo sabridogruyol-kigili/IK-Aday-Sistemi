@@ -374,11 +374,15 @@ export async function getAdaylarByTalep(talepId: string) {
   const iseAlindiTcListesi = adaylar.filter((a) => a.durum === "ISE_ALINDI" && a.tc_kimlik_no).map((a) => a.tc_kimlik_no as string);
   const evrakEtiketleri = await iseAlindiEtiketleriniHesapla(iseAlindiTcListesi);
 
-  const zenginlestirilmis = adaylar.map((a) => ({
-    ...a,
-    onay_tarihi: onayTarihiMap[a.id] ?? null,
-    evrak_etiket: a.tc_kimlik_no ? evrakEtiketleri[a.tc_kimlik_no] ?? null : null,
-  }));
+  const zenginlestirilmis = adaylar.map((a) => {
+    const { tc_kimlik_no, ...rest } = a;
+    return {
+      ...rest,
+      tc_var: !!tc_kimlik_no,
+      onay_tarihi: onayTarihiMap[a.id] ?? null,
+      evrak_etiket: tc_kimlik_no ? evrakEtiketleri[tc_kimlik_no] ?? null : null,
+    };
+  });
 
   return { data: zenginlestirilmis, error: undefined };
 }
