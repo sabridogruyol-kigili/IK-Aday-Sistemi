@@ -196,6 +196,23 @@ export async function getPersonelPerformansGecmisi(personelId: string): Promise<
   return (data ?? []) as PersonelAylikHgo[];
 }
 
+// Kişi performans grafiklerinde (KisiGrafikPaneli) "Şirket Geneli Ortalama" çizgisi
+// için — SQL fonksiyonu (yıl,ay) başına ortalama döndürür, RLS role göre otomatik daralır.
+export type KisiPerformansOrtalama = {
+  yil: number; ay: number; ort_hgo: number | null; ort_adet_hgo: number | null;
+  ort_gerceklesen_ciro_kdv_dahil: number | null; ort_gerceklesen_adet: number | null;
+  ort_brut_kar_marji: number | null; ort_brut_satis_adeti: number | null;
+};
+
+export async function getKisiPerformansSirketOrtalamasi(): Promise<KisiPerformansOrtalama[]> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase.rpc("kisi_performans_aylik_ortalama");
+  return (data ?? []) as KisiPerformansOrtalama[];
+}
+
 // Kişi seçilince gösterilecek ek özlük bilgileri — sadece seçilen kişi için anlık
 // çekilir (tüm personel listesine bu ağır alanları eklemeyip performansı koruyoruz).
 export type PersonelDetay = {
@@ -297,17 +314,6 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
   const magazaHam = data as any;
   const kidemAy = kidemAyHesapla(atamalar ?? []);
 
-  // Maaş artık kişi bazlı değil, ünvan bazlı tek bir tabloda tutuluyor —
-  // kişinin güncel ünvanına göre karşılık gelen maaş burada aranır.
-  // Personel_Şablonu'ndan gelen ünvanlar TAMAMEN BÜYÜK HARF ("MAĞAZA
-  // MÜDÜRÜ"), Ayarlar'daki unvan_maas tablosu ise normal yazım ("Mağaza
-  // Müdürü") kullanıyor. "ilike" büyük/küçük harfi tolere ediyor ama
-  // baştaki/sondaki görünmeyen boşlukları etmiyor — bu yüzden artık TÜM
-  // unvan_maas satırları çekilip JS tarafında, HER İKİ taraf da
-  // (boşluklardan arındırılmış + büyük harfe çevrilmiş hâliyle)
-  // karşılaştırılıyor. Küçük bir tablo olduğu için performans sorunu
-  // yaratmaz, ama görünmeyen boşluk farkı gibi durumlara karşı çok daha
-  // dayanıklı.
   let brutMaas: number | null = null;
   let brutMaasHata: string | null = null;
   if (magazaHam.guncel_unvan) {
@@ -316,40 +322,4 @@ export async function getPersonelDetay(personelId: string): Promise<PersonelDeta
       brutMaasHata = unvanMaasHata.message;
     } else {
       const aranan = magazaHam.guncel_unvan.trim().toLocaleUpperCase("tr-TR");
-      const eslesen = (tumUnvanMaaslar ?? []).find((u: any) => u.unvan.trim().toLocaleUpperCase("tr-TR") === aranan);
-      brutMaas = eslesen?.brut_maas ?? null;
-    }
-  }
-
-  // Basit tahmini kıdem tazminatı: (tavanı aşmayan brüt maaş) × kıdem yılı.
-  // "Giydirilmiş ücret" değil, sade brüt maaş kullanılır — prim ve ek ücretler
-  // hariçtir, bu yüzden gerçek tutardan farklı (genelde daha düşük) çıkabilir.
-  let kidemTazminatiTahmini: number | null = null;
-  if (brutMaas != null && tavan != null && kidemAy != null) {
-    const esasAlinanMaas = Math.min(brutMaas, tavan);
-    kidemTazminatiTahmini = Math.round(esasAlinanMaas * (kidemAy / 12) * 100) / 100;
-  }
-
-  return {
-    dogum_tarihi: magazaHam.dogum_tarihi,
-    kan_grubu_kodu: magazaHam.kan_grubu_kodu,
-    uyruk: magazaHam.uyruk,
-    evli: magazaHam.evli,
-    onceki_is_yeri: magazaHam.onceki_is_yeri,
-    ihtarname: magazaHam.ihtarname,
-    uyari_yazisi: magazaHam.uyari_yazisi,
-    tutanak: magazaHam.tutanak,
-    ozel_mobil: magazaHam.ozel_mobil,
-    tc_kimlik_no: magazaHam.tc_kimlik_no,
-    personel_kodu: magazaHam.personel_kodu,
-    savunma: magazaHam.savunma,
-    notlar: magazaHam.notlar,
-    il_adi: magazaHam.magazalar?.il_adi ?? null,
-    ise_giris_tarihi: magazaHam.kidem_baslangic_tarihi ?? null,
-    kidem_ay: kidemAy,
-    brut_maas: brutMaas,
-    brut_maas_hata: brutMaasHata,
-    kidem_tazminati_tavani: tavan,
-    kidem_tazminati_tahmini: kidemTazminatiTahmini,
-  };
-}
+      const eslesen = (tumUnvanMaaslar ?? []).find((u: any) => u.unvan.trim().toLocaleUpperCase("tr-TR")
