@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import KullaniciDuzenle from "./KullaniciDuzenle";
 import YeniKullaniciFormu from "./YeniKullaniciFormu";
 import BilgiYetkileriTablosu from "./BilgiYetkileriTablosu";
+import KullaniciBedenGoster from "./KullaniciBedenGoster";
 import { getAlanGorunurlukAyarlari } from "./actions-alan-gorunurluk";
 
 export default async function KullanicilarPage() {
@@ -74,6 +75,7 @@ export default async function KullanicilarPage() {
               <th className="text-left px-3 py-2">E-posta</th>
               <th className="text-left px-3 py-2">Rol</th>
               <th className="text-left px-3 py-2">Bölge(ler)</th>
+              <th className="text-left px-3 py-2">Beden</th>
               <th className="text-left px-3 py-2">Durum</th>
               <th className="text-left px-3 py-2">İşlem</th>
             </tr>
@@ -86,6 +88,9 @@ export default async function KullanicilarPage() {
                 <td className="px-3 py-2 text-gray-600">{k.rol}</td>
                 <td className="px-3 py-2 text-gray-600">
                   {(bolgeAdMap[k.id] ?? []).join(", ") || "—"}
+                </td>
+                <td className="px-3 py-2">
+                  <KullaniciBedenGoster kullaniciId={k.id} />
                 </td>
                 <td className="px-3 py-2">
                   {k.aktif ? (
