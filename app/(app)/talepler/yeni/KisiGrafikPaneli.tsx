@@ -1,20 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import type { PersonelAylikHgo } from "./actions-cikarma";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import type { PersonelAylikHgo, KisiPerformansOrtalama } from "./actions-cikarma";
 import { useTemaKoyuMu, grafikRenkleri } from "@/lib/useTemaKoyuMu";
 
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
-// Grafiklerde seçilebilecek kişi bazlı satış değişkenleri.
-const KISI_DEGISKENLERI: { key: keyof PersonelAylikHgo; label: string; format: (v: number) => string }[] = [
-  { key: "hgo", label: "HGO (Ciro)", format: (v) => `%${v.toFixed(1)}` },
-  { key: "adet_hgo", label: "HGO (Adet)", format: (v) => `%${v.toFixed(1)}` },
-  { key: "gerceklesen_ciro_kdv_dahil", label: "Gerçekleşen Ciro", format: (v) => v.toLocaleString("tr-TR", { maximumFractionDigits: 0 }) },
-  { key: "gerceklesen_adet", label: "Gerçekleşen Adet", format: (v) => v.toLocaleString("tr-TR") },
-  { key: "brut_kar_marji", label: "Brüt Kâr Marjı", format: (v) => `%${(v * 100).toFixed(1)}` },
-  { key: "brut_satis_adeti", label: "Brüt Satış Adedi", format: (v) => v.toLocaleString("tr-TR") },
+// Kişi değişkeni <-> ortalama tablosundaki karşılık gelen alan.
+const KISI_DEGISKENLERI: { key: keyof PersonelAylikHgo; ortKey: keyof KisiPerformansOrtalama; label: string; format: (v: number) => string }[] = [
+  { key: "hgo", ortKey: "ort_hgo", label: "HGO (Ciro)", format: (v) => `%${v.toFixed(1)}` },
+  { key: "adet_hgo", ortKey: "ort_adet_hgo", label: "HGO (Adet)", format: (v) => `%${v.toFixed(1)}` },
+  { key: "gerceklesen_ciro_kdv_dahil", ortKey: "ort_gerceklesen_ciro_kdv_dahil", label: "Gerçekleşen Ciro", format: (v) => v.toLocaleString("tr-TR", { maximumFractionDigits: 0 }) },
+  { key: "gerceklesen_adet", ortKey: "ort_gerceklesen_adet", label: "Gerçekleşen Adet", format: (v) => v.toLocaleString("tr-TR") },
+  { key: "brut_kar_marji", ortKey: "ort_brut_kar_marji", label: "Brüt Kâr Marjı", format: (v) => `%${(v * 100).toFixed(1)}` },
+  { key: "brut_satis_adeti", ortKey: "ort_brut_satis_adeti", label: "Brüt Satış Adedi", format: (v) => v.toLocaleString("tr-TR") },
 ];
 
 const TARIH_ARALIKLARI = [
@@ -26,11 +26,13 @@ const TARIH_ARALIKLARI = [
 
 // Bağımsız bir grafik paneli — kendi değişken/tarih aralığı seçimini kendi
 // içinde tutar, böylece aynı sayfada birden fazla grafik birbirinden bağımsız
-// çalışabilir. Hem CikarmaForm hem Personel Listesi popup'ında kullanılır.
+// çalışabilir. Hem CikarmaForm hem Personel Listesi popup'ında hem Benim Performansım'da kullanılır.
+// sirketOrtalamasi verilirse, kişinin çizgisiyle birlikte gri kesikli "Şirket Geneli Ortalama" çizgisi gösterilir.
 export default function KisiGrafikPaneli({
-  gecmis, yukleniyor, varsayilanDegisken, hgoYuksek,
+  gecmis, yukleniyor, varsayilanDegisken, hgoYuksek, sirketOrtalamasi = [],
 }: {
   gecmis: PersonelAylikHgo[]; yukleniyor: boolean; varsayilanDegisken: keyof PersonelAylikHgo; hgoYuksek: boolean;
+  sirketOrtalamasi?: KisiPerformansOrtalama[];
 }) {
   const [degisken, setDegisken] = useState<keyof PersonelAylikHgo>(varsayilanDegisken);
   const [gorunum, setGorunum] = useState<"grafik" | "liste">("grafik");
@@ -45,16 +47,30 @@ export default function KisiGrafikPaneli({
     return gecmis.filter((g) => g.yil * 12 + g.ay > esikDonem);
   }, [gecmis, tarihAraligi]);
 
+  const ortalamaMap = useMemo(() => {
+    const m = new Map<string, number>();
+    sirketOrtalamasi.forEach((o) => {
+      const deger = o[tanim.ortKey];
+      if (deger !== null && deger !== undefined) m.set(`${o.yil}-${o.ay}`, Number(deger));
+    });
+    return m;
+  }, [sirketOrtalamasi, tanim]);
+
   const veri = useMemo(
     () => gecmisFiltrelenmis
       .filter((g) => g[degisken] !== null && g[degisken] !== undefined)
-      .map((g) => ({ etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`, deger: g[degisken] as number })),
-    [gecmisFiltrelenmis, degisken]
+      .map((g) => ({
+        etiket: `${AY_KISA[g.ay]} ${String(g.yil).slice(2)}`,
+        deger: g[degisken] as number,
+        ortalama: ortalamaMap.get(`${g.yil}-${g.ay}`) ?? null,
+      })),
+    [gecmisFiltrelenmis, degisken, ortalamaMap]
   );
 
   const koyuMu = useTemaKoyuMu();
   const rk = grafikRenkleri(koyuMu);
   const cizgiRengi = degisken === "hgo" && hgoYuksek ? rk.danger : degisken === "adet_hgo" ? rk.info : rk.navy;
+  const ortalamaVarMi = sirketOrtalamasi.length > 0;
 
   return (
     <div>
@@ -95,6 +111,7 @@ export default function KisiGrafikPaneli({
               <tr className="bg-gray-50 text-[9px] text-gray-400 uppercase sticky top-0">
                 <th className="text-left px-2 py-1.5">Dönem</th>
                 <th className="text-right px-2 py-1.5">{tanim.label}</th>
+                {ortalamaVarMi && <th className="text-right px-2 py-1.5">Şirket Ort.</th>}
               </tr>
             </thead>
             <tbody>
@@ -102,6 +119,9 @@ export default function KisiGrafikPaneli({
                 <tr key={i} className="border-t border-gray-50">
                   <td className="px-2 py-1.5 text-navy-3 font-medium">{v.etiket}</td>
                   <td className="px-2 py-1.5 text-right font-mono text-gray-700">{tanim.format(v.deger)}</td>
+                  {ortalamaVarMi && (
+                    <td className="px-2 py-1.5 text-right font-mono text-gray-400">{v.ortalama !== null ? tanim.format(v.ortalama) : "—"}</td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -114,7 +134,11 @@ export default function KisiGrafikPaneli({
             <XAxis dataKey="etiket" tick={{ fontSize: 9, fill: rk.eksenMetni }} />
             <YAxis tick={{ fontSize: 9, fill: rk.eksenMetni }} />
             <Tooltip formatter={(v: number) => tanim.format(v)} labelStyle={{ fontSize: 11, color: rk.tooltipMetin }} contentStyle={{ backgroundColor: rk.tooltipBg, borderColor: rk.tooltipBorder }} />
-            <Line type="monotone" dataKey="deger" stroke={cizgiRengi} strokeWidth={2} dot={{ r: 2.5 }} />
+            {ortalamaVarMi && <Legend wrapperStyle={{ fontSize: 10, color: rk.eksenMetni }} />}
+            <Line type="monotone" dataKey="deger" stroke={cizgiRengi} strokeWidth={2} dot={{ r: 2.5 }} name="Bu Kişi" connectNulls />
+            {ortalamaVarMi && (
+              <Line type="monotone" dataKey="ortalama" stroke={rk.ortalamaCizgi} strokeWidth={1.5} strokeDasharray="4 3" dot={{ r: 2 }} name="Şirket Geneli Ortalama" connectNulls />
+            )}
           </LineChart>
         </ResponsiveContainer>
       )}
