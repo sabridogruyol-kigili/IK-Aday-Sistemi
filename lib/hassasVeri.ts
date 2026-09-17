@@ -2,7 +2,7 @@
 // Bu dosya "use server" DEĞİL — sadece "use server" action dosyaları içinden
 // import edilen düz yardımcı fonksiyonlar barındırır.
 
-export const HASSAS_ALANLAR = ["tc_kimlik_no", "ozel_mobil", "dogum_tarihi", "kan_grubu_kodu", "brut_maas"] as const;
+export const HASSAS_ALANLAR = ["tc_kimlik_no", "ozel_mobil", "dogum_tarihi", "kan_grubu_kodu", "brut_maas", "beden_olculeri"] as const;
 export type HassasAlan = typeof HASSAS_ALANLAR[number];
 
 export const HASSAS_ALAN_ETIKET: Record<HassasAlan, string> = {
@@ -11,6 +11,7 @@ export const HASSAS_ALAN_ETIKET: Record<HassasAlan, string> = {
   dogum_tarihi: "Doğum Tarihi",
   kan_grubu_kodu: "Kan Grubu",
   brut_maas: "Brüt Maaş / Kıdem Tazminatı",
+  beden_olculeri: "Beden Ölçüleri",
 };
 
 // Ayarları değiştirebilecek roller dışındakiler (Yönetim hariç herkes) için
