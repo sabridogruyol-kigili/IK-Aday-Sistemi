@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { createIstenCikarmaTalebi, getPersonelPerformansGecmisi, getPersonelDetay, type PersonelAylikHgo, type PersonelDetay } from "./actions-cikarma";
+import { createIstenCikarmaTalebi, getPersonelPerformansGecmisi, getPersonelDetay, getKisiPerformansSirketOrtalamasi, type PersonelAylikHgo, type PersonelDetay, type KisiPerformansOrtalama } from "./actions-cikarma";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
 import KisiGrafikPaneli from "./KisiGrafikPaneli";
 
@@ -89,6 +89,11 @@ export default function CikarmaForm({
       setGecmisYukleniyor(false);
     });
   }, [seciliPersonelId]);
+
+  const [sirketOrtalamasi, setSirketOrtalamasi] = useState<KisiPerformansOrtalama[]>([]);
+  useEffect(() => {
+    getKisiPerformansSirketOrtalamasi().then(setSirketOrtalamasi);
+  }, []);
 
   const [detay, setDetay] = useState<PersonelDetay | null>(null);
   const [detayYukleniyor, setDetayYukleniyor] = useState(false);
@@ -280,8 +285,8 @@ export default function CikarmaForm({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="hgo" hgoYuksek={hgoYuksek} />
-          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="adet_hgo" hgoYuksek={hgoYuksek} />
+          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="hgo" hgoYuksek={hgoYuksek} sirketOrtalamasi={sirketOrtalamasi} />
+          <KisiGrafikPaneli gecmis={gecmis} yukleniyor={gecmisYukleniyor} varsayilanDegisken="adet_hgo" hgoYuksek={hgoYuksek} sirketOrtalamasi={sirketOrtalamasi} />
         </div>
 
         <div className="pt-3 border-t border-gray-100">
