@@ -44,9 +44,6 @@ const ICONS: Record<string, React.ReactNode> = {
   evrak: (
     <><path d="M8 3h5l5 5v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M13 3v5h5" /><path d="M9 13h6" /><path d="M9 17h4" /></>
   ),
-  karaliste: (
-    <><circle cx="12" cy="12" r="9" /><line x1="5.5" y1="18.5" x2="18.5" y2="5.5" /></>
-  ),
 };
 
 function NavIcon({ name }: { name: string }) {
