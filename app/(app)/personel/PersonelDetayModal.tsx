@@ -7,6 +7,7 @@ import {
 } from "../talepler/yeni/actions-cikarma";
 import KisiGrafikPaneli from "../talepler/yeni/KisiGrafikPaneli";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
+import KaraListeyeEkleModal from "../kara-liste/KaraListeyeEkleModal";
 
 function OzlukAlani({ label, value }: { label: string; value: string | null }) {
   return (
@@ -54,6 +55,7 @@ export default function PersonelDetayModal({
   const [isGecmisi, setIsGecmisi] = useState<PersonelIsGecmisiSatiri[]>([]);
   const [sirketOrtalamasi, setSirketOrtalamasi] = useState<KisiPerformansOrtalama[]>([]);
   const [yukleniyor, setYukleniyor] = useState(true);
+  const [karaListeModalAcik, setKaraListeModalAcik] = useState(false);
 
   useEffect(() => {
     setYukleniyor(true);
@@ -84,7 +86,17 @@ export default function PersonelDetayModal({
             <div className="text-sm font-semibold text-navy-3">{adSoyad}</div>
             <div className="text-[11px] text-gray-400">{guncelUnvan} — {magazaAdi}</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 text-lg leading-none">×</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setKaraListeModalAcik(true)}
+              disabled={!detay?.tc_kimlik_no}
+              title={!detay?.tc_kimlik_no ? "TC Kimlik No bulunamadı" : "Kara Listeye Ekle"}
+              className="text-[10px] font-medium bg-white border border-danger/40 text-danger hover:bg-danger-bg rounded-md px-2 py-1 transition-colors disabled:opacity-40"
+            >
+              Kara Listeye Ekle
+            </button>
+            <button onClick={onClose} className="text-gray-400 text-lg leading-none">×</button>
+          </div>
         </div>
 
         <div className="p-4 space-y-4">
@@ -178,6 +190,14 @@ export default function PersonelDetayModal({
           )}
         </div>
       </div>
+
+      {karaListeModalAcik && detay?.tc_kimlik_no && (
+        <KaraListeyeEkleModal
+          onClose={() => setKaraListeModalAcik(false)}
+          tcKimlikNo={detay.tc_kimlik_no}
+          adSoyad={adSoyad}
+        />
+      )}
     </div>
   );
 }
