@@ -205,7 +205,7 @@ export default function TalepForm({
             </div>
 
             <div>
-              <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" />
+              <MagazaGrafikPaneli aylikVeri={magazaBilgi.aylikVeri} varsayilanDegisken="hgo" sirketOrtalamasi={magazaBilgi.sirketOrtalamasi} bolgeOrtalamasi={magazaBilgi.bolgeOrtalamasi} bolgeAdi={magazaBilgi.bolge_adi} />
             </div>
 
             {magazaBilgi.calisanlar.length > 0 && (
