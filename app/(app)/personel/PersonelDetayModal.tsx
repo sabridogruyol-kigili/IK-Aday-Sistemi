@@ -7,7 +7,7 @@ import {
 } from "../talepler/yeni/actions-cikarma";
 import KisiGrafikPaneli from "../talepler/yeni/KisiGrafikPaneli";
 import { kidemYilAyFormat } from "@/lib/kidemFormat";
-import KaraListeyeEkleModal from "../kara-liste/KaraListeyeEkleModal";
+import OlumsuzReferansEkleModal from "../adaylar/olumsuz-referans/OlumsuzReferansEkleModal";
 
 function OzlukAlani({ label, value }: { label: string; value: string | null }) {
   return (
@@ -55,7 +55,7 @@ export default function PersonelDetayModal({
   const [isGecmisi, setIsGecmisi] = useState<PersonelIsGecmisiSatiri[]>([]);
   const [sirketOrtalamasi, setSirketOrtalamasi] = useState<KisiPerformansOrtalama[]>([]);
   const [yukleniyor, setYukleniyor] = useState(true);
-  const [karaListeModalAcik, setKaraListeModalAcik] = useState(false);
+  const [olumsuzReferansModalAcik, setOlumsuzReferansModalAcik] = useState(false);
 
   useEffect(() => {
     setYukleniyor(true);
@@ -88,12 +88,12 @@ export default function PersonelDetayModal({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setKaraListeModalAcik(true)}
+              onClick={() => setOlumsuzReferansModalAcik(true)}
               disabled={!detay?.tc_kimlik_no}
-              title={!detay?.tc_kimlik_no ? "TC Kimlik No bulunamadı" : "Kara Listeye Ekle"}
+              title={!detay?.tc_kimlik_no ? "TC Kimlik No bulunamadı" : "Olumsuz Referans Listesine Ekle"}
               className="text-[10px] font-medium bg-white border border-danger/40 text-danger hover:bg-danger-bg rounded-md px-2 py-1 transition-colors disabled:opacity-40"
             >
-              Kara Listeye Ekle
+              Olumsuz Referansa Ekle
             </button>
             <button onClick={onClose} className="text-gray-400 text-lg leading-none">×</button>
           </div>
@@ -191,9 +191,9 @@ export default function PersonelDetayModal({
         </div>
       </div>
 
-      {karaListeModalAcik && detay?.tc_kimlik_no && (
-        <KaraListeyeEkleModal
-          onClose={() => setKaraListeModalAcik(false)}
+      {olumsuzReferansModalAcik && detay?.tc_kimlik_no && (
+        <OlumsuzReferansEkleModal
+          onClose={() => setOlumsuzReferansModalAcik(false)}
           tcKimlikNo={detay.tc_kimlik_no}
           adSoyad={adSoyad}
         />
