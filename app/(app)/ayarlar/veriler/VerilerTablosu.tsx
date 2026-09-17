@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getPersonelSayfa, getPerformansKisiSayfa, getPerformansMagazaSayfa } from "./actions";
 import { personelTumunuSil, performansKisiTumunuSil, performansMagazaTumunuSil } from "../veri-aktarim/actions-silme";
+import { tcMaskle } from "@/lib/TcGoster";
 
 type Sekme = "personel" | "performans_kisi" | "performans_magaza";
 const AY_KISA = ["", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
@@ -21,6 +22,7 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
   const [sayfa, setSayfa] = useState(0);
   const [satirlar, setSatirlar] = useState<any[]>([]);
   const [toplam, setToplam] = useState(0);
+  const [hassasGoster, setHassasGoster] = useState(false);
   const [yukleniyor, setYukleniyor] = useState(false);
 
   // Arama kutusuna her tuş vuruşunda sorgu atmamak için kısa bir gecikme.
@@ -132,6 +134,14 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
           className="border border-gray-300 rounded-md px-2 py-1.5 text-xs w-64"
         />
         <div className="text-[11px] text-gray-400">{toplam} kayıt</div>
+        {sekme === "personel" && (
+          <button
+            onClick={() => setHassasGoster((v) => !v)}
+            className={`ml-auto text-[10px] font-medium rounded-md px-2 py-1 border ${hassasGoster ? "bg-danger-bg text-danger border-danger/30" : "bg-white text-gray-500 border-gray-200"}`}
+          >
+            {hassasGoster ? "🙈 TC'leri Gizle" : "👁 TC'leri Göster"}
+          </button>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-card overflow-x-auto">
@@ -158,7 +168,7 @@ export default function VerilerTablosu({ yenilemeTetik }: { yenilemeTetik?: numb
               {satirlar.map((p: any) => (
                 <tr key={p.id} className="border-t border-gray-100">
                   <td className="px-3 py-2 font-mono text-gray-500">{p.personel_kodu ?? "—"}</td>
-                  <td className="px-3 py-2 font-mono text-gray-500">{p.tc_kimlik_no}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{hassasGoster ? p.tc_kimlik_no : tcMaskle(p.tc_kimlik_no)}</td>
                   <td className="px-3 py-2 font-medium text-navy-3">{p.ad_soyad}</td>
                   <td className="px-3 py-2 text-gray-600">{p.guncel_unvan ?? "—"}</td>
                   <td className="px-3 py-2 text-gray-500">{p.kadro_kategorisi ?? "—"}</td>
