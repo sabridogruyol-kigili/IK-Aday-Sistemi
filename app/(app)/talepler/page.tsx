@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TaleplerTablosu from "./TaleplerTablosu";
+import { rolGorebilirMi } from "@/lib/hassasVeri";
 
 export default async function TaleplerPage() {
   const supabase = createClient();
@@ -108,13 +109,15 @@ export default async function TaleplerPage() {
     };
   });
 
+  const tcGorebilir = await rolGorebilirMi(supabase, me.rol, "tc_kimlik_no");
+
   return (
     <div>
       <div className="mb-4">
         <div className="text-lg font-semibold text-navy-3">Talepler</div>
         <div className="text-xs text-gray-400 mt-0.5">Yetkiniz dahilindeki tüm talepler</div>
       </div>
-      <TaleplerTablosu talepler={zenginlestirilmis} benimKullaniciId={me.id} benimRolum={me.rol} />
+      <TaleplerTablosu talepler={zenginlestirilmis} benimKullaniciId={me.id} benimRolum={me.rol} tcGorebilir={tcGorebilir} />
     </div>
   );
 }
