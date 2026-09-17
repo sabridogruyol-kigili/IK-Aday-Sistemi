@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPersonelDetay, getPersonelPerformansGecmisi, getKisiPerformansSirketOrtalamasi } from "../talepler/yeni/actions-cikarma";
+import { getKendiBedenOlculerim } from "./actions-beden";
 import BenimPerformansimIcerik from "./BenimPerformansimIcerik";
 
 export default async function BenimPerformansimPage() {
@@ -27,10 +28,11 @@ export default async function BenimPerformansimPage() {
     .eq("id", me.personel_id)
     .maybeSingle();
 
-  const [detay, gecmis, sirketOrtalamasi] = await Promise.all([
+  const [detay, gecmis, sirketOrtalamasi, bedenOlculeri] = await Promise.all([
     getPersonelDetay(me.personel_id),
     getPersonelPerformansGecmisi(me.personel_id),
     getKisiPerformansSirketOrtalamasi(),
+    getKendiBedenOlculerim(),
   ]);
 
   return (
@@ -41,7 +43,7 @@ export default async function BenimPerformansimPage() {
           {personel?.guncel_unvan ?? "—"} · {(personel as any)?.magazalar?.magaza_adi ?? "—"}
         </div>
       </div>
-      <BenimPerformansimIcerik personelId={me.personel_id} detay={detay} gecmis={gecmis} adSoyad={me.ad_soyad} sirketOrtalamasi={sirketOrtalamasi} />
+      <BenimPerformansimIcerik personelId={me.personel_id} detay={detay} gecmis={gecmis} adSoyad={me.ad_soyad} sirketOrtalamasi={sirketOrtalamasi} bedenOlculeri={bedenOlculeri} />
     </div>
   );
 }
