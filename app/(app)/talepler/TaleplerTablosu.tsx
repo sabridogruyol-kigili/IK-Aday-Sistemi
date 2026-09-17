@@ -5,8 +5,8 @@ import TalepRow from "./TalepRow";
 
 const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon", NORM_DEGISIKLIK: "Norm Değişikliği" };
 
-export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum }: {
-  talepler: any[]; benimKullaniciId: string; benimRolum: string;
+export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum, tcGorebilir }: {
+  talepler: any[]; benimKullaniciId: string; benimRolum: string; tcGorebilir: boolean;
 }) {
   const [kategoriFiltre, setKategoriFiltre] = useState<"AKTIF" | "PASIF" | "TUMU">("AKTIF");
   const [acanFiltre, setAcanFiltre] = useState("");
@@ -162,6 +162,7 @@ export default function TaleplerTablosu({ talepler, benimKullaniciId, benimRolum
                 redGerekce={t.redGerekce}
                 benimKullaniciId={benimKullaniciId}
                 benimRolum={benimRolum}
+                tcGorebilir={tcGorebilir}
                 baslangicAdaySayisi={t.adaySayisi}
                 acanAdi={t.acanAdi}
                 acanRol={t.acanRol}
