@@ -10,7 +10,7 @@ import AdayEkleModal from "./AdayEkleModal";
 import AdayStepper from "./AdayStepper";
 import IseAlModal from "./IseAlModal";
 import SurecDetayModal from "./SurecDetayModal";
-import TcGoster from "@/lib/TcGoster";
+import HassasAlanGoster from "@/lib/HassasAlanGoster";
 
 const TALEP_TURU_ETIKET: Record<string, string> = { ISE_ALIM: "İşe Alım", ISTEN_CIKARMA: "İşten Çıkarma", ROTASYON: "Rotasyon", NORM_DEGISIKLIK: "Norm Değişikliği" };
 const DURUM_RENK: Record<string, string> = {
@@ -46,14 +46,14 @@ type Aday = {
   id: string; ad_soyad: string; telefon: string | null; email: string | null; cinsiyet: string | null; cv_drive_link: string | null;
   yonlendiren_rol: string; karari_veren_rol: string; durum: string; yonlendiren_kullanici_id: string; onay_tarihi: string | null;
   onay_bm: string | null; onay_ik: string | null; mulakat_bm: string | null; mulakat_ik: string | null;
-  tc_kimlik_no: string | null; ise_baslama_tarihi: string | null; evrak_etiket: string | null;
+  tc_var: boolean; ise_baslama_tarihi: string | null; evrak_etiket: string | null;
 };
 
 export default function TalepRow({
-  talep, redGerekce, benimKullaniciId, benimRolum, baslangicAdaySayisi, acanAdi, acanRol, benimAcimMi, gorunumEtiket,
+  talep, redGerekce, benimKullaniciId, benimRolum, baslangicAdaySayisi, acanAdi, acanRol, benimAcimMi, gorunumEtiket, tcGorebilir,
 }: {
   talep: Talep; redGerekce?: string; benimKullaniciId: string; benimRolum: string; baslangicAdaySayisi: number;
-  acanAdi?: string; acanRol?: string; benimAcimMi: boolean; gorunumEtiket?: string;
+  acanAdi?: string; acanRol?: string; benimAcimMi: boolean; gorunumEtiket?: string; tcGorebilir: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -410,7 +410,9 @@ export default function TalepRow({
                             {a.onay_tarihi ? new Date(a.onay_tarihi).toLocaleDateString("tr-TR") : "—"}
                           </td>
                           <td className="px-3 py-2 text-gray-600 font-mono text-[10px]">
-                            <TcGoster tc={a.tc_kimlik_no} />
+                            {a.tc_var ? (
+                              <HassasAlanGoster hedefTablo="adaylar" hedefId={a.id} alan="tc_kimlik_no" gorebilir={tcGorebilir} placeholder="•••••••••••" />
+                            ) : "—"}
                           </td>
                           <td className="px-3 py-2 text-gray-600 font-mono text-[10px]">
                             {a.ise_baslama_tarihi ? new Date(a.ise_baslama_tarihi).toLocaleDateString("tr-TR") : "—"}
