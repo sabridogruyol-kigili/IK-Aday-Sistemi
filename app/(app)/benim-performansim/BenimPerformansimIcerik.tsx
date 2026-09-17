@@ -2,7 +2,7 @@
 
 import KisiGrafikPaneli from "../talepler/yeni/KisiGrafikPaneli";
 import type { PersonelDetay } from "../talepler/yeni/actions-cikarma";
-import type { PersonelAylikHgo } from "../talepler/yeni/actions-cikarma";
+import type { PersonelAylikHgo, KisiPerformansOrtalama } from "../talepler/yeni/actions-cikarma";
 
 function Alan({ label, value }: { label: string; value: string }) {
   return (
@@ -14,9 +14,9 @@ function Alan({ label, value }: { label: string; value: string }) {
 }
 
 export default function BenimPerformansimIcerik({
-  detay, gecmis, adSoyad,
+  detay, gecmis, adSoyad, sirketOrtalamasi,
 }: {
-  detay: PersonelDetay | null; gecmis: PersonelAylikHgo[]; adSoyad: string;
+  detay: PersonelDetay | null; gecmis: PersonelAylikHgo[]; adSoyad: string; sirketOrtalamasi: KisiPerformansOrtalama[];
 }) {
   const ortalamaHgo = gecmis.filter((g) => g.hgo != null).length > 0
     ? gecmis.reduce((s, g) => s + (g.hgo ?? 0), 0) / gecmis.filter((g) => g.hgo != null).length
@@ -39,12 +39,12 @@ export default function BenimPerformansimIcerik({
 
       <div className="bg-white border border-gray-200 rounded-card p-4">
         <div className="text-[10px] font-semibold text-navy-3 uppercase tracking-wide mb-2">Aylık HGO (Ciro)</div>
-        <KisiGrafikPaneli gecmis={gecmis} yukleniyor={false} varsayilanDegisken="hgo" hgoYuksek={hgoYuksek} />
+        <KisiGrafikPaneli gecmis={gecmis} yukleniyor={false} varsayilanDegisken="hgo" hgoYuksek={hgoYuksek} sirketOrtalamasi={sirketOrtalamasi} />
       </div>
 
       <div className="bg-white border border-gray-200 rounded-card p-4">
         <div className="text-[10px] font-semibold text-navy-3 uppercase tracking-wide mb-2">Aylık HGO (Adet)</div>
-        <KisiGrafikPaneli gecmis={gecmis} yukleniyor={false} varsayilanDegisken="adet_hgo" hgoYuksek={hgoYuksek} />
+        <KisiGrafikPaneli gecmis={gecmis} yukleniyor={false} varsayilanDegisken="adet_hgo" hgoYuksek={hgoYuksek} sirketOrtalamasi={sirketOrtalamasi} />
       </div>
     </div>
   );
