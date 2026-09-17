@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { karaListeyeEkle } from "../../kara-liste/actions";
+import { olumsuzReferansaEkle } from "../../adaylar/olumsuz-referans/actions";
 
 type Sonuc = { error?: string; norm_uyari?: string };
 
@@ -170,14 +170,14 @@ export async function createIstenCikarmaTalebi(formData: FormData): Promise<Sonu
     await supabase.from("talep_onaylari").insert(onaySatirlari);
   }
 
-  // Talep açılırken "Kara Listeye Ekle" işaretlendiyse — talebin kendisinin
-  // onaylanıp onaylanmayacağından bağımsız olarak, kişi burada kara listeye
+  // Talep açılırken "Olumsuz Referans Listesine Ekle" işaretlendiyse — talebin
+  // kendisinin onaylanıp onaylanmayacağından bağımsız olarak, kişi burada
   // eklenir (ya da BM/İK ise Yönetim onayına düşer). Bu adımın başarısız
   // olması ana talebi geçersiz kılmaz, sessizce yutulur.
-  const karaListesineEkle = formData.get("kara_listesine_ekle") === "true";
-  const karaListeAciklamasi = String(formData.get("kara_liste_aciklamasi") ?? "").trim();
-  if (karaListesineEkle && karaListeAciklamasi && personel.tc_kimlik_no) {
-    await karaListeyeEkle(personel.tc_kimlik_no, personel.ad_soyad, karaListeAciklamasi).catch(() => {});
+  const olumsuzReferansaEklensinMi = formData.get("olumsuz_referansa_ekle") === "true";
+  const olumsuzReferansAciklamasi = String(formData.get("olumsuz_referans_aciklamasi") ?? "").trim();
+  if (olumsuzReferansaEklensinMi && olumsuzReferansAciklamasi && personel.tc_kimlik_no) {
+    await olumsuzReferansaEkle(personel.tc_kimlik_no, personel.ad_soyad, olumsuzReferansAciklamasi).catch(() => {});
   }
 
   revalidatePath("/talepler");
